@@ -51,7 +51,40 @@ def _clean_code(code: str) -> str:
     for suffix in ("\n```", "```"):
         if code.endswith(suffix):
             code = code[:-len(suffix)]
-    return code.strip()
+    code = code.strip()
+
+    # ---- 防护 1: LLM 常用 .max() 而非 jnp.max(jnp.abs(...)) ----
+    # JAX 的 .max() 在纯负值网格上返回 0。自动替换。
+    import re
+    code = re.sub(
+        r'(?<![a-zA-Z_])'
+        r'(\b[a-zA-Z_]\w*)\.max\(\s*\)',
+        lambda m: (
+            f'jnp.max(jnp.abs({m.group(1)}))'
+            if m.group(1) not in ('jnp', 'jax', 'numpy', 'np')
+            else m.group(0)
+        ),
+        code,
+    )
+
+    # ---- 防护 2: LLM 错误地用 .params[0] 取第一帧 ----
+    # jwave simulate_wave_propagation 返回 shape=(Nt, Nx, Ny, 1)，
+    # .params[0] 是 t=0 时刻（全零）。正确做法是对所有帧取 max。
+    code = re.sub(
+        r'\.params\s*\[\s*0\s*\]',
+        '.params',
+        code,
+    )
+
+    # ---- 防护 3: LLM 错误地用 .params[-1] 取最后一帧 ----
+    # 最后一帧可能也不是最大值所在，改为取全部帧
+    code = re.sub(
+        r'\.params\s*\[\s*-\s*1\s*\]',
+        '.params',
+        code,
+    )
+
+    return code
 
 
 def _execute_code(code: str, timeout_seconds: int) -> dict[str, Any]:
@@ -85,7 +118,9 @@ def _llm_fix_code(api_key: str, model: str, code: str, result: dict[str, Any]) -
         "- TypeError: Sources.__init__() takes N positional arguments → use positional args, no keyword args\n"
         "- TypeError: signals must be array-like → signals must be 2D jnp array, shape=(num_sources, Nt)\n"
         "- TypeError: positions must be → positions must be tuple of 1D arrays\n"
-        "- **CRITICAL - Sources returns all zeros**: positions must be INTEGERS (int32), NOT floats. Use jnp.array([64]) not jnp.array([64.0]). Float positions cause JAX .at[] index to fail silently in JIT, producing zero output.\n\n"
+        "- **CRITICAL - Sources returns all zeros**: positions must be INTEGERS (int32), NOT floats. Use jnp.array([64]) not jnp.array([64.0]). Float positions cause JAX .at[] index to fail silently in JIT, producing zero output.\n"
+        "- **CRITICAL - pressure.params[0] is t=0 (all zeros)!**: simulate_wave_propagation returns a FourierSeries with shape (Nt, Nx, Ny, 1). params[0] extracts ONLY the first time step (t=0) where nothing has propagated yet. Correct: use jnp.max(jnp.abs(p.params)) for global max, or p.params[-1] for the final frame.\n"
+        "- **CRITICAL - .max() returns 0 on negative grids**: don't use x.max() or pressure.max(). ALWAYS use jnp.max(jnp.abs(x)). This is a JAX behavior where .max() returns 0 when all values are negative.\n\n"
         "EXECUTION RESULT:\n"
         f"- exit_code: {result.get('exit_code')}\n"
         f"- timed_out: {result.get('timed_out')}\n"

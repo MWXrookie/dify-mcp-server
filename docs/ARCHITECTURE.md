@@ -1,0 +1,679 @@
+# 技术方案与架构设计
+
+> 版本 v1.0 | 2026-08-08 | 关联: AGENTS.md, PRD.md
+
+---
+
+## 目录
+
+1. [架构总览](#1-架构总览)
+2. [数据流](#2-数据流)
+3. [组件设计](#3-组件设计)
+4. [接口规范](#4-接口规范)
+5. [数据模型](#5-数据模型)
+6. [安全模型](#6-安全模型)
+7. [部署方案](#7-部署方案)
+8. [演进路线](#8-演进路线)
+
+---
+
+## 1. 架构总览
+
+### 1.1 系统架构图
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                            用户入口层                                    │
+│                                                                         │
+│  ┌──────────────────────────┐     ┌──────────────────────────┐         │
+│  │  Web Chat (Gradio)       │     │  Dify 原生 Chat           │         │
+│  │  :7860 (P1 新增)         │     │  :80 → :3000             │         │
+│  │  • 对话界面               │     │  (已有, MVP 可用)          │         │
+│  │  • 图片渲染               │     │                          │         │
+│  │  • 仿真历史               │     │                          │         │
+│  └───────────┬──────────────┘     └───────────┬──────────────┘         │
+│              │                                │                         │
+│              │  HTTP/SSE (Dify Chat API)      │                         │
+│              ▼                                ▼                         │
+├─────────────────────────────────────────────────────────────────────────┤
+│                          编排层 (Dify 1.16.1)                            │
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │  Docker Network: docker_default (external)                       │   │
+│  │                                                                  │   │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────────┐   │   │
+│  │  │  Nginx    │  │  API     │  │  Worker  │  │  PostgreSQL   │   │   │
+│  │  │  :80/443  │  │  :5001   │  │  :5001   │  │  :5432        │   │   │
+│  │  └──────────┘  └──────────┘  └────┬─────┘  └──────────────┘   │   │
+│  │                                   │                             │   │
+│  │              ┌────────────────────┘                             │   │
+│  │              │  工作流 "仿真智能体" (App ID: 0592503e-...)       │   │
+│  │              │                                                  │   │
+│  │  ┌───────────┴───────────┐                                      │   │
+│  │  │ 节点管道               │                                      │   │
+│  │  │                       │                                      │   │
+│  │  │ Start → 需求分析(LLM) │                                      │   │
+│  │  │   → 知识检索(top_k=4) │ ← Weaviate + qwen3-rerank           │   │
+│  │  │   → 模板转换          │                                      │   │
+│  │  │   → 参数提取(LLM)     │                                      │   │
+│  │  │   → [参数校验] NEW     │ ──────────────────┐                 │   │
+│  │  │   → 代码生成(LLM)     │                   │                 │   │
+│  │  │   → MCP retry         │ ────────┐         │                 │   │
+│  │  │   → [结果分析] NEW     │ ────┐   │         │                 │   │
+│  │  │   → [审查决策] NEW     │ ─┐  │   │         │                 │   │
+│  │  │   → [结果解释] NEW     │  │  │   │         │                 │   │
+│  │  │   → End               │  │  │   │         │                 │   │
+│  │  │                       │  │  │   │         │                 │   │
+│  │  │  迭代循环: [retry] ───┘  │  │   │         │                 │   │
+│  │  │   回到参数提取 (≤3次)     │  │   │         │                 │   │
+│  │  └──────────────────────────┘  │   │         │                 │   │
+│  └────────────────────────────────┼───┼─────────┼─────────────────┘   │
+│                                   │   │         │                     │
+├───────────────────────────────────┼───┼─────────┼─────────────────────┤
+│                        工具层 (MCP Server)             │               │
+│                                   │   │         │                     │
+│  ┌────────────────────────────────┼───┼─────────┼─────────────────┐   │
+│  │  Docker: dify-mcp (:8001)      │   │         │                 │   │
+│  │  Networks: dify_default + executor_internal │                   │   │
+│  │                                 │   │         │                 │   │
+│  │  ┌──────────────────────────────┼───┼─────────┼───────────┐   │   │
+│  │  │ FastMCP Gateway              │   │         │           │   │   │
+│  │  │ • Bearer Token 认证          │   │         │           │   │   │
+│  │  │ • /health, /dashboard       │   │         │           │   │   │
+│  │  │                              │   │         │           │   │   │
+│  │  │ ┌────────────────────────────┼───┼─────────┼─────┐    │   │   │
+│  │  │ │ 已有工具                   │   │         │     │    │   │   │
+│  │  │ │ • list_installed_libraries │   │         │     │    │   │   │
+│  │  │ │ • jwave_environment       │   │         │     │    │   │   │
+│  │  │ │ • run_jwave_code          │───┘         │     │    │   │   │
+│  │  │ │ • run_jwave_code_with_retry│            │     │    │   │   │
+│  │  │ │ • run_allowlisted_tool    │             │     │    │   │   │
+│  │  │ └────────────────────────────┼─────────────┼─────┘    │   │   │
+│  │  │                               │             │          │   │   │
+│  │  │ ┌─────────────────────────────┼─────────────┼─────┐   │   │   │
+│  │  │ │ P1 新增工具                 │             │     │   │   │   │
+│  │  │ │ • validate_simulation_params│             │     │   │   │   │
+│  │  │ │ • analyze_simulation_result │             │     │   │   │   │
+│  │  │ └─────────────────────────────┼─────────────┼─────┘   │   │   │
+│  │  └───────────────────────────────┼─────────────┼─────────┘   │   │
+│  │                                  │             │             │   │
+│  │  ┌───────────────────────────────┼─────────────┼─────────┐   │   │
+│  │  │ DeepSeek API 调用             │             │         │   │   │
+│  │  │ • 纠错: _llm_fix_code()       │             │         │   │   │
+│  │  │ • 外网: api.deepseek.com     │             │         │   │   │
+│  │  └───────────────────────────────┼─────────────┼─────────┘   │   │
+│  │                                  │             │             │   │
+│  │  ┌───────────────────────────────┼─────────────┼─────────┐   │   │
+│  │  │ Dashboard                    │             │         │   │   │
+│  │  │ • SQLite: /app/data/execution_history.db  │         │   │   │
+│  │  │ • Web: /dashboard            │             │         │   │   │
+│  │  │ • API: /dashboard/api/executions          │         │   │   │
+│  │  └───────────────────────────────┼─────────────┼─────────┘   │   │
+│  └──────────────────────────────────┼─────────────┼─────────────┘   │
+│                                     │             │                 │
+├─────────────────────────────────────┼─────────────┼─────────────────┤
+│                        执行层 (Docker Sandbox)        │               │
+│                                     │             │                 │
+│  ┌──────────────────────────────────┼─────────────┼─────────────┐   │
+│  │  Docker: jwave-executor (:8010) │             │             │   │
+│  │  Network: executor_internal (无外网)            │             │   │
+│  │                                  │             │             │   │
+│  │  ┌───────────────────────────────┼─────────────┼─────────┐   │   │
+│  │  │ HTTP Server (executor.py)     │             │         │   │   │
+│  │  │ • POST /execute - 代码执行     │             │         │   │   │
+│  │  │ • GET  /health  - 健康检查     │             │         │   │   │
+│  │  │ • Token: HMAC compare_digest  │             │         │   │   │
+│  │  └───────────────────────────────┼─────────────┼─────────┘   │   │
+│  │                    │              │             │             │   │
+│  │                    ▼              │             │             │   │
+│  │  ┌────────────────────────────────┼─────────────┼─────────┐   │   │
+│  │  │ Subprocess Executor           │             │         │   │   │
+│  │  │ • /opt/jwave/bin/python -I main.py          │         │   │   │
+│  │  │ • start_new_session (进程隔离)  │             │         │   │   │
+│  │  │ • resource.setrlimit (CPU/FSIZE/NOFILE/NPROC)          │   │   │
+│  │  │ • timeout → killpg (整棵进程树) │             │         │   │   │
+│  │  │ • tmpfs: /tmp (noexec,nosuid,nodev)          │         │   │   │
+│  │  └────────────────────────────────┼─────────────┼─────────┘   │   │
+│  │                                   │             │             │   │
+│  │  安全检查:                        │             │             │   │
+│  │  • cap_drop: ALL                  │             │             │   │
+│  │  • no-new-privileges: true        │             │             │   │
+│  │  • read_only: true (除 /tmp)       │             │             │   │
+│  │  • pids_limit: 256                │             │             │   │
+│  │  • mem_limit: 4g                  │             │             │   │
+│  │  • cpus: 2.0                      │             │             │   │
+│  └───────────────────────────────────┼─────────────┼─────────────┘   │
+│                                      │             │                 │
+├──────────────────────────────────────┼─────────────┼─────────────────┤
+│                           外部依赖    │             │                 │
+│                                      │             │                 │
+│  ┌────────────┐  ┌──────────────┐   │             │                 │
+│  │ DeepSeek   │  │ Dify 知识库   │   │             │                 │
+│  │ API        │  │ (Weaviate)   │   │             │                 │
+│  │ (纠错 LLM) │  │ (向量检索)    │   │             │                 │
+│  └────────────┘  └──────────────┘   │             │                 │
+│                                      │             │                 │
+│  ┌────────────┐  ┌──────────────┐   │             │                 │
+│  │ jwave      │  │ JAX          │   │             │                 │
+│  │ 0.2.1      │  │ 0.4.30 (CPU) │   │             │                 │
+│  └────────────┘  └──────────────┘   │             │                 │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 1.2 网络拓扑
+
+```
+                    ┌────────────────────────────┐
+                    │      宿主机                 │
+                    │  192.168.30.200             │
+                    └────────────────────────────┘
+                                    │
+        ┌───────────────────────────┼───────────────────────────┐
+        │                           │                           │
+        ▼                           ▼                           ▼
+┌───────────────┐         ┌───────────────┐         ┌───────────────┐
+│ docker_default │         │ executor_int. │         │ docker_sandbox│
+│ (external)     │         │ (internal)    │         │ (internal)    │
+│               │         │               │         │               │
+│ • nginx :80   │         │ • dify-mcp    │         │ • sandbox     │
+│ • api :5001   │◄────────│   :8001       │────────►│   :5004       │
+│ • worker      │         │               │         │               │
+│ • postgres    │         │ • jwave-exec  │         │               │
+│ • weaviate    │         │   :8010       │         │               │
+│ • redis       │         │               │         │               │
+└──────┬────────┘         └───────────────┘         └───────────────┘
+       │
+       ▼
+  外部网络 (DeepSeek API)
+```
+
+**关键隔离**：
+- jwave-executor **仅连** `executor_internal`（`internal: true`），不能访问外网和其他容器
+- dify-mcp **双网卡**：连 `docker_default`（访问 Dify）和 `executor_internal`（访问 executor）
+- dify-mcp 的 **read_only: true** + tmpfs /tmp，不可写文件系统
+
+---
+
+## 2. 数据流
+
+### 2.1 一次完整仿真的数据流
+
+```
+时间线 →
+
+T0: 用户输入 "仿真 5MHz 超声在含 3mm 囊肿的软组织中传播"
+  │
+T1: [需求分析] LLM (deepseek-v4-flash, temp 0.7)
+  │  输入: user_query
+  │  输出: 结构化需求描述 (str)
+  │
+T2: [知识检索] top_k=4 + qwen3-rerank
+  │  输入: user_query + 需求描述
+  │  输出: 4 个文档片段 (list[Document])
+  │
+T3: [模板转换]
+  │  输入: 检索结果
+  │  输出: 拼接的文本 (str)
+  │
+T4: [参数提取] LLM (deepseek-v4-flash, temp 0.3)
+  │  输入: 用户需求 + 知识库文本
+  │  输出: JSON {sound_speed, density, frequency, Nx, Ny, dx, ...}
+  │
+T5: [参数校验] MCP validate_simulation_params ← NEW (P1)
+  │  输入: 参数 JSON
+  │  输出: {valid: true/false, errors: [...], warnings: [...]}
+  │  失败 → 回到 T4 + 修正建议
+  │
+T6: [代码生成] LLM (deepseek-coder, temp 0.1)
+  │  输入: 参数 JSON + 知识库 API 参考
+  │  输出: Python 代码 (纯文本, 无 markdown)
+  │
+T7: [沙箱执行] MCP run_jwave_code_with_retry
+  │  输入: code, timeout=15s, max_retries=7
+  │  流程:
+  │    a. _clean_code(code) — 去除可能的 markdown 包裹
+  │    b. httpx POST → jwave-executor:8010/execute
+  │    c. executor: subprocess.Popen("/opt/jwave/bin/python -I main.py")
+  │    d. 成功 → 返回 {exit_code:0, stdout, stderr, duration_ms}
+  │    e. 失败 → _llm_fix_code() 调用 DeepSeek 纠错 → retry (≤7次)
+  │  输出: {final_code, history: [{attempt, exit_code, ...}], stdout, stderr}
+  │
+T8: [结果分析] MCP analyze_simulation_result ← NEW (P1)
+  │  输入: stdout, stderr, exit_code, params
+  │  流程:
+  │    a. 解析 stdout 中的压力场数据
+  │    b. 计算 max_pressure, rms
+  │    c. matplotlib 生成热力图 PNG → base64
+  │    d. 合理性检查 (全零? 量级对?)
+  │  输出: {has_signal, max_pressure, heatmap_base64, verdict, summary}
+  │
+T9: [审查决策] LLM (deepseek-chat, temp 0.2)
+  │  输入: 用户需求 + 分析结果
+  │  输出: JSON {verdict: "pass"|"retry"|"fail", suggestion/error}
+  │  retry → 回到 T4 (iter < 3)   fail → 进入 T10 (错误解释)
+  │
+T10: [结果解释] LLM (deepseek-chat, temp 0.5) ← NEW (P1)
+  │   输入: 用户需求 + 参数 + 分析摘要 + 审查结论
+  │   输出: 自然语言解读 (含关键数值 + 物理意义 + 图片)
+  │
+T11: 返回用户 (聊天消息, 含图片)
+  │
+  │  更新 conversation variable: last_params, last_summary
+  │  写入 SQLite: record_execution(...)
+```
+
+### 2.2 多轮对话数据流
+
+```
+第 1 轮: 用户 "5MHz 超声在软组织中"
+  → 完整流程 T0-T11
+  → 存入 conversation.last_params
+  → 存入 conversation.last_summary
+
+第 2 轮: 用户 "换成 3MHz"
+  → T4 参数提取时注入: "上次参数: {last_params}。只修改 frequency=3e6，其余不变"
+  → T4 输出: {..., frequency: 3e6, sound_speed: 1540, ...} (只改 frequency)
+  → T5-T11 正常流程
+```
+
+---
+
+## 3. 组件设计
+
+### 3.1 MCP Gateway (`server_safe.py`)
+
+```
+类/函数层次:
+
+FastMCP("Dify JWave Tools")
+├── auth: StaticTokenVerifier (Bearer Token)
+│
+├── MCP Tools (通过 @mcp.tool 注册)
+│   ├── list_installed_libraries()          → 环境信息
+│   ├── jwave_environment()                 → executor 健康检查
+│   ├── run_jwave_code(code, timeout)        → 直接执行
+│   ├── run_jwave_code_with_retry(code, timeout, max_retries)
+│   │   └── _execute_code() → httpx POST executor
+│   │   └── _llm_fix_code() → httpx POST deepseek
+│   │   └── _clean_code()   → 去 markdown 包裹
+│   ├── run_allowlisted_tool(tool_name, args_json)  → 白名单
+│   ├── validate_simulation_params(params_json)     → [P1 NEW]
+│   └── analyze_simulation_result(stdout, stderr, ...) → [P1 NEW]
+│
+├── HTTP Routes (通过 @mcp.custom_route 注册)
+│   ├── GET  /health                         → "ok"
+│   ├── GET  /dashboard                      → HTML 看板
+│   └── GET  /dashboard/api/executions       → JSON API
+│
+└── 启动: mcp.run(transport="http", host="0.0.0.0", port=8001, path="/mcp", stateless_http=True)
+```
+
+### 3.2 jwave Executor (`executor/executor.py`)
+
+```
+HTTPServer (BaseHTTPRequestHandler)
+├── do_GET("/health")    → {status, python, libraries}
+├── do_POST("/execute")
+│   ├── 验证 X-Executor-Token (hmac.compare_digest)
+│   ├── 解析 JSON body {code, timeout_seconds}
+│   ├── execute(payload)
+│   │   ├── 写入临时文件 main.py
+│   │   ├── subprocess.Popen("/opt/jwave/bin/python -I main.py")
+│   │   │   ├── start_new_session=True
+│   │   │   ├── preexec_fn: resource.setrlimit (CPU/FSIZE/NOFILE/NPROC)
+│   │   │   └── env: JAX_PLATFORMS=cpu, PYTHONUNBUFFERED=1
+│   │   ├── process.wait(timeout)
+│   │   ├── TimeoutExpired → os.killpg (整棵进程树)
+│   │   ├── 读取 stdout/stderr (截断 ≤1MB)
+│   │   └── 返回 {exit_code, timed_out, duration_ms, stdout, stderr}
+│   └── _send(status, payload)
+```
+
+### 3.3 Dashboard (`dashboard.py`)
+
+```
+函数层级:
+├── init_db()              → 创建 executions 表
+├── record_execution(...)  → INSERT 一条记录
+├── get_executions(limit, since_id) → SELECT (分页)
+├── get_stats()            → 统计 (总数/成功/失败/超时)
+└── DASHBOARD_HTML         → 内嵌单页 HTML + JS
+    ├── 自动刷新 (3s polling)
+    ├── 点击展开详情 (代码/stdout/stderr tabs)
+    └── 统计卡片 (总/成功/失败/超时)
+```
+
+### 3.4 知识库
+
+```
+Dify Knowledge Base
+├── Dataset: bc9aeb94-de93-4210-8e7d-5b932a731252
+├── Documents: (多个 markdown 文件)
+│   ├── jwave_api_reference.md     (已有, 需更新)
+│   ├── simulation_templates.md    (P1 NEW)
+│   ├── parameter_guide.md         (P1 NEW)
+│   ├── physics_rules.md           (P1 NEW)
+│   └── troubleshooting.md         (P1 NEW)
+├── Indexing: Weaviate 向量嵌入
+├── Retrieval: top_k=4 + qwen3-rerank
+└── 编辑流程: [[kb-edit-process]]
+```
+
+### 3.5 Web 前端 (P1 新增)
+
+```
+frontend/app.py (Gradio)
+├── gr.ChatInterface(chat)
+│   ├── 发送消息 → Dify Chat API (HTTP POST)
+│   ├── 流式接收 SSE → 逐 token 更新气泡
+│   ├── 图片渲染 → base64 → <img> 标签嵌入
+│   └── 历史加载 → Dify conversations API
+│
+├── Tab: 仿真历史
+│   └── 调用 Dashboard API → 列表展示
+│
+└── 启动: app.launch(server_name="0.0.0.0", server_port=7860)
+```
+
+---
+
+## 4. 接口规范
+
+### 4.1 MCP 工具接口
+
+所有 MCP 工具通过 JSON-RPC 2.0 over HTTP 暴露，端点: `POST http://192.168.30.200:8001/mcp`。
+
+**认证**: `Authorization: Bearer <MCP_AUTH_TOKEN>`
+
+#### 4.1.1 run_jwave_code
+
+```
+请求:
+{
+  "jsonrpc": "2.0",
+  "method": "tools/call",
+  "params": {
+    "name": "run_jwave_code",
+    "arguments": {
+      "code": "import jax.numpy as jnp; print(jnp.ones(3))",
+      "timeout_seconds": 15
+    }
+  }
+}
+
+响应:
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "exit_code": 0,
+    "timed_out": false,
+    "duration_ms": 234.5,
+    "stdout": "[1. 1. 1.]\n",
+    "stderr": ""
+  }
+}
+```
+
+#### 4.1.2 run_jwave_code_with_retry
+
+```
+请求: 同上 + "max_retries": 7
+
+响应: 同上 + {
+  "final_code": "...",
+  "history": [
+    {"attempt": 1, "exit_code": 1, "stderr_tail": "AttributeError: ..."},
+    {"attempt": 2, "exit_code": 0, "stdout_tail": "max_pressure: 620.5"}
+  ],
+  "total_attempts": 2
+}
+```
+
+#### 4.1.3 validate_simulation_params (P1 NEW)
+
+```
+请求:
+{
+  "name": "validate_simulation_params",
+  "arguments": {
+    "params_json": "{\"sound_speed\": 1540, \"source_frequency\": 5e6, ...}"
+  }
+}
+
+响应:
+{
+  "valid": false,
+  "errors": [
+    {"field": "domain_dx", "message": "dx(0.001m) exceeds Nyquist limit for 5MHz", "suggestion": "dx ≤ 0.000077m"}
+  ],
+  "warnings": []
+}
+```
+
+#### 4.1.4 analyze_simulation_result (P1 NEW)
+
+```
+请求:
+{
+  "name": "analyze_simulation_result",
+  "arguments": {
+    "stdout": "...",
+    "stderr": "...",
+    "exit_code": 0,
+    "params_json": "{...}"
+  }
+}
+
+响应:
+{
+  "has_signal": true,
+  "max_pressure": 620.5,
+  "rms_pressure": 89.2,
+  "field_shape": [128, 128],
+  "heatmap_base64": "iVBORw0KGgo...",
+  "verdict": "normal",
+  "summary": "峰值压力 620.5 Pa, RMS 89.2 Pa, 网格 128×128"
+}
+```
+
+### 4.2 Executor HTTP 接口
+
+```
+GET /health
+Headers: X-Executor-Token: <EXECUTOR_SHARED_TOKEN>
+→ 200 {"status": "ok", "python": "/opt/jwave/bin/python", "libraries": [...]}
+
+POST /execute
+Headers: X-Executor-Token: <EXECUTOR_SHARED_TOKEN>, Content-Type: application/json
+Body: {"code": "print(1+1)", "timeout_seconds": 15}
+→ 200 {"exit_code": 0, "timed_out": false, "duration_ms": 12.3, "stdout": "2\n", "stderr": ""}
+→ 401 {"error": "unauthorized"}
+→ 400 {"error": "..."}
+```
+
+### 4.3 Dify Chat API
+
+```
+POST /v1/chat-messages
+Headers: Authorization: Bearer <DIFY_APP_API_KEY>
+Body: {
+  "inputs": {"query": "仿真 5MHz 超声"},
+  "query": "仿真 5MHz 超声",
+  "response_mode": "streaming",
+  "conversation_id": "xxx",   // 多轮对话
+  "user": "user-1"
+}
+
+→ SSE 流式响应 (text/event-stream)
+```
+
+---
+
+## 5. 数据模型
+
+### 5.1 执行历史 (SQLite)
+
+```sql
+CREATE TABLE executions (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp       TEXT NOT NULL,              -- ISO 8601 UTC
+    tool_name       TEXT NOT NULL,              -- "run_jwave_code" | "run_jwave_code_with_retry"
+    code            TEXT NOT NULL,              -- 执行的 Python 代码
+    exit_code       INTEGER,                   -- 进程退出码
+    timed_out       INTEGER DEFAULT 0,          -- 是否超时 (0/1)
+    duration_ms     REAL,                       -- 执行耗时
+    stdout          TEXT DEFAULT '',
+    stderr          TEXT DEFAULT '',
+    attempt_count   INTEGER DEFAULT 1           -- 重试次数
+);
+```
+
+### 5.2 仿真参数 (Dify Conversation Variable)
+
+```json
+{
+  "last_params": {
+    "sound_speed": 1540.0,
+    "density": 1050.0,
+    "source_frequency": 5000000.0,
+    "source_type": "point_source",
+    "source_position": [64, 16],
+    "domain_N": [128, 128],
+    "domain_dx": [0.0001, 0.0001],
+    "t_end": 0.00005,
+    "cfl": 0.3,
+    "pml_size": 20
+  },
+  "last_summary": "5MHz 超声在软组织中传播，峰值压力 620 Pa，衰减 16.9 dB",
+  "iteration_count": 1
+}
+```
+
+### 5.3 工作流 (Dify PostgreSQL)
+
+```sql
+-- 表: workflows
+-- 列: graph (JSON), app_id, version ('draft' | 'published')
+-- 修改后需: docker restart docker-api-1 docker-worker-1
+```
+
+---
+
+## 6. 安全模型
+
+### 6.1 认证链
+
+```
+用户 ──→ [无认证 MVP] ──→ Gradio 前端
+                              │
+                              ▼ Dify API Key
+                          Dify API ──→ 工作流执行
+                                          │
+                                          ▼ MCP Bearer Token
+                                      MCP Gateway
+                                          │
+                                          ▼ HMAC compare_digest
+                                      jwave-executor
+```
+
+### 6.2 隔离层级
+
+| 层级 | 机制 | 作用 |
+|------|------|------|
+| 进程隔离 | `start_new_session` + `killpg` | 确保超时后所有子进程终止 |
+| 容器隔离 | Docker `cap_drop: ALL` | 去除所有内核能力 |
+| 权限 | `no-new-privileges: true` | 防止 setuid 提权 |
+| 文件系统 | `read_only: true` (除 /tmp) | 不可写入系统文件 |
+| 网络 | `executor_internal` (internal: true) | 无外网、无跨容器访问 |
+| 资源 | cpu 2.0, mem 4g, pids 256 | 防资源耗尽 |
+| 磁盘 | tmpfs /tmp, noexec/nosuid/nodev | 防恶意文件执行 |
+| 文件大小 | RLIMIT_FSIZE = 1MB | 防磁盘写满 |
+| CPU 时间 | RLIMIT_CPU = timeout+2 | 防 CPU 炸弹 |
+| Token 比较 | `hmac.compare_digest` | 防时序攻击 |
+
+### 6.3 威胁模型
+
+| 威胁 | 缓解 | 残余风险 |
+|------|------|----------|
+| 恶意代码（rm -rf /） | 只读文件系统 | /tmp 可写但 noexec + tmpfs |
+| 网络外连 | executor_internal: true | 无 |
+| 资源耗尽（while True） | 30s 超时 + CPU rlimit | 最多消耗 30s CPU |
+| Token 泄露 | .env 文件 600 权限 | 需物理访问 |
+| LLM 注入（Prompt 中嵌入代码） | subprocess 隔离 | 代码在沙箱中执行，无法影响宿主机 |
+| 依赖 CVE | jwave/JAX 锁定版本 | 无运行时更新 |
+
+---
+
+## 7. 部署方案
+
+### 7.1 当前部署
+
+```bash
+cd /home/wenxuan/dify-mcp-server
+docker compose up -d
+
+# 验证:
+curl http://192.168.30.200:8001/health          # → "ok"
+curl -o /dev/null -w "%{http_code}" http://192.168.30.200  # → 307 (Dify)
+```
+
+### 7.2 依赖顺序
+
+```
+1. docker_default network (由 Dify 创建)
+2. jwave-executor 容器
+3. dify-mcp 容器 (depends_on: jwave-executor)
+4. [P1] frontend 容器 (depends_on: dify-mcp)
+```
+
+### 7.3 环境变量 (.env)
+
+```bash
+MCP_AUTH_TOKEN=<32+ 字符随机串>
+EXECUTOR_SHARED_TOKEN=<32+ 字符随机串>
+DEEPSEEK_API_KEY=sk-...
+DEEPSEEK_MODEL=deepseek-chat
+CODE_RETRY_MAX=7
+```
+
+### 7.4 P1 新增前端服务 (compose.yaml 增量)
+
+```yaml
+  frontend:
+    build:
+      context: ./frontend
+    image: local/acouagent:frontend
+    container_name: acouagent-frontend
+    restart: unless-stopped
+    environment:
+      DIFY_API_KEY: ${DIFY_API_KEY}
+      DIFY_API_URL: http://docker-api-1:5001/v1
+      MCP_DASHBOARD_URL: http://dify-mcp:8001/dashboard/api/executions
+    ports:
+      - "0.0.0.0:7860:7860"
+    networks:
+      - dify_default
+```
+
+---
+
+## 8. 演进路线
+
+### 8.1 技术债务
+
+| 项目 | 说明 | 计划 |
+|------|------|------|
+| Gradio 替换为 Next.js | Gradio 适合原型，不适合生产 | P2 |
+| SQLite 替换为 PostgreSQL | 共用 Dify 的 PG | P2 |
+| executor 单实例瓶颈 | 目前串行执行，需排队 | P2 (多 executor) |
+| 无 CI/CD | 手动测试 + 手动部署 | P2 (GitHub Actions) |
+| 日志分散 | Dify 日志 / MCP 无日志 / executor stdout | P2 (统一日志) |
+
+### 8.2 扩展方向
+
+| 方向 | 说明 | 优先级 |
+|------|------|--------|
+| GPU 加速执行器 | executor 容器挂载 GPU | 低（2D 不需 GPU） |
+| 自定义介质导入 | 上传 CT/MRI 数据 | 低 |
+| 仿真模板市场 | 用户分享参数模板 | 低 |
+| 多人协作 | 共享仿真历史和结果 | 低 |

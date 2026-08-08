@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+*.log
+executor/jwave-env.tar.gz

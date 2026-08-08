@@ -307,6 +307,187 @@ def run_jwave_code_with_retry(
     return {"error": "unreachable", "history": history}
 
 
+@mcp.tool
+def validate_simulation_params(params_json: str) -> dict[str, Any]:
+    """Validate simulation parameters against physical rules before code generation.
+
+    Checks Nyquist condition, CFL stability, grid size, PML layers,
+    frequency-resolution matching, and time-propagation distance matching.
+    All validation rules are hardcoded -- no LLM is called.
+    """
+    # Parse JSON input
+    try:
+        params = json.loads(params_json)
+    except (json.JSONDecodeError, TypeError) as exc:
+        return {
+            "valid": False,
+            "errors": [{"field": "_json", "message": f"JSON 解析失败: {exc}"}],
+            "warnings": [],
+        }
+
+    if not isinstance(params, dict):
+        return {
+            "valid": False,
+            "errors": [{"field": "_json", "message": "params_json 必须编码为一个 JSON 对象"}],
+            "warnings": [],
+        }
+
+    errors: list[dict[str, str]] = []
+    warnings: list[dict[str, str]] = []
+
+    # Extract fields
+    sound_speed = params.get("sound_speed")
+    density = params.get("density")
+    source_frequency = params.get("source_frequency")
+    domain_N = params.get("domain_N")
+    domain_dx = params.get("domain_dx")
+    t_end = params.get("t_end")
+    cfl = params.get("cfl")
+    pml_size = params.get("pml_size")
+
+    # -------------------------------------------------------------------
+    # 1. Required field check
+    # -------------------------------------------------------------------
+    required_fields = {
+        "sound_speed": sound_speed,
+        "density": density,
+        "source_frequency": source_frequency,
+        "domain_N": domain_N,
+        "domain_dx": domain_dx,
+    }
+    required_field_names = set(required_fields.keys())
+
+    for field_name, value in required_fields.items():
+        if value is None:
+            errors.append({"field": field_name, "message": f"缺少必填字段 {field_name}"})
+        elif isinstance(value, list):
+            if len(value) == 0:
+                errors.append({"field": field_name, "message": f"{field_name} 为空列表"})
+            else:
+                for idx, elem in enumerate(value):
+                    if not isinstance(elem, (int, float)) or elem <= 0:
+                        errors.append({
+                            "field": field_name,
+                            "message": f"{field_name}[{idx}] = {elem} 必须 > 0",
+                        })
+        elif not isinstance(value, (int, float)) or value <= 0:
+            errors.append({
+                "field": field_name,
+                "message": f"{field_name} 必须 > 0，当前值: {value}",
+            })
+
+    # If any required field is broken, stop -- downstream checks need them
+    if any(e["field"] in required_field_names for e in errors):
+        return {"valid": False, "errors": errors, "warnings": warnings}
+
+    # Typecast for clarity -- at this point they are validated
+    sound_speed = float(sound_speed)  # type: ignore[arg-type]
+    source_frequency = float(source_frequency)  # type: ignore[arg-type]
+    domain_N_list = domain_N if isinstance(domain_N, list) else [domain_N]  # type: ignore[union-attr]
+    domain_dx_list = domain_dx if isinstance(domain_dx, list) else [domain_dx]  # type: ignore[union-attr]
+
+    freq_mhz = source_frequency / 1e6
+
+    # -------------------------------------------------------------------
+    # 2. Nyquist condition
+    # -------------------------------------------------------------------
+    wavelength_min = sound_speed / source_frequency
+    dx_max_allowed = wavelength_min / 4.0
+
+    for i, dx in enumerate(domain_dx_list):
+        dx = float(dx)
+        if dx > dx_max_allowed * 1.001:  # floating-point tolerance
+            errors.append({
+                "field": "domain_dx",
+                "message": (
+                    f"dx({dx}m) 不满足 Nyquist 条件，"
+                    f"{freq_mhz}MHz 对应的最小波长为 {wavelength_min:.6f}m，"
+                    f"建议 dx ≤ {dx_max_allowed:.6f}m"
+                ),
+            })
+
+    # -------------------------------------------------------------------
+    # 3. CFL condition
+    # -------------------------------------------------------------------
+    if cfl is not None and isinstance(cfl, (int, float)):
+        cfl = float(cfl)
+        if cfl > 0.3 * 1.001:
+            errors.append({
+                "field": "cfl",
+                "message": f"CFL({cfl}) 超过安全值 0.3，可能导致数值不稳定",
+            })
+
+    # -------------------------------------------------------------------
+    # 4. Grid size
+    # -------------------------------------------------------------------
+    for i, n in enumerate(domain_N_list):
+        n = int(n)
+        if n < 32:
+            errors.append({
+                "field": "domain_N",
+                "message": f"网格点数 {n} 过小（<32），jwave 0.2.1 可能存在 broadcasting 问题",
+            })
+        elif n > 1024:
+            warnings.append({
+                "field": "domain_N",
+                "message": f"网格点数较大({n})，仿真可能耗时较长",
+            })
+
+    # -------------------------------------------------------------------
+    # 5. PML check
+    # -------------------------------------------------------------------
+    if pml_size is not None and isinstance(pml_size, (int, float)):
+        pml_size = int(pml_size)
+        if pml_size < 10:
+            warnings.append({
+                "field": "pml_size",
+                "message": f"PML 层数({pml_size})偏少，建议 ≥ 10 以保证吸收效果",
+            })
+
+    # -------------------------------------------------------------------
+    # 6. Frequency-resolution matching (MHz ultrasound)
+    # -------------------------------------------------------------------
+    if source_frequency > 1e6:
+        for i, dx in enumerate(domain_dx_list):
+            dx = float(dx)
+            if dx > 0.0005 * 1.001:
+                errors.append({
+                    "field": "domain_dx",
+                    "message": (
+                        f"对于 MHz 级超声({freq_mhz}MHz)，"
+                        f"分辨率(dx={dx}m)过粗，建议 dx < 0.5mm"
+                    ),
+                })
+
+    # -------------------------------------------------------------------
+    # 7. Time-propagation distance matching
+    # -------------------------------------------------------------------
+    if t_end is not None and isinstance(t_end, (int, float)) and float(t_end) > 0:
+        t_end_val = float(t_end)
+        estimated_distance = sound_speed * t_end_val
+        domain_length = max(
+            float(domain_N_list[i]) * float(domain_dx_list[i])
+            for i in range(min(len(domain_N_list), len(domain_dx_list)))
+        )
+        denom = min(estimated_distance, domain_length)
+        if denom > 1e-20:
+            ratio = max(estimated_distance, domain_length) / denom
+            if ratio > 10:
+                warnings.append({
+                    "field": "t_end",
+                    "message": (
+                        f"仿真时间({t_end_val}s)对应传播距离约{estimated_distance:.4f}m，"
+                        f"与区域大小({domain_length:.4f}m)偏差较大"
+                    ),
+                })
+
+    return {
+        "valid": len(errors) == 0,
+        "errors": errors,
+        "warnings": warnings,
+    }
+
+
 if __name__ == "__main__":
     init_db()
     mcp.run(transport="http", host="0.0.0.0", port=8001, path="/mcp", stateless_http=True)

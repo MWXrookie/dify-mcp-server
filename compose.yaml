@@ -1,0 +1,66 @@
+services:
+  jwave-executor:
+    build:
+      context: ./executor
+      dockerfile: Dockerfile
+    image: local/dify-mcp:jwave-0.2.1-executor
+    container_name: jwave-executor
+    restart: unless-stopped
+    environment:
+      EXECUTOR_SHARED_TOKEN: ${EXECUTOR_SHARED_TOKEN}
+    networks:
+      - executor_internal
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=1g
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 256
+    mem_limit: 4g
+    cpus: 2.0
+
+  dify-mcp:
+    build:
+      context: .
+      args:
+        APP_FILE: server_safe.py
+    image: local/dify-mcp:fastmcp-3.4.6-safe
+    container_name: dify-mcp
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      EXECUTOR_SHARED_TOKEN: ${EXECUTOR_SHARED_TOKEN}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-chat}
+      CODE_RETRY_MAX: ${CODE_RETRY_MAX:-7}
+    ports:
+      - "192.168.30.200:8001:8001"
+    networks:
+      - dify_default
+      - executor_internal
+    depends_on:
+      - jwave-executor
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m
+    volumes:
+      - dify_mcp_data:/app/data
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 128
+    mem_limit: 512m
+
+networks:
+  dify_default:
+    external: true
+    name: docker_default
+  executor_internal:
+    internal: true
+
+volumes:
+  dify_mcp_data:

@@ -5,197 +5,169 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dify MCP - 纠错经验缓存</title>
 <style>
-  :root { --bg: #0d1117; --surface: #161b22; --border: #30363d; --text: #c9d1d9; --muted: #8b949e; --green: #3fb950; --red: #f85149; --yellow: #d2991d; --blue: #58a6ff; --accent: #1f6feb; }
+  :root { --bg: #0d1117; --surface: #161b22; --border: #30363d; --text: #c9d1d9; --muted: #8b949e; --green: #3fb950; --red: #f85149; --yellow: #d2991d; --blue: #58a6ff; --accent: #1f6feb; --orange: #d2991d; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 24px; }
-  .back { margin-bottom: 20px; }
-  .back a { color: var(--blue); text-decoration: none; font-size: 14px; }
-  .back a:hover { text-decoration: underline; }
+  .back { margin-bottom: 20px; } .back a { color: var(--blue); text-decoration: none; font-size: 14px; } .back a:hover { text-decoration: underline; }
   h1 { font-size: 24px; margin-bottom: 8px; }
   .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
 
-  /* Summary tiles */
   .summary-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 12px; margin-bottom: 20px; }
   .tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
   .tile .num { font-size: 28px; font-weight: 700; }
   .tile .label { color: var(--muted); font-size: 12px; margin-top: 4px; }
-  .tile.good .num { color: var(--green); }
-  .tile.warn .num { color: var(--yellow); }
-  .tile.bad .num { color: var(--red); }
   .tile .sub { color: var(--muted); font-size: 11px; margin-top: 2px; }
+  .tile.good .num { color: var(--green); } .tile.warn .num { color: var(--yellow); } .tile.bad .num { color: var(--red); }
 
-  /* Section */
   .section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
   .section h3 { font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
 
-  /* Bar chart */
   .bar-row { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: 12px; }
-  .bar-row .label { min-width: 80px; color: var(--muted); text-align: right; }
+  .bar-row .label { min-width: 100px; color: var(--muted); text-align: right; }
   .bar-row .track { flex: 1; height: 20px; background: #21262d; border-radius: 4px; overflow: hidden; }
   .bar-row .track .fill { height: 100%; border-radius: 4px; transition: width 0.5s; }
   .bar-row .count { color: var(--muted); min-width: 36px; text-align: right; }
 
-  /* Entry card */
-  .entry { padding: 14px 16px; margin: 8px 0; background: #1c2129; border-radius: 10px; border: 1px solid transparent; }
-  .entry.good { border-color: rgba(63,185,80,.35); }
-  .entry.warn { border-color: rgba(210,153,29,.35); }
-  .entry.retiring { border-color: rgba(248,81,73,.35); background: rgba(248,81,73,.04); }
-  .entry .top-line { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
-  .entry .error-name { font-weight: 600; font-size: 14px; }
-  .entry .error-type { color: var(--yellow); font-family: monospace; font-size: 11px; }
-  .entry .meta-pills { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
-  .pill { padding: 3px 8px; border: 1px solid var(--border); border-radius: 999px; background: #161b22; font-size: 11px; color: var(--muted); }
-  .pill.ok { background: rgba(63,185,80,.12); border-color: rgba(63,185,80,.25); color: var(--green); }
-  .pill.warn { background: rgba(210,153,29,.12); border-color: rgba(210,153,29,.25); color: var(--yellow); }
-  .pill.bad { background: rgba(248,81,73,.12); border-color: rgba(248,81,73,.25); color: var(--red); }
-  .entry .fix-summary { color: var(--muted); font-size: 12px; line-height: 1.6; }
-  .entry .fix-code { display: none; margin-top: 8px; background: #0d1117; border: 1px solid var(--border); border-radius: 6px; padding: 10px; font-family: monospace; font-size: 11px; color: var(--blue); white-space: pre-wrap; max-height: 160px; overflow-y: auto; }
-  .entry .fix-code.open { display: block; }
-  .entry .toggle-code { color: var(--blue); font-size: 11px; cursor: pointer; margin-top: 6px; display: inline-block; }
-  .entry .toggle-code:hover { text-decoration: underline; }
-
-  /* Legend */
-  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; font-size: 12px; color: var(--muted); }
-  .legend span { display: inline-flex; align-items: center; gap: 4px; }
-  .legend .dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
-  .legend .dot.high { background: var(--green); }
-  .legend .dot.med { background: var(--yellow); }
-  .legend .dot.retire { background: var(--red); }
-
-  .empty { color: var(--muted); text-align: center; padding: 32px; line-height: 1.8; }
-  .loading { padding: 48px; text-align: center; color: var(--muted); }
-
-  /* Filters */
   .filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; }
-  .filter-bar .filter-label { color: var(--muted); font-size: 12px; }
-  .filter-btn { padding: 4px 12px; border-radius: 999px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; font-size: 12px; transition: all 0.15s; }
+  .filter-label { color: var(--muted); font-size: 12px; }
+  .filter-btn { padding: 4px 12px; border-radius: 999px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; font-size: 12px; }
   .filter-btn:hover { border-color: var(--accent); color: var(--text); }
   .filter-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
   .filter-count { color: var(--muted); font-size: 12px; margin-left: auto; }
 
-  @media (max-width: 768px) { body { padding: 12px; } .summary-row { grid-template-columns: repeat(2,1fr); } .filter-bar { gap: 4px; } }
+  /* Entry card - redesigned as "problem → fix" story */
+  .entry { padding: 16px; margin: 10px 0; background: #1c2129; border-radius: 12px; border-left: 3px solid var(--border); }
+  .entry.good { border-left-color: var(--green); }
+  .entry.warn { border-left-color: var(--yellow); }
+  .entry.retiring { border-left-color: var(--red); background: rgba(248,81,73,.04); }
+
+  .entry .story { font-size: 14px; line-height: 1.8; margin-bottom: 10px; }
+  .entry .story .who { font-weight: 700; }
+  .entry .story .what { color: var(--yellow); font-weight: 600; }
+  .entry .story .action { color: var(--green); font-weight: 600; }
+
+  .entry .stats-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .entry .stats-row .stat-item { display: flex; align-items: center; gap: 4px; }
+  .entry .stats-row .stat-val { font-weight: 700; color: var(--text); }
+
+  .pill { padding: 2px 8px; border-radius: 999px; font-size: 11px; }
+  .pill.green { background: rgba(63,185,80,.15); color: var(--green); }
+  .pill.yellow { background: rgba(210,153,29,.15); color: var(--yellow); }
+  .pill.red { background: rgba(248,81,73,.15); color: var(--red); }
+  .pill.blue { background: rgba(88,166,255,.15); color: var(--blue); }
+
+  .fix-code { display: none; margin-top: 8px; background: #0d1117; border: 1px solid var(--border); border-radius: 6px; padding: 10px; font-family: "SF Mono","Fira Code",monospace; font-size: 11px; color: var(--blue); white-space: pre-wrap; max-height: 160px; overflow-y: auto; }
+  .fix-code.open { display: block; }
+  .toggle-code { color: var(--blue); font-size: 11px; cursor: pointer; display: inline-block; }
+  .toggle-code:hover { text-decoration: underline; }
+
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; font-size: 12px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 4px; }
+  .legend .dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+  .legend .dot.high { background: var(--green); } .legend .dot.med { background: var(--yellow); } .legend .dot.retire { background: var(--red); }
+
+  .empty { color: var(--muted); text-align: center; padding: 32px; line-height: 1.8; }
+  .loading { padding: 48px; text-align: center; color: var(--muted); }
+
+  @media (max-width: 768px) { body { padding: 12px; } .summary-row { grid-template-columns: repeat(2,1fr); } }
 </style>
 </head>
 <body>
 <div class="back"><a href="/">← 返回门户</a></div>
 <h1>🧠 纠错经验缓存</h1>
-<p class="subtitle">每次仿真失败后，LLM 会自动修复代码，修复经验被记录在这里。同类错误命中后可直接复用，避免重复踩坑。</p>
+<p class="subtitle">每次仿真失败后，DeepSeek 自动分析错误并生成修复代码。修复成功的经验沉淀在这里，同类错误再次出现时可以直接复用。</p>
 <div class="summary-row" id="summary"></div>
 <div class="section" id="bands-section"></div>
-<div class="section"><h3>📋 经验条目 <span class="filter-count" id="entry-count"></span></h3>
-<div class="filter-bar">
-  <span class="filter-label">筛选：</span>
-  <button class="filter-btn active" onclick="setFilter('all')">全部</button>
-  <button class="filter-btn" onclick="setFilter('high')">高置信 (≥70%)</button>
-  <button class="filter-btn" onclick="setFilter('medium')">中等置信</button>
-  <button class="filter-btn" onclick="setFilter('at-risk')">⚠ 有风险</button>
-  <button class="filter-btn" onclick="setFilter('type-error')">TypeError</button>
-  <button class="filter-btn" onclick="setFilter('attr-error')">AttributeError</button>
+<div class="section">
+  <h3>📋 经验条目 <span class="filter-count" id="entry-count"></span></h3>
+  <div class="filter-bar">
+    <span class="filter-label">筛选：</span>
+    <button class="filter-btn active" onclick="setFilter('all')">全部</button>
+    <button class="filter-btn" onclick="setFilter('high')">高置信</button>
+    <button class="filter-btn" onclick="setFilter('at-risk')">⚠ 有风险</button>
+  </div>
+  <div class="legend"><span><span class="dot high"></span> 高置信</span><span><span class="dot med"></span> 中等置信</span><span><span class="dot retire"></span> 即将退役</span></div>
+  <div id="all-entries"></div>
 </div>
-<div id="all-entries"></div></div>
 <script>
 var cachedData = null;
 var currentFilter = 'all';
+
 function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 function fmtPct(v) { if (v == null || isNaN(Number(v))) return '-'; return Number(v).toFixed(1).replace(/\.0$/,'')+'%'; }
 
-// 将机器签名翻译为人可读的描述
-function decodeSignature(sig) {
-  var parts = (sig || '').split('|');
-  var errorType = parts[0] || 'Unknown';
-  var object = parts[1] || '';
-  var problem = parts[2] || '';
+// 解码错误签名 → 故事
+function tellStory(e) {
+  var sig = e.signature || '';
+  var parts = sig.split('|');
+  var errType = parts[0] || 'Unknown';
+  var obj = parts[1] || '';
+  var prob = parts[2] || '';
 
-  // 错误类型翻译
-  var typeMap = {
-    'AttributeError': '属性不存在',
-    'TypeError': '类型/参数错误',
-    'ValueError': '数值错误',
-    'ImportError': '导入错误',
-    'OSError': '系统/IO错误',
-    'BroadcastError': '数组形状不兼容',
-    'ZeroOutput': '输出全为零',
-    'UnknownError': '未知错误'
+  var stories = {
+    'AttributeError': function() {
+      return 'LLM 尝试访问 <span class="what">' + esc(obj || '某个对象') + '</span> 不存在的属性，这是 jwave 冷门 API 的典型坑。LLM 会编造诸如 <code>.shape</code>、<code>.t</code>、<code>.data</code> 等不存在的属性。';
+    },
+    'TypeError': function() {
+      if (prob === 'arg_count') return '调用 <span class="what">' + esc(obj) + '</span> 时参数数量或顺序写错了。jwave 的 <code>Sources()</code> 和 <code>FourierSeries()</code> 需要严格的位置参数。';
+      return '参数类型不匹配——通常是因为 <span class="what">数组形状或数据类型</span> 不符合 jwave/JAX 的要求。比如 <code>positions</code> 必须是整数而非浮点数。';
+    },
+    'ImportError': function() {
+      return 'LLM 编造了不存在的导入路径。jwave 的模块层次 LLM 并不清楚，容易写出 <span class="what">不存在的 import</span>。';
+    },
+    'OSError': function() {
+      return '写入文件时磁盘空间不足。通常是仿真生成了 <span class="what">超大输出</span>（如高分辨率压力场），尝试保存时超出限制。';
+    },
+    'BroadcastError': function() {
+      return '两个数组的 <span class="what">形状无法广播</span>。这通常发生在 p0 初始压力场和计算域网格维度不匹配时。';
+    },
+    'ValueError': function() {
+      return '数值计算出错——通常是 <span class="what">数组维度不兼容</span>，JAX 要求严格的形状匹配。';
+    },
+    'ZeroOutput': function() {
+      return '仿真运行成功但 <span class="what">输出压力场全为零</span>。这通常是 <code>Sources</code> 设置错误或 p0 条件未正确传递给模拟函数。';
+    },
   };
-  var typeName = typeMap[errorType] || errorType;
-
-  // 生成人类可读的描述
-  var desc = typeName;
-  if (object && object !== 'general') {
-    if (errorType === 'AttributeError') {
-      desc = object + ' 缺少属性 ' + (problem || '?');
-    } else if (errorType === 'TypeError' && problem === 'arg_count') {
-      desc = object + ' 参数数量不匹配';
-    } else if (errorType === 'OSError' && problem === 'disk_full') {
-      desc = '磁盘空间不足（写入失败）';
-    } else if (errorType === 'BroadcastError') {
-      desc = '数组形状无法广播';
-    } else if (errorType === 'ZeroOutput') {
-      desc = '仿真输出全为零';
-    } else {
-      desc = object + ' - ' + typeName;
-    }
-  }
-
-  return { errorType: errorType, typeName: typeName, description: desc, raw: sig };
+  var fn = stories[errType];
+  if (fn) return fn();
+  return '执行过程中发生了 <span class="what">' + esc(errType) + '</span> 错误。';
 }
 
-// 从 hint 代码中提取有意义的摘要：显示 import 块后的 3-4 行关键代码
-function summarizeHint(hint) {
-  if (!hint) return '(无)';
+// 从 hint 代码中提取修复的核心变化
+function extractFixChange(hint) {
+  if (!hint) return 'DeepSeek 分析错误后生成了修复代码。';
   var lines = hint.split('\n');
-  var importEnd = 0;
+
+  // Find all comments as they explain the fix
+  var comments = [];
   for (var i = 0; i < lines.length; i++) {
     var line = lines[i].trim();
-    if (!line) continue;
-    if (line.startsWith('import ') || line.startsWith('from ') || line.startsWith('#!')) {
-      importEnd = i + 1;
-      continue;
+    if (line.startsWith('#') && line.length > 3) {
+      comments.push(line.replace(/^#+\s*/, ''));
     }
   }
-  // 从 import 块结束后面收集 3 行有意义的代码
-  var snippets = [];
-  for (var j = importEnd; j < lines.length && snippets.length < 3; j++) {
-    var l = lines[j].trim();
-    if (!l) continue;
-    if (l.startsWith('#')) { snippets.push(l); continue; }
-    snippets.push(l.slice(0, 80));
-  }
-  return snippets.join('\n') || lines[0].trim().slice(0, 100);
-}
 
-// 提取 hint 的核心修复逻辑：跳过 import 和通用参数设置，找到关键变化行
-function extractFixLogic(hint) {
-  if (!hint) return '';
-  var lines = hint.split('\n');
-  // 找所有注释行和特殊 API 调用行，这些通常包含修复信息
-  var clues = [];
+  // Find key API calls that differ from the original code
+  var keyLines = [];
   for (var i = 0; i < lines.length; i++) {
     var line = lines[i].trim();
-    if (!line) continue;
-    // 注释行通常说明修复意图
-    if (line.startsWith('#') && lines.length > 5) {
-      clues.push(line.replace(/^#+\s*/, ''));
-    }
-    // 关键 API 调用行
-    if (/FourierSeries|Domain|Medium|TimeAxis|Sources|simulate_wave_propagation|\.params|jnp\.max|jnp\.abs|jnp\.array|jnp\.linspace/.test(line) && !line.startsWith('import') && !line.startsWith('from')) {
-      clues.push(line.slice(0, 100));
+    if (!line || line.startsWith('import ') || line.startsWith('from ')) continue;
+    // These are the jwave-specific patterns that matter
+    if (line.includes('FourierSeries(') || line.includes('Sources(') || line.includes('TimeAxis.from_medium') ||
+        line.includes('Domain(') || line.includes('.params') || line.includes('jnp.max(jnp.abs') ||
+        line.includes('simulate_wave_propagation') || line.includes('jnp.meshgrid') ||
+        line.includes('jnp.linspace') || line.includes('jnp.array([')) {
+      keyLines.push(line.slice(0, 90));
     }
   }
-  if (clues.length > 0) {
-    return clues.slice(0, 2).join(' | ');
-  }
-  return '';
-}
 
-async function init() {
-  try {
-    var resp = await fetch("/dashboard/api/cache_stats");
-    var d = await resp.json();
-    render(d);
-  } catch(e) {
-    document.body.innerHTML = '<div class="loading">加载失败：' + esc(String(e)) + '</div>';
+  if (comments.length > 0) {
+    return comments[0] + (keyLines.length > 0 ? '（如 <code>' + esc(keyLines[0].slice(0,60)) + '</code>）' : '');
   }
+  if (keyLines.length > 0) {
+    return '修复后使用了 <code>' + esc(keyLines[0].slice(0,60)) + '</code>' + (keyLines.length > 1 ? ' 等关键调用。' : '。');
+  }
+  return 'DeepSeek 重新生成了完整代码，修正了上述错误。';
 }
 
 function render(d) {
@@ -207,125 +179,106 @@ function render(d) {
     return;
   }
 
-  // 成功率 = 成功命中 / 总命中
   var successRate = d.total_hits > 0 ? (d.total_successes / d.total_hits * 100) : 0;
-
-  // Summary tiles
   document.getElementById("summary").innerHTML =
     '<div class="tile"><div class="num">' + d.total_entries + '</div><div class="label">经验条目</div><div class="sub">已积累的修复经验</div></div>' +
     '<div class="tile good"><div class="num">' + d.total_hits + '</div><div class="label">累计命中</div><div class="sub">经验被查询的次数</div></div>' +
     '<div class="tile good"><div class="num">' + d.total_successes + '</div><div class="label">成功修复</div><div class="sub">经验确实起作用的次数</div></div>' +
-    '<div class="tile ' + (successRate >= 80 ? 'good' : (successRate >= 60 ? 'warn' : 'bad')) + '"><div class="num">' + fmtPct(successRate) + '</div><div class="label">命中成功率</div><div class="sub">经验靠谱程度</div></div>' +
+    '<div class="tile ' + (successRate >= 80 ? 'good' : 'warn') + '"><div class="num">' + fmtPct(successRate) + '</div><div class="label">命中成功率</div><div class="sub">经验靠谱程度</div></div>' +
     '<div class="tile"><div class="num">' + fmtPct((d.avg_confidence || 0) * 100) + '</div><div class="label">平均置信度</div><div class="sub">经验可信度均值</div></div>' +
-    '<div class="tile ' + (d.questioned_count ? 'warn' : 'good') + '"><div class="num">' + (d.questioned_count || 0) + '</div><div class="label">待观察</div><div class="sub">连续失败≥3次的经验</div></div>';
+    '<div class="tile ' + (d.questioned_count ? 'warn' : 'good') + '"><div class="num">' + (d.questioned_count || 0) + '</div><div class="label">待观察</div><div class="sub">连续失败≥3次</div></div>';
 
-  // Confidence distribution as bar chart
+  // Confidence bands
   var bandsHtml = '';
   if (d.confidence_bands) {
-    var bandOrder = ['90-100','70-90','50-70','0-50'];
-    var maxBand = Math.max.apply(null, Object.values(d.confidence_bands));
-    bandsHtml += '<h3 style="font-size:14px;color:var(--muted);margin-bottom:8px">📊 置信度分布</h3>';
-    bandOrder.forEach(function(k) {
+    bandsHtml += '<h3>📊 置信度分布</h3>';
+    ['90-100','70-90','50-70','0-50'].forEach(function(k) {
       var v = d.confidence_bands[k] || 0;
-      var pct = maxBand > 0 ? Math.round(v / maxBand * 100) : 0;
+      var max = Math.max.apply(null, Object.values(d.confidence_bands));
+      var pct = max > 0 ? Math.round(v / max * 100) : 0;
       var color = k === '90-100' ? 'var(--green)' : (k === '70-90' ? 'var(--blue)' : (k === '50-70' ? 'var(--yellow)' : 'var(--muted)'));
-      var label = k === '90-100' ? '高置信度' : (k === '70-90' ? '中等置信度' : (k === '50-70' ? '较低置信度' : '低置信度'));
-      bandsHtml += '<div class="bar-row"><span class="label">' + label + '</span><div class="track"><div class="fill" style="width:' + pct + '%;background:' + color + '"></div></div><span class="count">' + v + ' 条</span></div>';
+      var label = k === '90-100' ? '高' : (k === '70-90' ? '中' : (k === '50-70' ? '较低' : '低'));
+      bandsHtml += '<div class="bar-row"><span class="label">' + label + ' (' + k + '%)</span><div class="track"><div class="fill" style="width:' + pct + '%;background:' + color + '"></div></div><span class="count">' + v + ' 条</span></div>';
     });
   }
-
-  // Error family distribution
-  if (d.error_families) {
-    bandsHtml += '<h3 style="font-size:14px;color:var(--muted);margin:14px 0 8px">🔍 错误类型分布</h3>';
-    var families = Object.entries(d.error_families).sort(function(a,b) { return b[1] - a[1]; });
-    var maxF = Math.max.apply(null, families.map(function(f) { return f[1]; }));
-    families.forEach(function(f) {
-      var pct = maxF > 0 ? Math.round(f[1] / maxF * 100) : 0;
-      var sig = decodeSignature(f[0] + '|general|');
-      bandsHtml += '<div class="bar-row"><span class="label" style="min-width:120px">' + esc(sig.typeName) + '</span><div class="track"><div class="fill" style="width:' + pct + '%;background:var(--accent)"></div></div><span class="count">' + f[1] + ' 条</span></div>';
-    });
-  }
-  document.getElementById("bands-section").innerHTML = bandsHtml || '';
+  document.getElementById("bands-section").innerHTML = bandsHtml ? bandsHtml : '';
   applyFilter();
 }
 
 function setFilter(f) {
   currentFilter = f;
   document.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
-  var target = document.querySelector('.filter-btn[onclick="setFilter(\'' + f + '\')"]');
-  if (target) target.classList.add('active');
+  var t = document.querySelector('.filter-btn[onclick="setFilter(\'' + f + '\')"]');
+  if (t) t.classList.add('active');
   applyFilter();
 }
 
 function applyFilter() {
   var d = cachedData;
   if (!d) return;
-
-  var seen = {};
-  var all = [];
+  var seen = {}, all = [];
   (d.top_entries || []).forEach(function(e) { if (!seen[e.signature]) { seen[e.signature] = true; all.push(e); } });
   (d.recent_entries || []).forEach(function(e) { if (!seen[e.signature]) { seen[e.signature] = true; all.push(e); } });
 
   var filtered = all.filter(function(e) {
     var conf = Number(e.confidence || 0);
-    var sig = decodeSignature(e.signature);
     switch (currentFilter) {
       case 'high': return conf >= 0.7;
-      case 'medium': return conf >= 0.5 && conf < 0.7;
-      case 'at-risk': return e.consecutive_fails >= 3;
-      case 'type-error': return sig.errorType === 'TypeError';
-      case 'attr-error': return sig.errorType === 'AttributeError';
+      case 'at-risk': return (e.consecutive_fails || 0) >= 3;
       default: return true;
     }
   });
 
-  var countEl = document.getElementById("entry-count");
-  if (countEl) countEl.textContent = '（显示 ' + filtered.length + ' / ' + all.length + ' 条）';
+  var el = document.getElementById("entry-count");
+  if (el) el.textContent = '（' + filtered.length + ' / ' + all.length + ' 条）';
 
   if (filtered.length === 0) {
     document.getElementById("all-entries").innerHTML = '<div class="empty">当前筛选条件下无匹配经验</div>';
     return;
   }
 
-  var entriesHtml = '<div class="legend"><span><span class="dot high"></span> 高置信度 (≥70%)</span><span><span class="dot med"></span> 中等置信度</span><span><span class="dot retire"></span> 即将退役</span></div>';
+  var html = '';
   filtered.forEach(function(e, idx) {
-    var decoded = decodeSignature(e.signature);
     var conf = Number(e.confidence || 0);
-    var successRate = e.hits > 0 ? (e.success_count / e.hits * 100) : 0;
+    var sRate = e.hits > 0 ? (e.success_count / e.hits * 100) : 0;
     var cls = conf >= 0.7 ? 'good' : (conf >= 0.5 ? 'warn' : '');
-    if (e.consecutive_fails >= 3) cls += ' retiring';
-    var summary = summarizeHint(e.hint_excerpt || e.hint);
+    if ((e.consecutive_fails || 0) >= 3) cls += ' retiring';
+    var story = tellStory(e);
+    var fix = extractFixChange(e.hint_excerpt || e.hint);
     var uid = 'code-' + idx;
 
-    entriesHtml += '<div class="entry ' + cls + '">';
-    entriesHtml += '<div class="top-line">';
-    entriesHtml += '<span class="error-name">' + esc(decoded.description) + '</span>';
-    entriesHtml += '<span class="error-type">' + esc(decoded.raw) + '</span>';
-    entriesHtml += '</div>';
-    entriesHtml += '<div class="meta-pills">';
-    entriesHtml += '<span class="pill ok">命中 ' + (e.hits || 0) + ' 次</span>';
-    entriesHtml += '<span class="pill ok">成功 ' + (e.success_count || 0) + ' 次 (' + fmtPct(successRate) + ')</span>';
-    entriesHtml += '<span class="pill ' + (conf >= 0.7 ? 'ok' : (conf >= 0.5 ? 'warn' : 'bad')) + '">置信度 ' + fmtPct(conf * 100) + '</span>';
-    if (e.consecutive_fails > 0) {
-      entriesHtml += '<span class="pill ' + (e.consecutive_fails >= 3 ? 'bad' : 'warn') + '">⚠ 连续失败 ' + e.consecutive_fails + ' 次' + (e.consecutive_fails >= 5 ? ' (已退役)' : e.consecutive_fails >= 3 ? ' (即将退役)' : '') + '</span>';
+    html += '<div class="entry ' + cls + '">';
+    // Story line
+    html += '<div class="story">' + story + '</div>';
+    // Fix line
+    html += '<div class="story" style="color:var(--green);font-size:13px">🔧 修复：' + fix + '</div>';
+    // Stats
+    html += '<div class="stats-row">';
+    html += '<span class="stat-item">命中 <span class="stat-val">' + (e.hits || 0) + '</span> 次</span>';
+    html += '<span class="stat-item">成功 <span class="stat-val">' + (e.success_count || 0) + '</span> 次</span>';
+    html += '<span class="stat-item">成功率 <span class="stat-val">' + fmtPct(sRate) + '</span></span>';
+    html += '<span class="pill ' + (conf >= 0.7 ? 'green' : (conf >= 0.5 ? 'yellow' : 'red')) + '">置信度 ' + fmtPct(conf*100) + '</span>';
+    if ((e.consecutive_fails || 0) > 0) {
+      html += '<span class="pill ' + (e.consecutive_fails >= 3 ? 'red' : 'yellow') + '">⚠ 连续失败 ' + e.consecutive_fails + ' 次' + (e.consecutive_fails >= 5 ? '（已退役）' : e.consecutive_fails >= 3 ? '（即将退役）' : '') + '</span>';
     }
-    entriesHtml += '</div>';
-    var logic = extractFixLogic(e.hint_excerpt || e.hint);
-    entriesHtml += '<div class="fix-summary">📝 ' + esc(summary) + '</div>';
-    if (logic) {
-      entriesHtml += '<div class="fix-summary" style="color:var(--yellow);margin-top:4px">🔧 修复要点：' + esc(logic) + '</div>';
-    }
-    entriesHtml += '<span class="toggle-code" onclick="var el=document.getElementById(\'' + uid + '\');el.classList.toggle(\'open\');this.textContent=el.classList.contains(\'open\')?\'▲ 收起代码\':\'▼ 查看完整修复代码\'">▼ 查看完整修复代码</span>';
-    entriesHtml += '<div class="fix-code" id="' + uid + '">' + esc(e.hint_excerpt || e.hint || '') + '</div>';
-    if (e.updated_at) {
-      entriesHtml += '<div style="color:var(--muted);font-size:11px;margin-top:6px">更新于 ' + esc(e.updated_at) + '</div>';
-    }
-    entriesHtml += '</div>';
+    html += '</div>';
+    html += '<span class="toggle-code" onclick="var c=document.getElementById(\'' + uid + '\');c.classList.toggle(\'open\');this.textContent=c.classList.contains(\'open\')?\'▲ 收起修复代码\':\'▼ 查看完整修复代码\'">▼ 查看完整修复代码</span>';
+    html += '<div class="fix-code" id="' + uid + '">' + esc(e.hint_excerpt || e.hint || '') + '</div>';
+    if (e.updated_at) html += '<div style="color:var(--muted);font-size:11px;margin-top:4px">更新于 ' + esc(e.updated_at) + '</div>';
+    html += '</div>';
   });
-  document.getElementById("all-entries").innerHTML = entriesHtml;
+  document.getElementById("all-entries").innerHTML = html;
 }
 
 init();
+async function init() {
+  try {
+    var resp = await fetch("/dashboard/api/cache_stats");
+    render(await resp.json());
+  } catch(e) {
+    document.body.innerHTML = '<div class="loading">加载失败：' + esc(String(e)) + '</div>';
+  }
+}
 </script>
 </body>
 </html>

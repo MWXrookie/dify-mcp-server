@@ -263,7 +263,7 @@ function applyFilter() {
     }
     html += '</div>';
     html += '<span class="toggle-code" onclick="var c=document.getElementById(\'' + uid + '\');c.classList.toggle(\'open\');this.textContent=c.classList.contains(\'open\')?\'▲ 收起修复代码\':\'▼ 查看完整修复代码\'">▼ 查看完整修复代码</span>';
-    html += '<div class="fix-code" id="' + uid + '">' + esc(e.hint_excerpt || e.hint || '') + '</div>';
+    html += '<div class="fix-code" id="' + uid + '">' + esc(e.hint || e.hint_excerpt || '') + '</div>';
     if (e.updated_at) html += '<div style="color:var(--muted);font-size:11px;margin-top:4px">更新于 ' + esc(e.updated_at) + '</div>';
     html += '</div>';
   });

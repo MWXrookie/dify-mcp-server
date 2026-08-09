@@ -84,7 +84,10 @@
     <span class="filter-label">筛选：</span>
     <button class="filter-btn active" onclick="setFilter('all')">全部</button>
     <button class="filter-btn" onclick="setFilter('high')">高置信</button>
+    <button class="filter-btn" onclick="setFilter('medium')">中等置信</button>
     <button class="filter-btn" onclick="setFilter('at-risk')">⚠ 有风险</button>
+    <button class="filter-btn" onclick="setFilter('type-error')">TypeError</button>
+    <button class="filter-btn" onclick="setFilter('attr-error')">AttributeError</button>
   </div>
   <div class="legend"><span><span class="dot high"></span> 高置信</span><span><span class="dot med"></span> 中等置信</span><span><span class="dot retire"></span> 即将退役</span></div>
   <div id="all-entries"></div>
@@ -222,9 +225,13 @@ function applyFilter() {
 
   var filtered = all.filter(function(e) {
     var conf = Number(e.confidence || 0);
+    var sig = (e.signature || '').split('|')[0];
     switch (currentFilter) {
       case 'high': return conf >= 0.7;
+      case 'medium': return conf >= 0.5 && conf < 0.7;
       case 'at-risk': return (e.consecutive_fails || 0) >= 3;
+      case 'type-error': return sig === 'TypeError';
+      case 'attr-error': return sig === 'AttributeError';
       default: return true;
     }
   });

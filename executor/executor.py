@@ -1,5 +1,6 @@
 """Single-request-at-a-time executor for the packaged jwave environment."""
 
+import base64
 import hmac
 import json
 import os
@@ -72,6 +73,18 @@ def execute(payload: dict) -> dict:
                 process.wait()
         stdout_text = stdout_path.read_bytes()[:MAX_OUTPUT_BYTES].decode("utf-8", errors="replace")
         stderr_text = stderr_path.read_bytes()[:MAX_OUTPUT_BYTES].decode("utf-8", errors="replace")
+
+        # Check for gallery image in the per-request workdir only
+        image_base64 = None
+        result_png = Path(workdir) / "result.png"
+        if result_png.exists():
+            try:
+                raw = result_png.read_bytes()
+                if len(raw) <= 500 * 1024:  # 500KB limit
+                    image_base64 = base64.b64encode(raw).decode("ascii")
+            except Exception:
+                pass
+
     return {
         "exit_code": process.returncode,
         "timed_out": timed_out,
@@ -79,6 +92,7 @@ def execute(payload: dict) -> dict:
         "stdout": stdout_text,
         "stderr": stderr_text,
         "python": "/opt/jwave/bin/python",
+        "image_base64": image_base64,
     }
 
 

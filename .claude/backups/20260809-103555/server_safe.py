@@ -18,7 +18,7 @@ except ImportError:
     from fastmcp.server.auth import StaticTokenVerifier
 
 from library_tools import ALLOWED_TOOLS
-from dashboard import init_db, record_execution, clear_executions, PORTAL_HTML, DEMO_HTML, get_executions, get_stats, load_test_results
+from dashboard import init_db, record_execution, DASHBOARD_HTML, DEMO_HTML, PORTAL_HTML, get_executions, get_stats, load_test_results
 
 
 token = os.environ.get("MCP_AUTH_TOKEN")
@@ -26,7 +26,6 @@ executor_token = os.environ.get("EXECUTOR_SHARED_TOKEN")
 deepseek_api_key = os.environ.get("DEEPSEEK_API_KEY", "")
 deepseek_model = os.environ.get("DEEPSEEK_MODEL", "deepseek-chat")
 max_retries_default = int(os.environ.get("CODE_RETRY_MAX", "7"))
-dify_api_key = os.environ.get("DIFY_API_KEY", "")
 
 if not token or len(token) < 32:
     raise RuntimeError("MCP_AUTH_TOKEN must be set and at least 32 characters long")
@@ -279,90 +278,23 @@ def _update_cache(error_signature: str, fix_hint: str, was_successful: bool) -> 
 def get_cache_stats() -> dict:
     """返回缓存统计数据."""
     db = _cache_db()
-    rows = db.execute("SELECT * FROM error_fix_cache").fetchall()
-    db.close()
-
-    total = len(rows)
-    total_hits = sum((row[3] or 0) for row in rows)
-    total_success = sum((row[4] or 0) for row in rows)
+    total = db.execute("SELECT COUNT(*) FROM error_fix_cache").fetchone()[0]
+    total_hits = db.execute("SELECT COALESCE(SUM(hit_count), 0) FROM error_fix_cache").fetchone()[0]
+    total_success = db.execute("SELECT COALESCE(SUM(success_count), 0) FROM error_fix_cache").fetchone()[0]
     hit_rate = round(total_success / total_hits * 100, 1) if total_hits > 0 else 0.0
-    confidences = [float(row[6] or 0.0) for row in rows if row[6] is not None]
-    hits = [int(row[3] or 0) for row in rows]
-
-    def _row_dict(row) -> dict:
-        return {
-            "signature": row[1],
-            "hint": row[2],
-            "hint_excerpt": (row[2] or "")[:160],
-            "hits": row[3],
-            "success_count": row[4],
-            "consecutive_fails": row[5],
-            "confidence": row[6],
-            "created_at": row[7],
-            "updated_at": row[8],
-        }
-
-    sorted_rows = sorted(rows, key=lambda row: ((row[3] or 0), (row[6] or 0.0)), reverse=True)
-    recent_rows = sorted(rows, key=lambda row: row[8] or "", reverse=True)
-
-    confidence_bands = {"0-50": 0, "50-70": 0, "70-90": 0, "90-100": 0}
-    failure_streak_buckets = {"0": 0, "1-2": 0, "3-4": 0, "5+": 0}
-    error_families: dict[str, int] = {}
-    healthy_count = 0
-    questioned_count = 0
-    stale_count = 0
-
-    for row in rows:
-        confidence = float(row[6] or 0.0)
-        streak = int(row[5] or 0)
-        prefix = (row[1] or "general").split("|")[0]
-        error_families[prefix] = error_families.get(prefix, 0) + 1
-
-        if confidence < 0.5:
-            confidence_bands["0-50"] += 1
-        elif confidence < 0.7:
-            confidence_bands["50-70"] += 1
-        elif confidence < 0.9:
-            confidence_bands["70-90"] += 1
-        else:
-            confidence_bands["90-100"] += 1
-
-        if streak == 0:
-            failure_streak_buckets["0"] += 1
-        elif streak < 3:
-            failure_streak_buckets["1-2"] += 1
-        elif streak < 5:
-            failure_streak_buckets["3-4"] += 1
-        else:
-            failure_streak_buckets["5+"] += 1
-
-        if confidence >= 0.7 and streak < 3:
-            healthy_count += 1
-        elif streak >= 5:
-            stale_count += 1
-        elif streak >= 3:
-            questioned_count += 1
-
-    avg_hits_per_entry = round(total_hits / total, 2) if total > 0 else 0
-    avg_confidence = round(sum(confidences) / len(confidences), 3) if confidences else 0.0
-    max_hits = max(hits) if hits else 0
-
+    top5 = db.execute(
+        "SELECT error_signature, fix_hint, hit_count, confidence FROM error_fix_cache ORDER BY hit_count DESC LIMIT 5"
+    ).fetchall()
+    db.close()
     return {
         "total_entries": total,
         "total_hits": total_hits,
         "total_successes": total_success,
         "overall_hit_rate": hit_rate,
-        "avg_hits_per_entry": avg_hits_per_entry,
-        "avg_confidence": avg_confidence,
-        "max_hits": max_hits,
-        "healthy_count": healthy_count,
-        "questioned_count": questioned_count,
-        "stale_count": stale_count,
-        "confidence_bands": confidence_bands,
-        "failure_streak_buckets": failure_streak_buckets,
-        "error_families": error_families,
-        "top_entries": [_row_dict(row) for row in sorted_rows[:5]],
-        "recent_entries": [_row_dict(row) for row in recent_rows[:5]],
+        "top_entries": [
+            {"signature": r[0], "hint": r[1], "hits": r[2], "confidence": r[3]}
+            for r in top5
+        ],
     }
 
 
@@ -475,68 +407,6 @@ async def health(_: Request) -> PlainTextResponse:
     return PlainTextResponse("ok")
 
 
-@mcp.custom_route("/report", methods=["GET"])
-async def report_page(_: Request) -> PlainTextResponse:
-    from pathlib import Path as _Path
-    from starlette.responses import HTMLResponse
-    html = (_Path(__file__).parent / "docs" / "report.html").read_text(encoding="utf-8")
-    return HTMLResponse(html)
-
-
-@mcp.custom_route("/cache", methods=["GET"])
-async def cache_page(_: Request) -> PlainTextResponse:
-    from pathlib import Path as _Path
-    from starlette.responses import HTMLResponse
-    html = (_Path(__file__).parent / "docs" / "cache.html").read_text(encoding="utf-8")
-    return HTMLResponse(html)
-
-
-@mcp.custom_route("/ask", methods=["POST"])
-async def ask_api(request: Request) -> PlainTextResponse:
-    """Proxy to Dify workflow API for portal-based queries."""
-    import asyncio
-    import re as _re
-    body = await request.json()
-    query = (body.get("query") or "").strip()
-    if not query:
-        return PlainTextResponse(
-            json.dumps({"error": "query is required"}, ensure_ascii=False),
-            status_code=400, media_type="application/json",
-        )
-    dify_url = "http://nginx/v1/workflows/run"
-    async with httpx.AsyncClient(timeout=180) as client:
-        resp = await client.post(
-            dify_url,
-            headers={
-                "Authorization": f"Bearer {dify_api_key}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "inputs": {"query": query},
-                "response_mode": "blocking",
-                "user": "portal",
-            },
-        )
-    data = resp.json()
-    wf = data.get("data", {})
-    output = wf.get("outputs", {}).get("text")
-    # Dify 返回的是 Markdown 字符串（代码节点 result 字段的值）
-    report = ""
-    if isinstance(output, str):
-        report = output
-    elif isinstance(output, list) and len(output) > 0:
-        o = output[0]
-        report = o if isinstance(o, str) else o.get("result", "") or o.get("report", "") or json.dumps(o, ensure_ascii=False)
-    elif isinstance(output, dict):
-        report = output.get("result", "") or output.get("report", "") or json.dumps(output, ensure_ascii=False)
-    if not report or not report.strip():
-        report = f"_(工作流返回空结果, status={wf.get('status')}, error={wf.get('error')})_"
-    return PlainTextResponse(
-        json.dumps({"report": report, "workflow_status": wf.get("status")}, ensure_ascii=False),
-        media_type="application/json",
-    )
-
-
 @mcp.custom_route("/", methods=["GET"])
 async def portal(_: Request) -> PlainTextResponse:
     from starlette.responses import HTMLResponse
@@ -551,10 +421,8 @@ async def portal_page(_: Request) -> PlainTextResponse:
 
 @mcp.custom_route("/dashboard", methods=["GET"])
 async def dashboard(_: Request) -> PlainTextResponse:
-    from pathlib import Path as _Path
     from starlette.responses import HTMLResponse
-    html = (_Path(__file__).parent / "docs" / "dashboard.html").read_text(encoding="utf-8")
-    return HTMLResponse(html)
+    return HTMLResponse(DASHBOARD_HTML)
 
 
 @mcp.custom_route("/demo", methods=["GET"])
@@ -569,12 +437,13 @@ async def demo_api_run(request: Request) -> PlainTextResponse:
     import asyncio
     body = await request.json()
     dify_url = "http://nginx/v1/workflows/run"
+    api_key = "app-4b882b741c83a1c48d92484079aa01bd"
 
     async with httpx.AsyncClient(timeout=130) as client:
         resp = await client.post(
             dify_url,
             headers={
-                "Authorization": f"Bearer {dify_api_key}",
+                "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json",
             },
             json=body,
@@ -592,15 +461,6 @@ async def dashboard_api(request: Request) -> PlainTextResponse:
             "executions": get_executions(limit=limit, since_id=since),
             "stats": get_stats(),
         }, ensure_ascii=False),
-        media_type="application/json",
-    )
-
-
-@mcp.custom_route("/dashboard/api/executions", methods=["DELETE"])
-async def clear_executions_api(_: Request) -> PlainTextResponse:
-    count = clear_executions()
-    return PlainTextResponse(
-        json.dumps({"deleted": count, "ok": True}, ensure_ascii=False),
         media_type="application/json",
     )
 
@@ -687,90 +547,6 @@ def run_jwave_code(code: str, timeout_seconds: int = 15) -> dict[str, Any]:
     return result
 
 
-def _build_report(result: dict[str, Any], original_code: str) -> str:
-    """Build a human-readable Markdown report from execution results."""
-    import re
-
-    exit_code = result.get("exit_code")
-    timed_out = result.get("timed_out", False)
-    duration_ms = result.get("duration_ms")
-    stdout = result.get("stdout", "") or ""
-    stderr = result.get("stderr", "") or ""
-    total_attempts = result.get("total_attempts", 1)
-    image_base64 = result.get("image_base64")
-
-    # Status
-    if timed_out:
-        status = "⏱ **超时** — 计算量超过资源限制"
-    elif exit_code == 0:
-        status = "✅ **成功** — 仿真正常完成"
-    else:
-        status = f"❌ **失败** — 退出码 {exit_code}"
-
-    # Key metrics from stdout
-    max_pressure = None
-    pressure_shape = None
-    m = re.search(r'(?:最大压力|max[_\s]pressure)\s*[:=]\s*([\d.eE+-]+)', stdout, re.I)
-    if m:
-        try:
-            max_pressure = float(m.group(1))
-        except ValueError:
-            pass
-    m = re.search(r'(?:压力场形状|pressure.*shape)\s*[:=]\s*\(?([\d,\s]+)\)?', stdout, re.I)
-    if m:
-        pressure_shape = m.group(1).strip().rstrip(")")
-
-    lines = []
-    lines.append("## 📊 仿真结果报告")
-    lines.append("")
-    lines.append("### ✅ 执行状态")
-    lines.append("")
-    lines.append(f"{status}")
-    lines.append("")
-    lines.append("| 指标 | 值 |")
-    lines.append("|------|-----|")
-    lines.append(f"| 执行耗时 | {duration_ms:.0f} ms |" if duration_ms else "| 执行耗时 | - |")
-    lines.append(f"| 尝试次数 | {total_attempts} 次 |")
-    lines.append("")
-
-    if max_pressure is not None or pressure_shape:
-        lines.append("### 📈 关键数据")
-        lines.append("")
-        if max_pressure is not None:
-            lines.append(f"- 最大压力：**{max_pressure:.4f}**")
-        if pressure_shape:
-            lines.append(f"- 压力场形状：`{pressure_shape}`")
-        lines.append("")
-
-    if stdout.strip():
-        lines.append("### 📝 程序输出")
-        lines.append("")
-        lines.append("```")
-        for line in stdout.strip().splitlines()[:30]:
-            lines.append(line)
-        if len(stdout.strip().splitlines()) > 30:
-            lines.append(f"... (共 {len(stdout.strip().splitlines())} 行，省略后续)")
-        lines.append("```")
-        lines.append("")
-
-    if stderr.strip():
-        lines.append("### ⚠️ 错误输出")
-        lines.append("")
-        lines.append("```")
-        for line in stderr.strip().splitlines()[:20]:
-            lines.append(line)
-        lines.append("```")
-        lines.append("")
-
-    if image_base64:
-        lines.append("### 🖼 仿真图像")
-        lines.append("")
-        lines.append("*(图像已在看板中保存)*")
-        lines.append("")
-
-    return "\n".join(lines)
-
-
 @mcp.tool
 def run_jwave_code_with_retry(
     code: str,
@@ -827,7 +603,6 @@ def run_jwave_code_with_retry(
             result["history"] = history
             result["final_code"] = current_code
             result["total_attempts"] = attempt + 1
-            result["report"] = _build_report(result, code)
             if last_error_sig:
                 try:
                     _update_cache(last_error_sig, current_code[:500], was_successful=True)
@@ -852,7 +627,6 @@ def run_jwave_code_with_retry(
             result["final_code"] = current_code
             result["total_attempts"] = attempt + 1
             result["error"] = "max_retries exhausted"
-            result["report"] = _build_report(result, code)
             if last_error_sig:
                 try:
                     _update_cache(last_error_sig, current_code[:500], was_successful=False)

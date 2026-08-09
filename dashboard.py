@@ -813,43 +813,65 @@ async function runScenario(id) {
     const data = await resp.json();
     const wfStatus = data.data?.status;
     const error = data.data?.error;
-    const outputs = data.data?.outputs?.text || [];
-    let o = outputs.length ? (Array.isArray(outputs) ? outputs[0] : outputs) : {};
 
-    let statusClass = 'err', statusText = '失败';
-    let mp = null, attempts = 1, dur = null;
-
-    if (wfStatus === 'succeeded' && !error) {
-      if (o.exit_code === 0 && !o.timed_out) {
-        statusClass = 'ok';
-        statusText = '\\u2705 成功';
-      } else if (o.timed_out) {
-        statusText = '\\u23f1 超时';
-      } else {
-        statusText = '\\u274c 错误 (exit=' + o.exit_code + ')';
-      }
-      mp = o.max_pressure != null ? o.max_pressure : extractMaxPressure(o.stdout);
-      attempts = o.total_attempts || 1;
-      dur = o.duration_ms;
+    // 现在输出是 Markdown 字符串或对象
+    const output = data.data?.outputs?.text;
+    let reportText = '';
+    if (typeof output === 'string') {
+      reportText = output;
+    } else if (Array.isArray(output) && output.length > 0) {
+      const o0 = output[0];
+      if (typeof o0 === 'string') { reportText = o0; }
+      else if (typeof o0 === 'object') { reportText = o0.result || o0.report || ''; }
+    } else if (typeof output === 'object' && output !== null) {
+      reportText = output.result || output.report || '';
     }
+
+    // 判断成功/失败
+    let statusClass = 'err', statusText = '失败';
+    if (wfStatus === 'succeeded' && !error) {
+      if (reportText.includes('✅ **成功**')) {
+        statusClass = 'ok'; statusText = '\\u2705 成功';
+      } else if (reportText.includes('⏱ **超时**')) {
+        statusText = '\\u23f1 超时';
+      } else if (reportText.includes('❌ **失败**')) {
+        statusText = '\\u274c 失败';
+      } else {
+        statusClass = 'ok'; statusText = '\\u2705 完成';
+      }
+    } else if (error) {
+      statusText = '\\u274c ' + escHtml(String(error).slice(0, 60));
+    }
+
+    // 从 Markdown 中提取关键指标
+    const maxPMatch = reportText.match(/最大压力[：:]?\s*\**\s*([\d.]+)/);
+    const mp = maxPMatch ? parseFloat(maxPMatch[1]) : null;
+    const durMatch = reportText.match(/执行耗时[：:]?\s*\**\s*([\d.]+)\s*ms/);
+    const dur = durMatch ? parseFloat(durMatch[1]) : null;
+    const attMatch = reportText.match(/尝试次数[：:]?\s*\**\s*(\d+)/);
+    const attempts = attMatch ? parseInt(attMatch[1]) : 1;
 
     let html = `<div class="status-line">
       <span class="stat ${statusClass}">${statusText}</span>
       <span class="info">${elapsed}s</span>`;
     if (dur) html += `<span class="info">${dur < 1000 ? Math.round(dur)+'ms' : (dur/1000).toFixed(1)+'s'}</span>`;
-    if (mp != null) html += `<span class="info">max_p=${typeof mp === 'number' ? mp.toFixed(4) : mp}</span>`;
+    if (mp != null) html += `<span class="info">max_p=${mp.toFixed(4)}</span>`;
     if (attempts > 1) html += `<span class="info">retry x${attempts}</span>`;
     html += `</div>`;
 
-    if (o.image_base64 && o.image_base64.length > 100) {
-      html += `<img src="data:image/png;base64,${o.image_base64}" onclick="showLarge(this.src)" title="点击放大">`;
+    // 显示报告文本，简单格式化
+    if (reportText) {
+      const short = reportText.length > 600
+        ? reportText.slice(0, 600).replace(/\n/g, '<br>') + '<br>...<br><span style="color:var(--blue);cursor:pointer;font-size:12px" onclick="this.parentElement.innerHTML=this.previousSibling">(展开全部)</span><span style="display:none">' + escHtml(reportText.slice(600)).replace(/\n/g, '<br>') + '</span>'
+        : reportText.replace(/\n/g, '<br>');
+      html += `<div style="margin-top:8px;font-size:12px;color:var(--muted);line-height:1.7">${short}</div>`;
     }
 
     result.innerHTML = html;
 
     history.unshift({
       id: scenario.id, name: scenario.name, status: statusText,
-      elapsed: elapsed, mp: mp, image: o.image_base64, time: new Date().toLocaleTimeString('zh-CN')
+      elapsed: elapsed, mp: mp, time: new Date().toLocaleTimeString('zh-CN')
     });
     renderHistory();
 

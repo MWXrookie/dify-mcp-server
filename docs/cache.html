@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dify MCP · 纠错缓存</title>
+<title>Dify MCP - 纠错经验缓存</title>
 <style>
   :root { --bg: #0d1117; --surface: #161b22; --border: #30363d; --text: #c9d1d9; --muted: #8b949e; --green: #3fb950; --red: #f85149; --yellow: #d2991d; --blue: #58a6ff; --accent: #1f6feb; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -11,39 +11,182 @@
   .back { margin-bottom: 20px; }
   .back a { color: var(--blue); text-decoration: none; font-size: 14px; }
   .back a:hover { text-decoration: underline; }
-  h1 { font-size: 24px; margin-bottom: 16px; }
-  .summary-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
-  .tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
-  .tile .num { font-size: 26px; font-weight: 700; }
+  h1 { font-size: 24px; margin-bottom: 8px; }
+  .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+
+  /* Summary tiles */
+  .summary-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 12px; margin-bottom: 20px; }
+  .tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .tile .num { font-size: 28px; font-weight: 700; }
   .tile .label { color: var(--muted); font-size: 12px; margin-top: 4px; }
   .tile.good .num { color: var(--green); }
   .tile.warn .num { color: var(--yellow); }
   .tile.bad .num { color: var(--red); }
+  .tile .sub { color: var(--muted); font-size: 11px; margin-top: 2px; }
+
+  /* Section */
   .section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
   .section h3 { font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
-  .pill-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
-  .pill { padding: 4px 10px; border: 1px solid var(--border); border-radius: 999px; background: #1c2129; font-size: 12px; color: var(--muted); }
-  .entry { padding: 10px 12px; margin: 6px 0; background: #1c2129; border-radius: 8px; font-size: 12px; border: 1px solid transparent; }
+
+  /* Bar chart */
+  .bar-row { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: 12px; }
+  .bar-row .label { min-width: 80px; color: var(--muted); text-align: right; }
+  .bar-row .track { flex: 1; height: 20px; background: #21262d; border-radius: 4px; overflow: hidden; }
+  .bar-row .track .fill { height: 100%; border-radius: 4px; transition: width 0.5s; }
+  .bar-row .count { color: var(--muted); min-width: 36px; text-align: right; }
+
+  /* Entry card */
+  .entry { padding: 14px 16px; margin: 8px 0; background: #1c2129; border-radius: 10px; border: 1px solid transparent; }
   .entry.good { border-color: rgba(63,185,80,.35); }
   .entry.warn { border-color: rgba(210,153,29,.35); }
-  .entry .head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
-  .entry .signature { color: var(--yellow); font-family: monospace; word-break: break-all; }
-  .entry .hint { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .entry.retiring { border-color: rgba(248,81,73,.35); background: rgba(248,81,73,.04); }
+  .entry .top-line { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+  .entry .error-name { font-weight: 600; font-size: 14px; }
+  .entry .error-type { color: var(--yellow); font-family: monospace; font-size: 11px; }
+  .entry .meta-pills { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
+  .pill { padding: 3px 8px; border: 1px solid var(--border); border-radius: 999px; background: #161b22; font-size: 11px; color: var(--muted); }
+  .pill.ok { background: rgba(63,185,80,.12); border-color: rgba(63,185,80,.25); color: var(--green); }
+  .pill.warn { background: rgba(210,153,29,.12); border-color: rgba(210,153,29,.25); color: var(--yellow); }
+  .pill.bad { background: rgba(248,81,73,.12); border-color: rgba(248,81,73,.25); color: var(--red); }
+  .entry .fix-summary { color: var(--muted); font-size: 12px; line-height: 1.6; }
+  .entry .fix-code { display: none; margin-top: 8px; background: #0d1117; border: 1px solid var(--border); border-radius: 6px; padding: 10px; font-family: monospace; font-size: 11px; color: var(--blue); white-space: pre-wrap; max-height: 160px; overflow-y: auto; }
+  .entry .fix-code.open { display: block; }
+  .entry .toggle-code { color: var(--blue); font-size: 11px; cursor: pointer; margin-top: 6px; display: inline-block; }
+  .entry .toggle-code:hover { text-decoration: underline; }
+
+  /* Legend */
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; font-size: 12px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 4px; }
+  .legend .dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+  .legend .dot.high { background: var(--green); }
+  .legend .dot.med { background: var(--yellow); }
+  .legend .dot.retire { background: var(--red); }
+
+  .empty { color: var(--muted); text-align: center; padding: 32px; line-height: 1.8; }
   .loading { padding: 48px; text-align: center; color: var(--muted); }
-  .empty { color: var(--muted); text-align: center; padding: 24px; }
-  @media (max-width: 768px) { body { padding: 12px; } .summary-row { grid-template-columns: repeat(2, 1fr); } }
+
+  /* Filters */
+  .filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; }
+  .filter-bar .filter-label { color: var(--muted); font-size: 12px; }
+  .filter-btn { padding: 4px 12px; border-radius: 999px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; font-size: 12px; transition: all 0.15s; }
+  .filter-btn:hover { border-color: var(--accent); color: var(--text); }
+  .filter-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .filter-count { color: var(--muted); font-size: 12px; margin-left: auto; }
+
+  @media (max-width: 768px) { body { padding: 12px; } .summary-row { grid-template-columns: repeat(2,1fr); } .filter-bar { gap: 4px; } }
 </style>
 </head>
 <body>
 <div class="back"><a href="/">← 返回门户</a></div>
 <h1>🧠 纠错经验缓存</h1>
+<p class="subtitle">每次仿真失败后，LLM 会自动修复代码，修复经验被记录在这里。同类错误命中后可直接复用，避免重复踩坑。</p>
 <div class="summary-row" id="summary"></div>
 <div class="section" id="bands-section"></div>
-<div class="section"><h3>Top 高频经验</h3><div id="top-entries"></div></div>
-<div class="section"><h3>最近更新</h3><div id="recent-entries"></div></div>
+<div class="section"><h3>📋 经验条目 <span class="filter-count" id="entry-count"></span></h3>
+<div class="filter-bar">
+  <span class="filter-label">筛选：</span>
+  <button class="filter-btn active" onclick="setFilter('all')">全部</button>
+  <button class="filter-btn" onclick="setFilter('high')">高置信 (≥70%)</button>
+  <button class="filter-btn" onclick="setFilter('medium')">中等置信</button>
+  <button class="filter-btn" onclick="setFilter('at-risk')">⚠ 有风险</button>
+  <button class="filter-btn" onclick="setFilter('type-error')">TypeError</button>
+  <button class="filter-btn" onclick="setFilter('attr-error')">AttributeError</button>
+</div>
+<div id="all-entries"></div></div>
 <script>
+var cachedData = null;
+var currentFilter = 'all';
 function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 function fmtPct(v) { if (v == null || isNaN(Number(v))) return '-'; return Number(v).toFixed(1).replace(/\.0$/,'')+'%'; }
+
+// 将机器签名翻译为人可读的描述
+function decodeSignature(sig) {
+  var parts = (sig || '').split('|');
+  var errorType = parts[0] || 'Unknown';
+  var object = parts[1] || '';
+  var problem = parts[2] || '';
+
+  // 错误类型翻译
+  var typeMap = {
+    'AttributeError': '属性不存在',
+    'TypeError': '类型/参数错误',
+    'ValueError': '数值错误',
+    'ImportError': '导入错误',
+    'OSError': '系统/IO错误',
+    'BroadcastError': '数组形状不兼容',
+    'ZeroOutput': '输出全为零',
+    'UnknownError': '未知错误'
+  };
+  var typeName = typeMap[errorType] || errorType;
+
+  // 生成人类可读的描述
+  var desc = typeName;
+  if (object && object !== 'general') {
+    if (errorType === 'AttributeError') {
+      desc = object + ' 缺少属性 ' + (problem || '?');
+    } else if (errorType === 'TypeError' && problem === 'arg_count') {
+      desc = object + ' 参数数量不匹配';
+    } else if (errorType === 'OSError' && problem === 'disk_full') {
+      desc = '磁盘空间不足（写入失败）';
+    } else if (errorType === 'BroadcastError') {
+      desc = '数组形状无法广播';
+    } else if (errorType === 'ZeroOutput') {
+      desc = '仿真输出全为零';
+    } else {
+      desc = object + ' - ' + typeName;
+    }
+  }
+
+  return { errorType: errorType, typeName: typeName, description: desc, raw: sig };
+}
+
+// 从 hint 代码中提取有意义的摘要：显示 import 块后的 3-4 行关键代码
+function summarizeHint(hint) {
+  if (!hint) return '(无)';
+  var lines = hint.split('\n');
+  var importEnd = 0;
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i].trim();
+    if (!line) continue;
+    if (line.startsWith('import ') || line.startsWith('from ') || line.startsWith('#!')) {
+      importEnd = i + 1;
+      continue;
+    }
+  }
+  // 从 import 块结束后面收集 3 行有意义的代码
+  var snippets = [];
+  for (var j = importEnd; j < lines.length && snippets.length < 3; j++) {
+    var l = lines[j].trim();
+    if (!l) continue;
+    if (l.startsWith('#')) { snippets.push(l); continue; }
+    snippets.push(l.slice(0, 80));
+  }
+  return snippets.join('\n') || lines[0].trim().slice(0, 100);
+}
+
+// 提取 hint 的核心修复逻辑：跳过 import 和通用参数设置，找到关键变化行
+function extractFixLogic(hint) {
+  if (!hint) return '';
+  var lines = hint.split('\n');
+  // 找所有注释行和特殊 API 调用行，这些通常包含修复信息
+  var clues = [];
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i].trim();
+    if (!line) continue;
+    // 注释行通常说明修复意图
+    if (line.startsWith('#') && lines.length > 5) {
+      clues.push(line.replace(/^#+\s*/, ''));
+    }
+    // 关键 API 调用行
+    if (/FourierSeries|Domain|Medium|TimeAxis|Sources|simulate_wave_propagation|\.params|jnp\.max|jnp\.abs|jnp\.array|jnp\.linspace/.test(line) && !line.startsWith('import') && !line.startsWith('from')) {
+      clues.push(line.slice(0, 100));
+    }
+  }
+  if (clues.length > 0) {
+    return clues.slice(0, 2).join(' | ');
+  }
+  return '';
+}
 
 async function init() {
   try {
@@ -56,51 +199,130 @@ async function init() {
 }
 
 function render(d) {
+  cachedData = d;
   if (d.total_entries === 0) {
-    document.getElementById("summary").innerHTML = '<div class="empty">暂无缓存经验。运行带有 retry 的仿真后，LLM 修复经验将自动沉淀到这里。</div>';
+    document.getElementById("summary").innerHTML = '<div class="empty">暂无缓存经验。<br>运行带有 retry 的仿真后，LLM 修复经验将自动沉淀到这里。</div>';
+    document.getElementById("all-entries").innerHTML = '';
+    document.getElementById("entry-count").textContent = '';
     return;
   }
+
+  // 成功率 = 成功命中 / 总命中
+  var successRate = d.total_hits > 0 ? (d.total_successes / d.total_hits * 100) : 0;
+
+  // Summary tiles
   document.getElementById("summary").innerHTML =
-    '<div class="tile"><div class="num">' + d.total_entries + '</div><div class="label">总经验条目</div></div>' +
-    '<div class="tile good"><div class="num">' + d.total_hits + '</div><div class="label">累计命中次数</div></div>' +
-    '<div class="tile good"><div class="num">' + d.total_successes + '</div><div class="label">成功命中次数</div></div>' +
-    '<div class="tile"><div class="num">' + fmtPct(d.overall_hit_rate) + '</div><div class="label">整体成功率</div></div>' +
-    '<div class="tile"><div class="num">' + fmtPct((d.avg_confidence || 0) * 100) + '</div><div class="label">平均置信度</div></div>' +
-    '<div class="tile ' + (d.questioned_count ? 'warn' : 'good') + '"><div class="num">' + (d.questioned_count || 0) + '</div><div class="label">待观察经验</div></div>';
-  var bHtml = '';
+    '<div class="tile"><div class="num">' + d.total_entries + '</div><div class="label">经验条目</div><div class="sub">已积累的修复经验</div></div>' +
+    '<div class="tile good"><div class="num">' + d.total_hits + '</div><div class="label">累计命中</div><div class="sub">经验被查询的次数</div></div>' +
+    '<div class="tile good"><div class="num">' + d.total_successes + '</div><div class="label">成功修复</div><div class="sub">经验确实起作用的次数</div></div>' +
+    '<div class="tile ' + (successRate >= 80 ? 'good' : (successRate >= 60 ? 'warn' : 'bad')) + '"><div class="num">' + fmtPct(successRate) + '</div><div class="label">命中成功率</div><div class="sub">经验靠谱程度</div></div>' +
+    '<div class="tile"><div class="num">' + fmtPct((d.avg_confidence || 0) * 100) + '</div><div class="label">平均置信度</div><div class="sub">经验可信度均值</div></div>' +
+    '<div class="tile ' + (d.questioned_count ? 'warn' : 'good') + '"><div class="num">' + (d.questioned_count || 0) + '</div><div class="label">待观察</div><div class="sub">连续失败≥3次的经验</div></div>';
+
+  // Confidence distribution as bar chart
+  var bandsHtml = '';
   if (d.confidence_bands) {
-    bHtml += '<div class="pill-row">置信度分布：';
-    Object.entries(d.confidence_bands).forEach(function(e) { bHtml += '<span class="pill">' + e[0] + '%：' + e[1] + '</span>'; });
-    bHtml += '</div>';
+    var bandOrder = ['90-100','70-90','50-70','0-50'];
+    var maxBand = Math.max.apply(null, Object.values(d.confidence_bands));
+    bandsHtml += '<h3 style="font-size:14px;color:var(--muted);margin-bottom:8px">📊 置信度分布</h3>';
+    bandOrder.forEach(function(k) {
+      var v = d.confidence_bands[k] || 0;
+      var pct = maxBand > 0 ? Math.round(v / maxBand * 100) : 0;
+      var color = k === '90-100' ? 'var(--green)' : (k === '70-90' ? 'var(--blue)' : (k === '50-70' ? 'var(--yellow)' : 'var(--muted)'));
+      var label = k === '90-100' ? '高置信度' : (k === '70-90' ? '中等置信度' : (k === '50-70' ? '较低置信度' : '低置信度'));
+      bandsHtml += '<div class="bar-row"><span class="label">' + label + '</span><div class="track"><div class="fill" style="width:' + pct + '%;background:' + color + '"></div></div><span class="count">' + v + ' 条</span></div>';
+    });
   }
+
+  // Error family distribution
   if (d.error_families) {
-    bHtml += '<div class="pill-row">错误家族：';
-    Object.entries(d.error_families).sort(function(a,b) { return b[1] - a[1]; }).forEach(function(e) { bHtml += '<span class="pill">' + esc(e[0]) + '：' + e[1] + '</span>'; });
-    bHtml += '</div>';
+    bandsHtml += '<h3 style="font-size:14px;color:var(--muted);margin:14px 0 8px">🔍 错误类型分布</h3>';
+    var families = Object.entries(d.error_families).sort(function(a,b) { return b[1] - a[1]; });
+    var maxF = Math.max.apply(null, families.map(function(f) { return f[1]; }));
+    families.forEach(function(f) {
+      var pct = maxF > 0 ? Math.round(f[1] / maxF * 100) : 0;
+      var sig = decodeSignature(f[0] + '|general|');
+      bandsHtml += '<div class="bar-row"><span class="label" style="min-width:120px">' + esc(sig.typeName) + '</span><div class="track"><div class="fill" style="width:' + pct + '%;background:var(--accent)"></div></div><span class="count">' + f[1] + ' 条</span></div>';
+    });
   }
-  document.getElementById("bands-section").innerHTML = bHtml ? '<h3 style="font-size:14px;color:var(--muted);margin-bottom:10px">📊 统计分布</h3>' + bHtml : '';
-  renderEntries("top-entries", d.top_entries, false);
-  renderEntries("recent-entries", d.recent_entries, true);
+  document.getElementById("bands-section").innerHTML = bandsHtml || '';
+  applyFilter();
 }
 
-function renderEntries(elId, entries, showTime) {
-  var el = document.getElementById(elId);
-  if (!entries || entries.length === 0) { el.innerHTML = '<div class="empty">暂无记录</div>'; return; }
-  el.innerHTML = entries.map(function(e, i) {
+function setFilter(f) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
+  var target = document.querySelector('.filter-btn[onclick="setFilter(\'' + f + '\')"]');
+  if (target) target.classList.add('active');
+  applyFilter();
+}
+
+function applyFilter() {
+  var d = cachedData;
+  if (!d) return;
+
+  var seen = {};
+  var all = [];
+  (d.top_entries || []).forEach(function(e) { if (!seen[e.signature]) { seen[e.signature] = true; all.push(e); } });
+  (d.recent_entries || []).forEach(function(e) { if (!seen[e.signature]) { seen[e.signature] = true; all.push(e); } });
+
+  var filtered = all.filter(function(e) {
     var conf = Number(e.confidence || 0);
+    var sig = decodeSignature(e.signature);
+    switch (currentFilter) {
+      case 'high': return conf >= 0.7;
+      case 'medium': return conf >= 0.5 && conf < 0.7;
+      case 'at-risk': return e.consecutive_fails >= 3;
+      case 'type-error': return sig.errorType === 'TypeError';
+      case 'attr-error': return sig.errorType === 'AttributeError';
+      default: return true;
+    }
+  });
+
+  var countEl = document.getElementById("entry-count");
+  if (countEl) countEl.textContent = '（显示 ' + filtered.length + ' / ' + all.length + ' 条）';
+
+  if (filtered.length === 0) {
+    document.getElementById("all-entries").innerHTML = '<div class="empty">当前筛选条件下无匹配经验</div>';
+    return;
+  }
+
+  var entriesHtml = '<div class="legend"><span><span class="dot high"></span> 高置信度 (≥70%)</span><span><span class="dot med"></span> 中等置信度</span><span><span class="dot retire"></span> 即将退役</span></div>';
+  filtered.forEach(function(e, idx) {
+    var decoded = decodeSignature(e.signature);
+    var conf = Number(e.confidence || 0);
+    var successRate = e.hits > 0 ? (e.success_count / e.hits * 100) : 0;
     var cls = conf >= 0.7 ? 'good' : (conf >= 0.5 ? 'warn' : '');
-    return '<div class="entry ' + cls + '"><div class="head">' +
-      '<span style="color:var(--muted)">#' + (i+1) + '</span>' +
-      '<span class="signature">' + esc(e.signature || '') + '</span>' +
-      '<span class="pill">命中 ' + (e.hits != null ? e.hits : 0) + '</span>' +
-      '<span class="pill">成功 ' + (e.success_count != null ? e.success_count : '-') + '</span>' +
-      '<span class="pill">置信度 ' + fmtPct(conf * 100) + '</span>' +
-      (e.consecutive_fails ? '<span class="pill">连续失败 ' + e.consecutive_fails + '</span>' : '') +
-      '</div>' +
-      '<div class="hint">' + esc((e.hint_excerpt || e.hint || '').slice(0, 200)) + '</div>' +
-      (showTime && e.updated_at ? '<div style="color:var(--muted);font-size:11px;margin-top:3px">更新：' + esc(e.updated_at) + '</div>' : '') +
-      '</div>';
-  }).join('');
+    if (e.consecutive_fails >= 3) cls += ' retiring';
+    var summary = summarizeHint(e.hint_excerpt || e.hint);
+    var uid = 'code-' + idx;
+
+    entriesHtml += '<div class="entry ' + cls + '">';
+    entriesHtml += '<div class="top-line">';
+    entriesHtml += '<span class="error-name">' + esc(decoded.description) + '</span>';
+    entriesHtml += '<span class="error-type">' + esc(decoded.raw) + '</span>';
+    entriesHtml += '</div>';
+    entriesHtml += '<div class="meta-pills">';
+    entriesHtml += '<span class="pill ok">命中 ' + (e.hits || 0) + ' 次</span>';
+    entriesHtml += '<span class="pill ok">成功 ' + (e.success_count || 0) + ' 次 (' + fmtPct(successRate) + ')</span>';
+    entriesHtml += '<span class="pill ' + (conf >= 0.7 ? 'ok' : (conf >= 0.5 ? 'warn' : 'bad')) + '">置信度 ' + fmtPct(conf * 100) + '</span>';
+    if (e.consecutive_fails > 0) {
+      entriesHtml += '<span class="pill ' + (e.consecutive_fails >= 3 ? 'bad' : 'warn') + '">⚠ 连续失败 ' + e.consecutive_fails + ' 次' + (e.consecutive_fails >= 5 ? ' (已退役)' : e.consecutive_fails >= 3 ? ' (即将退役)' : '') + '</span>';
+    }
+    entriesHtml += '</div>';
+    var logic = extractFixLogic(e.hint_excerpt || e.hint);
+    entriesHtml += '<div class="fix-summary">📝 ' + esc(summary) + '</div>';
+    if (logic) {
+      entriesHtml += '<div class="fix-summary" style="color:var(--yellow);margin-top:4px">🔧 修复要点：' + esc(logic) + '</div>';
+    }
+    entriesHtml += '<span class="toggle-code" onclick="var el=document.getElementById(\'' + uid + '\');el.classList.toggle(\'open\');this.textContent=el.classList.contains(\'open\')?\'▲ 收起代码\':\'▼ 查看完整修复代码\'">▼ 查看完整修复代码</span>';
+    entriesHtml += '<div class="fix-code" id="' + uid + '">' + esc(e.hint_excerpt || e.hint || '') + '</div>';
+    if (e.updated_at) {
+      entriesHtml += '<div style="color:var(--muted);font-size:11px;margin-top:6px">更新于 ' + esc(e.updated_at) + '</div>';
+    }
+    entriesHtml += '</div>';
+  });
+  document.getElementById("all-entries").innerHTML = entriesHtml;
 }
 
 init();

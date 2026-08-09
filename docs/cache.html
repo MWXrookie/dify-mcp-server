@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dify MCP · 纠错缓存</title>
+<style>
+  :root { --bg: #0d1117; --surface: #161b22; --border: #30363d; --text: #c9d1d9; --muted: #8b949e; --green: #3fb950; --red: #f85149; --yellow: #d2991d; --blue: #58a6ff; --accent: #1f6feb; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 24px; }
+  .back { margin-bottom: 20px; }
+  .back a { color: var(--blue); text-decoration: none; font-size: 14px; }
+  .back a:hover { text-decoration: underline; }
+  h1 { font-size: 24px; margin-bottom: 16px; }
+  .summary-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .tile .num { font-size: 26px; font-weight: 700; }
+  .tile .label { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  .tile.good .num { color: var(--green); }
+  .tile.warn .num { color: var(--yellow); }
+  .tile.bad .num { color: var(--red); }
+  .section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  .section h3 { font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+  .pill-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .pill { padding: 4px 10px; border: 1px solid var(--border); border-radius: 999px; background: #1c2129; font-size: 12px; color: var(--muted); }
+  .entry { padding: 10px 12px; margin: 6px 0; background: #1c2129; border-radius: 8px; font-size: 12px; border: 1px solid transparent; }
+  .entry.good { border-color: rgba(63,185,80,.35); }
+  .entry.warn { border-color: rgba(210,153,29,.35); }
+  .entry .head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
+  .entry .signature { color: var(--yellow); font-family: monospace; word-break: break-all; }
+  .entry .hint { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .loading { padding: 48px; text-align: center; color: var(--muted); }
+  .empty { color: var(--muted); text-align: center; padding: 24px; }
+  @media (max-width: 768px) { body { padding: 12px; } .summary-row { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+<div class="back"><a href="/">← 返回门户</a></div>
+<h1>🧠 纠错经验缓存</h1>
+<div class="summary-row" id="summary"></div>
+<div class="section" id="bands-section"></div>
+<div class="section"><h3>Top 高频经验</h3><div id="top-entries"></div></div>
+<div class="section"><h3>最近更新</h3><div id="recent-entries"></div></div>
+<script>
+function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function fmtPct(v) { if (v == null || isNaN(Number(v))) return '-'; return Number(v).toFixed(1).replace(/\.0$/,'')+'%'; }
+
+async function init() {
+  try {
+    var resp = await fetch("/dashboard/api/cache_stats");
+    var d = await resp.json();
+    render(d);
+  } catch(e) {
+    document.body.innerHTML = '<div class="loading">加载失败：' + esc(String(e)) + '</div>';
+  }
+}
+
+function render(d) {
+  if (d.total_entries === 0) {
+    document.getElementById("summary").innerHTML = '<div class="empty">暂无缓存经验。运行带有 retry 的仿真后，LLM 修复经验将自动沉淀到这里。</div>';
+    return;
+  }
+  document.getElementById("summary").innerHTML =
+    '<div class="tile"><div class="num">' + d.total_entries + '</div><div class="label">总经验条目</div></div>' +
+    '<div class="tile good"><div class="num">' + d.total_hits + '</div><div class="label">累计命中次数</div></div>' +
+    '<div class="tile good"><div class="num">' + d.total_successes + '</div><div class="label">成功命中次数</div></div>' +
+    '<div class="tile"><div class="num">' + fmtPct(d.overall_hit_rate) + '</div><div class="label">整体成功率</div></div>' +
+    '<div class="tile"><div class="num">' + fmtPct((d.avg_confidence || 0) * 100) + '</div><div class="label">平均置信度</div></div>' +
+    '<div class="tile ' + (d.questioned_count ? 'warn' : 'good') + '"><div class="num">' + (d.questioned_count || 0) + '</div><div class="label">待观察经验</div></div>';
+  var bHtml = '';
+  if (d.confidence_bands) {
+    bHtml += '<div class="pill-row">置信度分布：';
+    Object.entries(d.confidence_bands).forEach(function(e) { bHtml += '<span class="pill">' + e[0] + '%：' + e[1] + '</span>'; });
+    bHtml += '</div>';
+  }
+  if (d.error_families) {
+    bHtml += '<div class="pill-row">错误家族：';
+    Object.entries(d.error_families).sort(function(a,b) { return b[1] - a[1]; }).forEach(function(e) { bHtml += '<span class="pill">' + esc(e[0]) + '：' + e[1] + '</span>'; });
+    bHtml += '</div>';
+  }
+  document.getElementById("bands-section").innerHTML = bHtml ? '<h3 style="font-size:14px;color:var(--muted);margin-bottom:10px">📊 统计分布</h3>' + bHtml : '';
+  renderEntries("top-entries", d.top_entries, false);
+  renderEntries("recent-entries", d.recent_entries, true);
+}
+
+function renderEntries(elId, entries, showTime) {
+  var el = document.getElementById(elId);
+  if (!entries || entries.length === 0) { el.innerHTML = '<div class="empty">暂无记录</div>'; return; }
+  el.innerHTML = entries.map(function(e, i) {
+    var conf = Number(e.confidence || 0);
+    var cls = conf >= 0.7 ? 'good' : (conf >= 0.5 ? 'warn' : '');
+    return '<div class="entry ' + cls + '"><div class="head">' +
+      '<span style="color:var(--muted)">#' + (i+1) + '</span>' +
+      '<span class="signature">' + esc(e.signature || '') + '</span>' +
+      '<span class="pill">命中 ' + (e.hits != null ? e.hits : 0) + '</span>' +
+      '<span class="pill">成功 ' + (e.success_count != null ? e.success_count : '-') + '</span>' +
+      '<span class="pill">置信度 ' + fmtPct(conf * 100) + '</span>' +
+      (e.consecutive_fails ? '<span class="pill">连续失败 ' + e.consecutive_fails + '</span>' : '') +
+      '</div>' +
+      '<div class="hint">' + esc((e.hint_excerpt || e.hint || '').slice(0, 200)) + '</div>' +
+      (showTime && e.updated_at ? '<div style="color:var(--muted);font-size:11px;margin-top:3px">更新：' + esc(e.updated_at) + '</div>' : '') +
+      '</div>';
+  }).join('');
+}
+
+init();
+</script>
+</body>
+</html>

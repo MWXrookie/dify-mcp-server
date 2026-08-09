@@ -36,7 +36,6 @@ services:
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-chat}
       CODE_RETRY_MAX: ${CODE_RETRY_MAX:-7}
-      DIFY_API_KEY: ${DIFY_API_KEY:-}
     ports:
       - "192.168.30.200:8001:8001"
     networks:

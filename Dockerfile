@@ -14,6 +14,7 @@ RUN pip install --no-cache-dir --timeout 120 --retries 10 \
     -r /app/requirements.lock.txt
 
 COPY library_tools.py server_safe.py dashboard.py /app/
+COPY docs/test_results_raw*.json /app/docs/
 USER 10001:10001
 
 ARG APP_FILE=server_safe.py

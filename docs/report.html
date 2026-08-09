@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dify MCP · 测试报告</title>
+<style>
+  :root { --bg: #0d1117; --surface: #161b22; --border: #30363d; --text: #c9d1d9; --muted: #8b949e; --green: #3fb950; --red: #f85149; --yellow: #d2991d; --blue: #58a6ff; --accent: #1f6feb; --purple: #a371f7; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 24px; }
+  .back { margin-bottom: 20px; }
+  .back a { color: var(--blue); text-decoration: none; font-size: 14px; }
+  .back a:hover { text-decoration: underline; }
+  h1 { font-size: 24px; margin-bottom: 16px; }
+  .source-box { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; font-size: 13px; color: var(--muted); line-height: 1.8; }
+  .source-box code { color: var(--blue); }
+  .summary-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .tile .num { font-size: 26px; font-weight: 700; }
+  .tile .label { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  .tile.good .num { color: var(--green); }
+  .tile.warn .num { color: var(--yellow); }
+  .tile.bad .num { color: var(--red); }
+  .section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  .section h3 { font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+  .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; text-align: center; }
+  .kpi .num { font-size: 30px; font-weight: 700; }
+  .kpi .label { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .kpi.baseline .num { color: var(--yellow); }
+  .kpi.current .num { color: var(--blue); }
+  .kpi.target .num { color: var(--green); }
+  .bar { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 13px; }
+  .bar .label { min-width: 140px; color: var(--muted); }
+  .bar .track { flex: 1; height: 24px; background: #21262d; border-radius: 4px; overflow: hidden; position: relative; }
+  .bar .fill { height: 100%; border-radius: 4px; transition: width 0.4s; }
+  .bar .count { color: var(--muted); min-width: 60px; text-align: right; font-size: 12px; }
+  .cat-item { padding: 10px 0; border-bottom: 1px solid var(--border); cursor: pointer; }
+  .cat-item:last-child { border: none; }
+  .cat-item .head { display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
+  .cat-item .bar-sm { height: 8px; background: #21262d; border-radius: 4px; margin-top: 6px; overflow: hidden; }
+  .cat-item .bar-sm .fill { height: 100%; border-radius: 4px; }
+  .cat-detail { display: none; margin-top: 10px; padding-left: 20px; border-left: 2px solid var(--border); }
+  .cat-detail.open { display: block; }
+  .sub-item { display: flex; gap: 8px; align-items: center; padding: 4px 0; font-size: 12px; border-bottom: 1px solid var(--border); }
+  .sub-item .idx { color: var(--muted); min-width: 30px; }
+  .sub-item .p { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sub-item .v { color: var(--muted); white-space: nowrap; font-family: monospace; }
+  .pill { padding: 2px 8px; border: 1px solid var(--border); border-radius: 999px; background: #1c2129; font-size: 12px; color: var(--muted); }
+  .gating-item { display: flex; gap: 8px; align-items: center; padding: 6px 0; font-size: 14px; }
+  .gating-item.pass .check { color: var(--green); }
+  .gating-item.fail .check { color: var(--red); }
+  .tl-item { display: flex; gap: 8px; align-items: center; padding: 4px 0; font-size: 12px; border-bottom: 1px solid var(--border); }
+  .tl-item .tl-idx { color: var(--muted); min-width: 28px; }
+  .tl-item .tl-cat { color: var(--muted); min-width: 60px; font-size: 11px; }
+  .tl-item .tl-prompt { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tl-item .tl-info { color: var(--muted); white-space: nowrap; font-family: monospace; }
+  .fail-example { padding: 8px 10px; margin: 4px 0; background: #1c2129; border-radius: 6px; font-size: 12px; }
+  .loading { padding: 48px; text-align: center; color: var(--muted); }
+  @media (max-width: 768px) { body { padding: 12px; } .summary-row { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+<div class="back"><a href="/">← 返回门户</a></div>
+<h1>🧾 测试报告</h1>
+<div class="source-box" id="source"></div>
+<div class="kpi-row" id="kpi-row"></div>
+<div class="summary-row" id="summary"></div>
+<div class="section"><h3>🚦 阶段一门禁进度</h3><div id="gating"></div></div>
+<div class="section"><h3>📂 各场景成功率</h3><div id="categories"></div></div>
+<div class="section"><h3>🔍 失败原因分析</h3><div id="failures"></div></div>
+<div class="section"><h3>📜 测试时间线</h3><div id="timeline" style="max-height:400px;overflow-y:auto"></div></div>
+<script>
+function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function fmtMs(ms) { if (ms == null || isNaN(Number(ms))) return '-'; ms = Number(ms); return ms < 1000 ? Math.round(ms)+'ms' : (ms/1000).toFixed(1)+'s'; }
+function fmtPct(v) { if (v == null || isNaN(Number(v))) return '-'; return Number(v).toFixed(1).replace(/\.0$/,'')+'%'; }
+var COLORS = ["#58a6ff","#a371f7","#3fb950","#d2991d","#f85149"];
+
+async function init() {
+  try {
+    var resp = await fetch("/dashboard/api/test_report");
+    var d = await resp.json();
+    render(d);
+  } catch(e) {
+    document.body.innerHTML = '<div class="loading">加载失败：' + esc(String(e)) + '</div>';
+  }
+}
+
+function render(d) {
+  if (d.error) { document.body.innerHTML = '<div class="loading">错误：' + esc(d.error) + '</div>'; return; }
+  document.getElementById("source").innerHTML = '<div>来源：<code>' + esc(d.source_file_basename || '未知') + '</code> · 时间：' + esc(d.source_mtime || '未知') + ' · 格式：' + esc(d.report_kind || 'unknown') + '</div>';
+  document.getElementById("kpi-row").innerHTML = '<div class="kpi baseline"><div class="num">' + d.baseline + '%</div><div class="label">基线成功率</div></div><div class="kpi current"><div class="num">' + d.rate + '%</div><div class="label">当前成功率</div></div><div class="kpi target"><div class="num">' + d.target + '%</div><div class="label">门禁目标</div></div>';
+  var s = d.summary || {};
+  var cls = d.rate >= 90 ? 'good' : (d.rate >= 80 ? 'warn' : 'bad');
+  document.getElementById("summary").innerHTML =
+    '<div class="tile"><div class="num">' + (d.total || 0) + '</div><div class="label">测试总数</div></div>' +
+    '<div class="tile good"><div class="num">' + (d.success_count || 0) + '</div><div class="label">成功</div></div>' +
+    '<div class="tile bad"><div class="num">' + (d.fail_count || 0) + '</div><div class="label">失败</div></div>' +
+    '<div class="tile ' + cls + '"><div class="num">' + fmtPct(d.rate) + '</div><div class="label">成功率</div></div>' +
+    '<div class="tile"><div class="num">' + fmtMs(s.avg_duration_ms) + '</div><div class="label">平均耗时</div></div>' +
+    '<div class="tile"><div class="num">' + (s.avg_attempts != null ? s.avg_attempts : '-') + '</div><div class="label">平均尝试</div></div>' +
+    '<div class="tile ' + (s.zero_pressure_count ? 'warn' : 'good') + '"><div class="num">' + (s.zero_pressure_count || 0) + '</div><div class="label">零压力案例</div></div>' +
+    '<div class="tile"><div class="num">' + fmtPct(s.image_coverage) + '</div><div class="label">图像覆盖率</div></div>';
+  var gHtml = '';
+  (d.gating || []).forEach(function(g) {
+    gHtml += '<div class="gating-item ' + g.status + '"><span class="check">' + (g.status==='pass' ? '✅' : '❌') + '</span> ' + esc(g.id) + ' · ' + esc(g.name) + '</div>';
+  });
+  document.getElementById("gating").innerHTML = gHtml || '<div style="color:var(--muted)">暂无数据</div>';
+  var cHtml = '';
+  Object.keys(d.categories || {}).forEach(function(cat, i) {
+    var c = d.categories[cat];
+    cHtml += '<div class="cat-item" onclick="var d=this.querySelector(\'.cat-detail\');d.classList.toggle(\'open\')"><div class="head"><span>' + esc(cat) + '</span><span style="color:var(--muted);font-size:13px">' + c.success + '/' + c.total + ' (' + c.rate + '%)</span></div><div class="bar-sm"><div class="fill" style="width:' + c.rate + '%;background:' + COLORS[i%5] + '"></div></div><div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap"><span class="pill">平均耗时 ' + fmtMs(c.avg_duration_ms) + '</span><span class="pill">平均重试 ' + (c.avg_attempts != null ? c.avg_attempts : '-') + '</span><span class="pill">失败 ' + (c.fail || 0) + '</span><span class="pill">max_p均值 ' + (c.max_pressure_avg != null ? c.max_pressure_avg : '-') + '</span></div><div class="cat-detail">';
+    (c.items || []).forEach(function(it) {
+      cHtml += '<div class="sub-item"><span class="idx">#' + it.idx + '</span><span class="p">' + esc((it.prompt || '').slice(0, 60)) + '</span><span class="v">' + (it.success ? '✅' : '❌') + ' p=' + (it.max_pressure != null ? Number(it.max_pressure).toFixed(4) : 'N/A') + '</span></div>';
+    });
+    cHtml += '</div></div>';
+  });
+  document.getElementById("categories").innerHTML = cHtml || '<div style="color:var(--muted)">暂无分类数据</div>';
+  var fHtml = '';
+  var reasons = Object.entries(d.failure_reasons || {}).sort(function(a,b) { return b[1] - a[1]; });
+  if (reasons.length) {
+    var maxCount = Math.max.apply(null, reasons.map(function(r) { return r[1]; }));
+    reasons.forEach(function(r, i) {
+      var reason = r[0], count = r[1];
+      var pct = d.fail_count ? Math.round(count / d.fail_count * 100) : 0;
+      fHtml += '<div class="bar"><span class="label">' + esc(reason) + '</span><div class="track"><div class="fill" style="width:' + pct + '%;background:' + COLORS[i%5] + '"></div></div><span class="count">' + count + '次 (' + pct + '%)</span></div>';
+      var examples = (d.failure_examples || {})[reason] || [];
+      if (examples[0]) {
+        var ex = examples[0];
+        fHtml += '<div class="fail-example"><strong>示例 #' + ex.idx + '</strong> · ' + esc(ex.category || '') + ' · exit=' + (ex.exit_code != null ? ex.exit_code : '-') + '<br>' + esc((ex.prompt || ex.workflow_error || '').slice(0, 200)) + '</div>';
+      }
+    });
+  } else {
+    fHtml = '<div style="color:var(--green);text-align:center;padding:12px">🎉 没有失败！</div>';
+  }
+  document.getElementById("failures").innerHTML = fHtml;
+  var tHtml = '';
+  (d.timeline || []).forEach(function(t) {
+    tHtml += '<div class="tl-item"><span class="tl-idx">#' + t.idx + '</span><span class="tl-cat">' + esc(t.category || '') + '</span><span>' + (t.success ? '✅' : '❌') + '</span><span class="tl-prompt" title="' + esc(t.prompt || '') + '">' + esc((t.prompt || '').slice(0, 50)) + '</span><span class="tl-info">p=' + (t.max_pressure != null ? Number(t.max_pressure).toFixed(2) : '-') + ' ' + (t.attempts > 1 ? '×' + t.attempts : '') + ' ' + fmtMs(t.duration_ms) + '</span></div>';
+  });
+  document.getElementById("timeline").innerHTML = tHtml || '<div style="color:var(--muted)">暂无数据</div>';
+}
+init();
+</script>
+</body>
+</html>

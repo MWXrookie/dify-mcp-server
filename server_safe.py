@@ -1,8 +1,10 @@
 """FastMCP gateway with fixed tools and a guarded internal code executor."""
 
+import base64
 import importlib.util
 import json
 import os
+from datetime import datetime, timezone
 from typing import Any
 
 import httpx
@@ -16,7 +18,7 @@ except ImportError:
     from fastmcp.server.auth import StaticTokenVerifier
 
 from library_tools import ALLOWED_TOOLS
-from dashboard import init_db, record_execution, DASHBOARD_HTML, get_executions, get_stats
+from dashboard import init_db, record_execution, clear_executions, PORTAL_HTML, DEMO_HTML, get_executions, get_stats, load_test_results
 
 
 token = os.environ.get("MCP_AUTH_TOKEN")
@@ -24,6 +26,7 @@ executor_token = os.environ.get("EXECUTOR_SHARED_TOKEN")
 deepseek_api_key = os.environ.get("DEEPSEEK_API_KEY", "")
 deepseek_model = os.environ.get("DEEPSEEK_MODEL", "deepseek-chat")
 max_retries_default = int(os.environ.get("CODE_RETRY_MAX", "7"))
+dify_api_key = os.environ.get("DIFY_API_KEY", "")
 
 if not token or len(token) < 32:
     raise RuntimeError("MCP_AUTH_TOKEN must be set and at least 32 characters long")
@@ -43,7 +46,7 @@ mcp = FastMCP("Dify JWave Tools", auth=auth)
 
 
 def _clean_code(code: str) -> str:
-    """去掉 LLM 输出中可能包裹的 markdown 代码块标记."""
+    """去掉 LLM 输出中可能包裹的 markdown 代码块标记，并注入图片保存."""
     code = code.strip()
     for prefix in ("```python\n", "```python", "```\n", "```"):
         if code.startswith(prefix):
@@ -84,6 +87,23 @@ def _clean_code(code: str) -> str:
         code,
     )
 
+    # ---- 注入图片保存代码 ----
+    # 如果代码使用了 matplotlib 且没有调用 savefig，则自动注入
+    has_matplotlib = bool(re.search(r'(import\s+matplotlib|from\s+matplotlib|plt\.)', code))
+    has_savefig = bool(re.search(r'plt\.savefig|\.savefig\s*\(', code))
+    has_figure = bool(re.search(r'plt\.figure|plt\.subplots|plt\.plot|plt\.imshow|plt\.pcolormesh|plt\.show', code))
+
+    if has_matplotlib and has_figure and not has_savefig:
+        code += (
+            "\n\n# Auto-injected: save figure for gallery\n"
+            "import os\n"
+            "try:\n"
+            "    plt.savefig('result.png', dpi=72, bbox_inches='tight')\n"
+            "    print('__GALLERY_IMAGE_SAVED__')\n"
+            "except Exception as __e:\n"
+            "    print(f'__GALLERY_SAVE_FAILED__: {__e}', file=__import__('sys').stderr)\n"
+        )
+
     return code
 
 
@@ -99,10 +119,264 @@ def _execute_code(code: str, timeout_seconds: int) -> dict[str, Any]:
     return response.json()
 
 
+# ---------------------------------------------------------------------------
+# 纠错经验缓存
+# ---------------------------------------------------------------------------
+
+import re
+import sqlite3 as _sql
+from pathlib import Path as _Path
+
+from dashboard import DB_PATH
+
+_CACHE_DB = _Path(DB_PATH).parent / "error_cache.db"
+
+
+def _cache_db() -> _sql.Connection:
+    """Get or create the error cache database."""
+    db = _sql.connect(str(_CACHE_DB))
+    db.execute("PRAGMA journal_mode=WAL")
+    db.execute("PRAGMA synchronous=NORMAL")
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS error_fix_cache (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            error_signature TEXT NOT NULL UNIQUE,
+            fix_hint TEXT NOT NULL,
+            hit_count INTEGER DEFAULT 0,
+            success_count INTEGER DEFAULT 0,
+            consecutive_fails INTEGER DEFAULT 0,
+            confidence REAL DEFAULT 0.0,
+            created_at TEXT,
+            updated_at TEXT
+        )
+    """)
+    db.commit()
+    return db
+
+
+def _extract_error_signature(stderr: str, exit_code: int | None, stdout: str) -> str | None:
+    """解析 stderr 提取错误签名： (错误类型, 对象名, 属性/问题)"""
+    if not stderr and exit_code == 0 and stdout:
+        # 检测全零输出
+        if re.search(r'(?:最大压力|max.pressure|Max pressure).*[:=]\s*0[\.\s]', stdout):
+            return "ZeroOutput|max_pressure|all_zeros"
+        return None
+    if not stderr:
+        return None
+
+    # 提取错误类型
+    err_type = "UnknownError"
+    m = re.search(r'(\w+Error|\w+Exception|\w+Warning)', stderr)
+    if m:
+        err_type = m.group(1)
+
+    # 提取对象名
+    obj_name = "unknown"
+    m = re.search(r"'([^']+)' object has no attribute '(\w+)'", stderr)
+    if m:
+        obj_name = m.group(1).split(".")[-1]
+        attr = m.group(2)
+        return f"{err_type}|{obj_name}|{attr}"
+
+    # has no attribute
+    m = re.search(r"has no attribute '(\w+)'", stderr)
+    if m:
+        # Extract class name from "X object has no attribute"
+        m2 = re.search(r"'([^']+)' object", stderr)
+        obj = m2.group(1).split(".")[-1] if m2 else "object"
+        return f"{err_type}|{obj}|{m.group(1)}"
+
+    # broadcast_shapes
+    if "broadcast_shapes" in stderr:
+        return f"BroadcastError|broadcast_shapes|shape_mismatch"
+
+    # positional/keyword argument errors
+    m = re.search(r'(__init__\(\)|__call__\(\))\s+takes\s+(\d+)', stderr)
+    if m:
+        return f"TypeError|{m.group(1)}|arg_count"
+
+    # signals must be / positions must be
+    m = re.search(r'(signals must be|positions must be)', stderr)
+    if m:
+        return f"TypeError|Sources|{m.group(1)}"
+
+    # np.save error (disk full)
+    if "OSError" in stderr and "written" in stderr:
+        return "OSError|np.save|disk_full"
+
+    # Generic fallback
+    key = stderr.split("\n")[-3] if len(stderr.split("\n")) > 2 else stderr[-100:]
+    key = re.sub(r'File ".*?"', '', key).strip()[:80]
+    return f"{err_type}|general|{key}" if key else None
+
+
+def _query_cache(error_signature: str) -> dict | None:
+    """查询缓存，返回置信度 >= 0.7 的条目."""
+    if not error_signature:
+        return None
+    db = _cache_db()
+    row = db.execute(
+        "SELECT * FROM error_fix_cache WHERE error_signature = ? AND confidence >= 0.7",
+        (error_signature,),
+    ).fetchone()
+    db.close()
+    if row:
+        return {"signature": row[1], "fix_hint": row[2], "confidence": row[6]}
+    return None
+
+
+def _update_cache(error_signature: str, fix_hint: str, was_successful: bool) -> None:
+    """更新缓存：记录命中、成功/失败，管理质疑和退役."""
+    if not error_signature or not fix_hint:
+        return
+    db = _cache_db()
+    now = datetime.now(timezone.utc).isoformat()
+    existing = db.execute(
+        "SELECT * FROM error_fix_cache WHERE error_signature = ?",
+        (error_signature,),
+    ).fetchone()
+
+    if existing:
+        hit_count = existing[3] + 1
+        if was_successful:
+            success_count = existing[4] + 1
+            consecutive_fails = 0
+        else:
+            success_count = existing[4]
+            consecutive_fails = existing[5] + 1
+
+        confidence = success_count / hit_count if hit_count > 0 else 0.0
+
+        # 连续失败 >= 3: 标记质疑 (confidence 减半)
+        if consecutive_fails >= 3:
+            confidence = confidence * 0.5
+
+        # 连续失败 >= 5: 删除
+        if consecutive_fails >= 5:
+            db.execute("DELETE FROM error_fix_cache WHERE error_signature = ?", (error_signature,))
+            db.commit()
+            db.close()
+            return
+
+        db.execute(
+            """UPDATE error_fix_cache
+               SET fix_hint = ?, hit_count = ?, success_count = ?,
+                   consecutive_fails = ?, confidence = ?, updated_at = ?
+               WHERE error_signature = ?""",
+            (fix_hint, hit_count, success_count, consecutive_fails, confidence, now, error_signature),
+        )
+    else:
+        confidence = 1.0 if was_successful else 0.0
+        db.execute(
+            """INSERT INTO error_fix_cache (error_signature, fix_hint, hit_count, success_count, consecutive_fails, confidence, created_at, updated_at)
+               VALUES (?, ?, 1, ?, ?, ?, ?, ?)""",
+            (error_signature, fix_hint, 1 if was_successful else 0, 0 if was_successful else 1, confidence, now, now),
+        )
+    db.commit()
+    db.close()
+
+
+def get_cache_stats() -> dict:
+    """返回缓存统计数据."""
+    db = _cache_db()
+    rows = db.execute("SELECT * FROM error_fix_cache").fetchall()
+    db.close()
+
+    total = len(rows)
+    total_hits = sum((row[3] or 0) for row in rows)
+    total_success = sum((row[4] or 0) for row in rows)
+    hit_rate = round(total_success / total_hits * 100, 1) if total_hits > 0 else 0.0
+    confidences = [float(row[6] or 0.0) for row in rows if row[6] is not None]
+    hits = [int(row[3] or 0) for row in rows]
+
+    def _row_dict(row) -> dict:
+        return {
+            "signature": row[1],
+            "hint": row[2],
+            "hint_excerpt": (row[2] or "")[:160],
+            "hits": row[3],
+            "success_count": row[4],
+            "consecutive_fails": row[5],
+            "confidence": row[6],
+            "created_at": row[7],
+            "updated_at": row[8],
+        }
+
+    sorted_rows = sorted(rows, key=lambda row: ((row[3] or 0), (row[6] or 0.0)), reverse=True)
+    recent_rows = sorted(rows, key=lambda row: row[8] or "", reverse=True)
+
+    confidence_bands = {"0-50": 0, "50-70": 0, "70-90": 0, "90-100": 0}
+    failure_streak_buckets = {"0": 0, "1-2": 0, "3-4": 0, "5+": 0}
+    error_families: dict[str, int] = {}
+    healthy_count = 0
+    questioned_count = 0
+    stale_count = 0
+
+    for row in rows:
+        confidence = float(row[6] or 0.0)
+        streak = int(row[5] or 0)
+        prefix = (row[1] or "general").split("|")[0]
+        error_families[prefix] = error_families.get(prefix, 0) + 1
+
+        if confidence < 0.5:
+            confidence_bands["0-50"] += 1
+        elif confidence < 0.7:
+            confidence_bands["50-70"] += 1
+        elif confidence < 0.9:
+            confidence_bands["70-90"] += 1
+        else:
+            confidence_bands["90-100"] += 1
+
+        if streak == 0:
+            failure_streak_buckets["0"] += 1
+        elif streak < 3:
+            failure_streak_buckets["1-2"] += 1
+        elif streak < 5:
+            failure_streak_buckets["3-4"] += 1
+        else:
+            failure_streak_buckets["5+"] += 1
+
+        if confidence >= 0.7 and streak < 3:
+            healthy_count += 1
+        elif streak >= 5:
+            stale_count += 1
+        elif streak >= 3:
+            questioned_count += 1
+
+    avg_hits_per_entry = round(total_hits / total, 2) if total > 0 else 0
+    avg_confidence = round(sum(confidences) / len(confidences), 3) if confidences else 0.0
+    max_hits = max(hits) if hits else 0
+
+    return {
+        "total_entries": total,
+        "total_hits": total_hits,
+        "total_successes": total_success,
+        "overall_hit_rate": hit_rate,
+        "avg_hits_per_entry": avg_hits_per_entry,
+        "avg_confidence": avg_confidence,
+        "max_hits": max_hits,
+        "healthy_count": healthy_count,
+        "questioned_count": questioned_count,
+        "stale_count": stale_count,
+        "confidence_bands": confidence_bands,
+        "failure_streak_buckets": failure_streak_buckets,
+        "error_families": error_families,
+        "top_entries": [_row_dict(row) for row in sorted_rows[:5]],
+        "recent_entries": [_row_dict(row) for row in recent_rows[:5]],
+    }
+
+
 def _llm_fix_code(api_key: str, model: str, code: str, result: dict[str, Any]) -> str:
     """调用 DeepSeek API 修正出错的代码，返回修正后的代码字符串."""
     if not api_key:
         raise RuntimeError("DEEPSEEK_API_KEY must be set to use auto-fix")
+
+    # ---- 提取错误签名，查缓存 ----
+    stderr = result.get("stderr", "")
+    stdout = result.get("stdout", "")
+    exit_code = result.get("exit_code")
+    error_sig = _extract_error_signature(stderr, exit_code, stdout)
+    cache_hint = _query_cache(error_sig) if error_sig else None
 
     prompt = (
         "You are a Python debugging assistant. The following Python code was executed "
@@ -110,20 +384,46 @@ def _llm_fix_code(api_key: str, model: str, code: str, result: dict[str, Any]) -
         "installed. JAX runs CPU-only. The code failed. Your job: return ONLY the "
         "corrected Python code. No markdown fences, no explanations — just raw, "
         "runnable Python.\n\n"
-        "**jwave common error cheat sheet (match by error message)**:\n"
-        "- AttributeError: has no attribute 'shape' and object is FourierSeries → use .params.shape\n"
-        "- AttributeError: has no attribute 'data' → use .params\n"
-        "- AttributeError: has no attribute 't' → use .to_array()\n"
-        "- AttributeError: 'FourierSeries' object has no attribute 'from_array' → use FourierSeries(data, domain)\n"
-        "- TypeError: Sources.__init__() takes N positional arguments → use positional args, no keyword args\n"
-        "- TypeError: signals must be array-like → signals must be 2D jnp array, shape=(num_sources, Nt)\n"
-        "- TypeError: positions must be → positions must be tuple of 1D arrays\n"
-        "- **CRITICAL - Sources returns all zeros**: positions must be INTEGERS (int32), NOT floats. Use jnp.array([64]) not jnp.array([64.0]). Float positions cause JAX .at[] index to fail silently in JIT, producing zero output.\n"
-        "- **CRITICAL - pressure.params[0] is t=0 (all zeros)!**: simulate_wave_propagation returns a FourierSeries with shape (Nt, Nx, Ny, 1). params[0] extracts ONLY the first time step (t=0) where nothing has propagated yet. Correct: use jnp.max(jnp.abs(p.params)) for global max, or p.params[-1] for the final frame.\n"
-        "- **CRITICAL - .max() returns 0 on negative grids**: don't use x.max() or pressure.max(). ALWAYS use jnp.max(jnp.abs(x)). This is a JAX behavior where .max() returns 0 when all values are negative.\n"
-        "- **CRITICAL - p0/initial pressure returns all zeros**: if the user asked for \"initial pressure\", \"Gaussian pulse\", or \"p0\", the code should use simulate_wave_propagation(medium, time_axis, p0=p0) and NOT create Sources. Putting the Gaussian pressure into Sources() will produce zero output because Sources expects time-domain signals at point positions, not spatial pressure distributions. Fix: remove Sources entirely, create p0=FourierSeries(pressure_array, domain), then call simulate_wave_propagation with p0=p0 (no u0!). Use jnp.linspace + jnp.meshgrid to build the grid coordinates.\n"
-        "- **CRITICAL - broadcast_shapes error**: the p0 field shape must match the domain grid (Nx, Ny). Construct p0 as a grid array of shape (Nx, Ny), then p0 = FourierSeries(grid_array, domain). Use jnp.meshgrid(x, y, indexing='ij') for correct array ordering.\n"
-        "- **CRITICAL - signal shape mismatch / empty signal**: NEVER create jnp.zeros((0, Nt)) as a placeholder for no-source simulations. If no Sources are needed, simply omit the parameter: p = simulate_wave_propagation(medium, time_axis, p0=p0).\n\n"
+    )
+
+    # ---- 注入缓存建议 ----
+    if cache_hint:
+        prompt += (
+            "**KNOWN FIX EXPERIENCE** (confidence: {:.0f}%): {}"
+            " If applicable, apply this fix directly.\n\n"
+        ).format(cache_hint['confidence'] * 100, cache_hint['fix_hint'])
+    else:
+        prompt += (
+            "**jwave common error cheat sheet (match by error message)**:\n"
+            "- AttributeError: has no attribute 'shape' and object is FourierSeries → use .params.shape\n"
+            "- AttributeError: has no attribute 'data' → use .params\n"
+            "- AttributeError: has no attribute 't' → use .to_array()\n"
+            "- AttributeError: 'FourierSeries' object has no attribute 'from_array' → use FourierSeries(data, domain)\n"
+            "- TypeError: Sources.__init__() takes N positional arguments → use positional args, no keyword args\n"
+            "- TypeError: signals must be array-like → signals must be 2D jnp array, shape=(num_sources, Nt)\n"
+            "- TypeError: positions must be → positions must be tuple of 1D arrays\n"
+            "- **CRITICAL - Sources returns all zeros**: positions must be INTEGERS (int32), NOT floats. "
+            "Use jnp.array([64]) not jnp.array([64.0]). Float positions cause JAX .at[] index to fail silently in JIT, producing zero output.\n"
+            "- **CRITICAL - pressure.params[0] is t=0 (all zeros)!**: simulate_wave_propagation returns a FourierSeries "
+            "with shape (Nt, Nx, Ny, 1). params[0] extracts ONLY the first time step (t=0) where nothing has propagated yet. "
+            "Correct: use jnp.max(jnp.abs(p.params)) for global max, or p.params[-1] for the final frame.\n"
+            "- **CRITICAL - .max() returns 0 on negative grids**: don't use x.max() or pressure.max(). "
+            "ALWAYS use jnp.max(jnp.abs(x)). This is a JAX behavior where .max() returns 0 when all values are negative.\n"
+            "- **CRITICAL - p0/initial pressure returns all zeros**: if the user asked for \"initial pressure\", "
+            "\"Gaussian pulse\", or \"p0\", the code should use simulate_wave_propagation(medium, time_axis, p0=p0) "
+            "and NOT create Sources. Putting the Gaussian pressure into Sources() will produce zero output because Sources "
+            "expects time-domain signals at point positions, not spatial pressure distributions. "
+            "Fix: remove Sources entirely, create p0=FourierSeries(pressure_array, domain), then call "
+            "simulate_wave_propagation with p0=p0 (no u0!). Use jnp.linspace + jnp.meshgrid to build the grid coordinates.\n"
+            "- **CRITICAL - broadcast_shapes error**: the p0 field shape must match the domain grid (Nx, Ny). "
+            "Construct p0 as a grid array of shape (Nx, Ny), then p0 = FourierSeries(grid_array, domain). "
+            "Use jnp.meshgrid(x, y, indexing='ij') for correct array ordering.\n"
+            "- **CRITICAL - signal shape mismatch / empty signal**: NEVER create jnp.zeros((0, Nt)) as a placeholder "
+            "for no-source simulations. If no Sources are needed, simply omit the parameter: "
+            "p = simulate_wave_propagation(medium, time_axis, p0=p0).\n\n"
+        )
+
+    prompt += (
         "EXECUTION RESULT:\n"
         f"- exit_code: {result.get('exit_code')}\n"
         f"- timed_out: {result.get('timed_out')}\n"
@@ -160,7 +460,9 @@ def _llm_fix_code(api_key: str, model: str, code: str, result: dict[str, Any]) -
         fixed = fixed[:-4]
     elif fixed.endswith("```"):
         fixed = fixed[:-3]
-    return fixed.strip()
+    fixed = fixed.strip()
+
+    return fixed
 
 
 # ---------------------------------------------------------------------------
@@ -173,10 +475,112 @@ async def health(_: Request) -> PlainTextResponse:
     return PlainTextResponse("ok")
 
 
+@mcp.custom_route("/report", methods=["GET"])
+async def report_page(_: Request) -> PlainTextResponse:
+    from pathlib import Path as _Path
+    from starlette.responses import HTMLResponse
+    html = (_Path(__file__).parent / "docs" / "report.html").read_text(encoding="utf-8")
+    return HTMLResponse(html)
+
+
+@mcp.custom_route("/cache", methods=["GET"])
+async def cache_page(_: Request) -> PlainTextResponse:
+    from pathlib import Path as _Path
+    from starlette.responses import HTMLResponse
+    html = (_Path(__file__).parent / "docs" / "cache.html").read_text(encoding="utf-8")
+    return HTMLResponse(html)
+
+
+@mcp.custom_route("/ask", methods=["POST"])
+async def ask_api(request: Request) -> PlainTextResponse:
+    """Proxy to Dify workflow API for portal-based queries."""
+    import asyncio
+    import re as _re
+    body = await request.json()
+    query = (body.get("query") or "").strip()
+    if not query:
+        return PlainTextResponse(
+            json.dumps({"error": "query is required"}, ensure_ascii=False),
+            status_code=400, media_type="application/json",
+        )
+    dify_url = "http://nginx/v1/workflows/run"
+    async with httpx.AsyncClient(timeout=180) as client:
+        resp = await client.post(
+            dify_url,
+            headers={
+                "Authorization": f"Bearer {dify_api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "inputs": {"query": query},
+                "response_mode": "blocking",
+                "user": "portal",
+            },
+        )
+    data = resp.json()
+    wf = data.get("data", {})
+    output = wf.get("outputs", {}).get("text")
+    # Dify 返回的是 Markdown 字符串（代码节点 result 字段的值）
+    report = ""
+    if isinstance(output, str):
+        report = output
+    elif isinstance(output, list) and len(output) > 0:
+        o = output[0]
+        report = o if isinstance(o, str) else o.get("result", "") or o.get("report", "") or json.dumps(o, ensure_ascii=False)
+    elif isinstance(output, dict):
+        report = output.get("result", "") or output.get("report", "") or json.dumps(output, ensure_ascii=False)
+    if not report or not report.strip():
+        report = f"_(工作流返回空结果, status={wf.get('status')}, error={wf.get('error')})_"
+    return PlainTextResponse(
+        json.dumps({"report": report, "workflow_status": wf.get("status")}, ensure_ascii=False),
+        media_type="application/json",
+    )
+
+
+@mcp.custom_route("/", methods=["GET"])
+async def portal(_: Request) -> PlainTextResponse:
+    from starlette.responses import HTMLResponse
+    return HTMLResponse(PORTAL_HTML)
+
+
+@mcp.custom_route("/portal", methods=["GET"])
+async def portal_page(_: Request) -> PlainTextResponse:
+    from starlette.responses import HTMLResponse
+    return HTMLResponse(PORTAL_HTML)
+
+
 @mcp.custom_route("/dashboard", methods=["GET"])
 async def dashboard(_: Request) -> PlainTextResponse:
+    from pathlib import Path as _Path
     from starlette.responses import HTMLResponse
-    return HTMLResponse(DASHBOARD_HTML)
+    html = (_Path(__file__).parent / "docs" / "dashboard.html").read_text(encoding="utf-8")
+    return HTMLResponse(html)
+
+
+@mcp.custom_route("/demo", methods=["GET"])
+async def demo_page(_: Request) -> PlainTextResponse:
+    from starlette.responses import HTMLResponse
+    return HTMLResponse(DEMO_HTML)
+
+
+@mcp.custom_route("/demo/api/run", methods=["POST"])
+async def demo_api_run(request: Request) -> PlainTextResponse:
+    """Proxy to Dify workflow API so browser-based demo can call Dify."""
+    import asyncio
+    body = await request.json()
+    dify_url = "http://nginx/v1/workflows/run"
+
+    async with httpx.AsyncClient(timeout=130) as client:
+        resp = await client.post(
+            dify_url,
+            headers={
+                "Authorization": f"Bearer {dify_api_key}",
+                "Content-Type": "application/json",
+            },
+            json=body,
+        )
+
+    return PlainTextResponse(resp.text, media_type="application/json")
 
 
 @mcp.custom_route("/dashboard/api/executions", methods=["GET"])
@@ -188,6 +592,31 @@ async def dashboard_api(request: Request) -> PlainTextResponse:
             "executions": get_executions(limit=limit, since_id=since),
             "stats": get_stats(),
         }, ensure_ascii=False),
+        media_type="application/json",
+    )
+
+
+@mcp.custom_route("/dashboard/api/executions", methods=["DELETE"])
+async def clear_executions_api(_: Request) -> PlainTextResponse:
+    count = clear_executions()
+    return PlainTextResponse(
+        json.dumps({"deleted": count, "ok": True}, ensure_ascii=False),
+        media_type="application/json",
+    )
+
+
+@mcp.custom_route("/dashboard/api/test_report", methods=["GET"])
+async def test_report_api(_: Request) -> PlainTextResponse:
+    return PlainTextResponse(
+        json.dumps(load_test_results(), ensure_ascii=False),
+        media_type="application/json",
+    )
+
+
+@mcp.custom_route("/dashboard/api/cache_stats", methods=["GET"])
+async def cache_stats_api(_: Request) -> PlainTextResponse:
+    return PlainTextResponse(
+        json.dumps(get_cache_stats(), ensure_ascii=False),
         media_type="application/json",
     )
 
@@ -253,8 +682,93 @@ def run_jwave_code(code: str, timeout_seconds: int = 15) -> dict[str, Any]:
         stdout=result.get("stdout", ""),
         stderr=result.get("stderr", ""),
         attempt_count=1,
+        image_base64=result.get("image_base64"),
     )
     return result
+
+
+def _build_report(result: dict[str, Any], original_code: str) -> str:
+    """Build a human-readable Markdown report from execution results."""
+    import re
+
+    exit_code = result.get("exit_code")
+    timed_out = result.get("timed_out", False)
+    duration_ms = result.get("duration_ms")
+    stdout = result.get("stdout", "") or ""
+    stderr = result.get("stderr", "") or ""
+    total_attempts = result.get("total_attempts", 1)
+    image_base64 = result.get("image_base64")
+
+    # Status
+    if timed_out:
+        status = "⏱ **超时** — 计算量超过资源限制"
+    elif exit_code == 0:
+        status = "✅ **成功** — 仿真正常完成"
+    else:
+        status = f"❌ **失败** — 退出码 {exit_code}"
+
+    # Key metrics from stdout
+    max_pressure = None
+    pressure_shape = None
+    m = re.search(r'(?:最大压力|max[_\s]pressure)\s*[:=]\s*([\d.eE+-]+)', stdout, re.I)
+    if m:
+        try:
+            max_pressure = float(m.group(1))
+        except ValueError:
+            pass
+    m = re.search(r'(?:压力场形状|pressure.*shape)\s*[:=]\s*\(?([\d,\s]+)\)?', stdout, re.I)
+    if m:
+        pressure_shape = m.group(1).strip().rstrip(")")
+
+    lines = []
+    lines.append("## 📊 仿真结果报告")
+    lines.append("")
+    lines.append("### ✅ 执行状态")
+    lines.append("")
+    lines.append(f"{status}")
+    lines.append("")
+    lines.append("| 指标 | 值 |")
+    lines.append("|------|-----|")
+    lines.append(f"| 执行耗时 | {duration_ms:.0f} ms |" if duration_ms else "| 执行耗时 | - |")
+    lines.append(f"| 尝试次数 | {total_attempts} 次 |")
+    lines.append("")
+
+    if max_pressure is not None or pressure_shape:
+        lines.append("### 📈 关键数据")
+        lines.append("")
+        if max_pressure is not None:
+            lines.append(f"- 最大压力：**{max_pressure:.4f}**")
+        if pressure_shape:
+            lines.append(f"- 压力场形状：`{pressure_shape}`")
+        lines.append("")
+
+    if stdout.strip():
+        lines.append("### 📝 程序输出")
+        lines.append("")
+        lines.append("```")
+        for line in stdout.strip().splitlines()[:30]:
+            lines.append(line)
+        if len(stdout.strip().splitlines()) > 30:
+            lines.append(f"... (共 {len(stdout.strip().splitlines())} 行，省略后续)")
+        lines.append("```")
+        lines.append("")
+
+    if stderr.strip():
+        lines.append("### ⚠️ 错误输出")
+        lines.append("")
+        lines.append("```")
+        for line in stderr.strip().splitlines()[:20]:
+            lines.append(line)
+        lines.append("```")
+        lines.append("")
+
+    if image_base64:
+        lines.append("### 🖼 仿真图像")
+        lines.append("")
+        lines.append("*(图像已在看板中保存)*")
+        lines.append("")
+
+    return "\n".join(lines)
 
 
 @mcp.tool
@@ -293,6 +807,7 @@ def run_jwave_code_with_retry(
 
     current_code = code
     history: list[dict[str, Any]] = []
+    last_error_sig: str | None = None
 
     for attempt in range(max_retries + 1):  # 首次 + N 次重试
         result = _execute_code(current_code, timeout_seconds)
@@ -312,6 +827,12 @@ def run_jwave_code_with_retry(
             result["history"] = history
             result["final_code"] = current_code
             result["total_attempts"] = attempt + 1
+            result["report"] = _build_report(result, code)
+            if last_error_sig:
+                try:
+                    _update_cache(last_error_sig, current_code[:500], was_successful=True)
+                except Exception:
+                    pass
             record_execution(
                 tool_name="run_jwave_code_with_retry",
                 code=code,
@@ -321,6 +842,7 @@ def run_jwave_code_with_retry(
                 stdout=result.get("stdout", ""),
                 stderr=result.get("stderr", ""),
                 attempt_count=attempt + 1,
+                image_base64=result.get("image_base64"),
             )
             return result
 
@@ -330,6 +852,12 @@ def run_jwave_code_with_retry(
             result["final_code"] = current_code
             result["total_attempts"] = attempt + 1
             result["error"] = "max_retries exhausted"
+            result["report"] = _build_report(result, code)
+            if last_error_sig:
+                try:
+                    _update_cache(last_error_sig, current_code[:500], was_successful=False)
+                except Exception:
+                    pass
             record_execution(
                 tool_name="run_jwave_code_with_retry",
                 code=code,
@@ -339,10 +867,16 @@ def run_jwave_code_with_retry(
                 stdout=result.get("stdout", ""),
                 stderr=result.get("stderr", ""),
                 attempt_count=attempt + 1,
+                image_base64=result.get("image_base64"),
             )
             return result
 
         # 调用 LLM 修正
+        error_sig = _extract_error_signature(
+            result.get("stderr", ""), result.get("exit_code"), result.get("stdout", "")
+        )
+        if error_sig:
+            last_error_sig = error_sig
         current_code = _llm_fix_code(
             deepseek_api_key,
             deepseek_model,

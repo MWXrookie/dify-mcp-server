@@ -4,6 +4,39 @@
 
 ---
 
+## 2026-08-17 · 会话: T-007 多轮对话上下文记忆（网页端）
+
+### 完成
+- [x] T-007: 多轮对话上下文记忆。**实现方式与原方案不同**——原方案是改 Dify 工作流 conversation 变量，实际改为**网页端自管状态 + DeepSeek 合并**，不动已经调好的工作流和知识库
+- [x] 门户页「声学仿真问答」区块改造为多轮聊天（气泡记录 + 🆕新对话 + 合并提示）
+- [x] 新增独立全屏对话页 `/chat`（GET 页面 + POST 接口同路径），门户卡片区新增「💬 多轮对话」入口
+- [x] 后端 `server_safe.py` 新增 `POST /chat` 路由 + `_merge_requirement()`（DeepSeek 合并历史需求）+ `_extract_report()`
+- [x] 首轮直接当需求，后续轮次用 DeepSeek 把「历史需求 + 本轮修改」合并成完整需求再调工作流（合并失败自动降级拼接）
+- [x] 新增可复用稳定性测试脚本 `test_multiturn_stability.py`
+- [x] 环境修复：`executor/Dockerfile` 改用 Miniconda + conda-forge 从零构建 JAX（弃用缺失的 jwave-env.tar.gz）
+
+### 变更文件
+- `server_safe.py` — 新增 /chat 路由 + DeepSeek 需求合并 + 报告解析（顺带消除 /ask 重复解析）
+- `dashboard.py` — PORTAL_HTML 多轮聊天 UI + 新增 CHAT_HTML 全屏对话页 + 门户卡片
+- `test_multiturn_stability.py` — 新增多轮稳定性测试脚本
+- `executor/Dockerfile` — Miniconda + conda-forge 从零构建 JAX 环境
+- `compose.yaml` — 端口绑定 `192.168.30.200` → `0.0.0.0`
+- `docs/CHANGELOG.md` `docs/AGENTS.md` `README.md` — 文档同步
+
+### 测试结果
+- 端到端：首轮"2 MHz 点声源"→ 成功（最大压力 0.4970，2403ms）；次轮"改成 5 MHz"→ DeepSeek 正确合并（最大压力 0.9771，2366ms）
+- 稳定性：2 遍 × 7 轮 = 14 轮全部成功（100%），平均 27.8s/轮；连续 7 轮增量修改（改频率/网格/区域/加传感器/声速/时长）逐项精准累积、无参数漂移
+
+### 踩坑
+- 拿到 Dify API Key 后还需在 Dify 里点「发布」，否则 API 报 400 `Workflow not published`
+- 容器偶发 `SSL: UNEXPECTED_EOF` 连不上 DeepSeek，系瞬时网络抖动（DeepSeek 可直连、不依赖 Clash），重试即恢复
+
+### 当前状态
+- 多轮对话已上线可用，成功率 100%
+- 下个任务: 待定（候选 T-008 知识库扩展 / T-009 回归测试套件）
+
+---
+
 ## 2026-08-08 · 会话: T-006 50次端到端测试 + p0 初始压力修复
 
 ### 完成

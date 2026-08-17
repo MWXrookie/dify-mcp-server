@@ -290,7 +290,9 @@ gr.ChatInterface(
 
 ---
 
-### T-007: 多轮对话上下文记忆
+### T-007: 多轮对话上下文记忆 [DONE]
+
+> 2026-08-17 已完成，实现方式改为「网页端自管状态 + DeepSeek 合并」（详见 `docs/CHANGELOG.md`），未采用下方原方案的 Dify conversation 变量。
 
 | 字段 | 值 |
 |------|------|

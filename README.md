@@ -27,6 +27,7 @@ docker restart docker-api-1 docker-worker-1  # MCP schema 刷新
 | 路由 | 页面 | 功能 |
 |------|------|------|
 | `/` `/portal` | 门户首页 | 导航卡片 + **声学仿真问答**（自然语言输入→Markdown 报告） |
+| `/chat` | 多轮对话 | 全屏多轮对话：连续增量修改参数，自动合并需求并重新仿真 |
 | `/dashboard` | 执行看板 | 实时执行记录、代码展开、图像预览、清空历史 |
 | `/report` | 测试报告 | T-006 成功率、场景分类、失败分析、时间线 |
 | `/cache` | 纠错缓存 | 经验条目、命中率、置信度分布、高频经验 |
@@ -38,6 +39,7 @@ docker restart docker-api-1 docker-worker-1  # MCP schema 刷新
 | 端点 | 方法 | 说明 |
 |------|------|------|
 | `/ask` | POST | 门户问答代理 → Dify 工作流（返回 Markdown 报告） |
+| `/chat` | POST | 多轮对话代理：合并历史需求 → Dify 工作流（返回报告 + 完整需求） |
 | `/dashboard/api/executions` | GET | 执行历史（分页） |
 | `/dashboard/api/executions` | DELETE | 清空执行历史 |
 | `/dashboard/api/test_report` | GET | 最新测试报告 JSON |

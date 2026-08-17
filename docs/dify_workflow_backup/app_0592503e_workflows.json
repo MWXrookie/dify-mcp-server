@@ -1,0 +1,2917 @@
+[
+    {
+        "type": "workflow",
+        "graph": {
+            "edges": [
+                {
+                    "id": "1783990934733-source-1783990970058-target",
+                    "data": {
+                        "loop_id": null,
+                        "isInLoop": false,
+                        "sourceType": "start",
+                        "targetType": "llm",
+                        "iteration_id": null,
+                        "isInIteration": false
+                    },
+                    "type": "custom",
+                    "source": "1783990934733",
+                    "target": "1783990970058",
+                    "zIndex": 0,
+                    "selected": false,
+                    "sourceHandle": "source",
+                    "targetHandle": "target"
+                },
+                {
+                    "id": "1783990970058-source-1783990977543-target",
+                    "data": {
+                        "loop_id": null,
+                        "isInLoop": false,
+                        "sourceType": "llm",
+                        "targetType": "knowledge-retrieval",
+                        "iteration_id": null,
+                        "isInIteration": false
+                    },
+                    "type": "custom",
+                    "source": "1783990970058",
+                    "target": "1783990977543",
+                    "zIndex": 0,
+                    "selected": false,
+                    "sourceHandle": "source",
+                    "targetHandle": "target"
+                },
+                {
+                    "id": "1783990970058-source-1783991048409-target",
+                    "data": {
+                        "loop_id": null,
+                        "isInLoop": false,
+                        "sourceType": "llm",
+                        "targetType": "llm",
+                        "iteration_id": null,
+                        "isInIteration": false
+                    },
+                    "type": "custom",
+                    "source": "1783990970058",
+                    "target": "1783991048409",
+                    "zIndex": 0,
+                    "selected": false,
+                    "sourceHandle": "source",
+                    "targetHandle": "target"
+                },
+                {
+                    "id": "1783990977543-source-1783990989034-target",
+                    "data": {
+                        "loop_id": null,
+                        "isInLoop": false,
+                        "sourceType": "knowledge-retrieval",
+                        "targetType": "template-transform",
+                        "iteration_id": null,
+                        "isInIteration": false
+                    },
+                    "type": "custom",
+                    "source": "1783990977543",
+                    "target": "1783990989034",
+                    "zIndex": 0,
+                    "selected": false,
+                    "sourceHandle": "source",
+                    "targetHandle": "target"
+                },
+                {
+                    "id": "1783990989034-source-1783991048409-target",
+                    "data": {
+                        "loop_id": null,
+                        "isInLoop": false,
+                        "sourceType": "template-transform",
+                        "targetType": "llm",
+                        "iteration_id": null,
+                        "isInIteration": false
+                    },
+                    "type": "custom",
+                    "source": "1783990989034",
+                    "target": "1783991048409",
+                    "zIndex": 0,
+                    "selected": false,
+                    "sourceHandle": "source",
+                    "targetHandle": "target"
+                },
+                {
+                    "id": "1783991048409-source-1783991079665-target",
+                    "data": {
+                        "loop_id": null,
+                        "isInLoop": false,
+                        "sourceType": "llm",
+                        "targetType": "llm",
+                        "iteration_id": null,
+                        "isInIteration": false
+                    },
+                    "type": "custom",
+                    "source": "1783991048409",
+                    "target": "1783991079665",
+                    "zIndex": 0,
+                    "selected": false,
+                    "sourceHandle": "source",
+                    "targetHandle": "target"
+                },
+                {
+                    "id": "1783991079665-source-5655556822808-target",
+                    "data": {
+                        "loop_id": null,
+                        "isInLoop": false,
+                        "sourceType": "llm",
+                        "targetType": "tool",
+                        "iteration_id": null,
+                        "isInIteration": false
+                    },
+                    "type": "custom",
+                    "source": "1783991079665",
+                    "target": "5655556822808",
+                    "zIndex": 0,
+                    "selected": false,
+                    "sourceHandle": "source",
+                    "targetHandle": "target"
+                },
+                {
+                    "id": "5655556822808-source-1783992518452-target",
+                    "data": {
+                        "loop_id": null,
+                        "isInLoop": false,
+                        "sourceType": "tool",
+                        "targetType": "end",
+                        "iteration_id": null,
+                        "isInIteration": false
+                    },
+                    "type": "custom",
+                    "source": "5655556822808",
+                    "target": "1783992518452",
+                    "zIndex": 0,
+                    "selected": false,
+                    "sourceHandle": "source",
+                    "targetHandle": "target"
+                }
+            ],
+            "nodes": [
+                {
+                    "id": "1783990934733",
+                    "data": {
+                        "type": "start",
+                        "title": "用户输入",
+                        "selected": false,
+                        "variables": [
+                            {
+                                "hint": "",
+                                "type": "text-input",
+                                "label": "query",
+                                "default": "",
+                                "options": [
+                                ],
+                                "required": true,
+                                "variable": "query",
+                                "placeholder": ""
+                            }
+                        ]
+                    },
+                    "type": "custom",
+                    "width": 242,
+                    "height": 108,
+                    "zIndex": 0,
+                    "position": {
+                        "x": 58.46997602878599,
+                        "y": 261
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "positionAbsolute": {
+                        "x": 58.46997602878599,
+                        "y": 261
+                    }
+                },
+                {
+                    "id": "1783990970058",
+                    "data": {
+                        "type": "llm",
+                        "model": {
+                            "mode": "chat",
+                            "name": "deepseek-v4-flash",
+                            "provider": "langgenius/deepseek/deepseek",
+                            "completion_params": {
+                                "temperature": 0.7
+                            }
+                        },
+                        "title": "LLM",
+                        "vision": {
+                            "enabled": false
+                        },
+                        "context": {
+                            "enabled": true,
+                            "variable_selector": [
+                                "1783990934733",
+                                "query"
+                            ]
+                        },
+                        "selected": true,
+                        "prompt_template": [
+                            {
+                                "id": "15d9e831-d7da-410d-a2dd-c45dd75d796c",
+                                "role": "system",
+                                "text": ""
+                            },
+                            {
+                                "id": "6527c4e3-d31e-4fb2-ae19-6979c1a78730",
+                                "role": "user",
+                                "text": "你是一个声学仿真需求分析师。\n\n阅读用户输入，提取并整理仿真需求。如果用户没提，根据常识合理推测。\n\n用户输入：{{#1783990934733.query#}}\n\n请整理以下信息并输出一段通顺的仿真需求描述：\n1. 仿真维度（2D 还是 3D）？\n2. 介质类型和参数（声速、密度）？\n3. 声源类型、频率、位置？\n4. 仿真区域大小？\n5. 期望输出什么结果？\n\n注意：\n- 超声波仿真（MHz 级）需要 dx < 0.5mm 的分辨率\n- 3D 仿真计算量大，如无特殊需要默认为 2D\n- 生物组织声速通常在 1500-1600 m/s"
+                            }
+                        ]
+                    },
+                    "type": "custom",
+                    "width": 241,
+                    "height": 87,
+                    "zIndex": 0,
+                    "position": {
+                        "x": 382,
+                        "y": 282
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "positionAbsolute": {
+                        "x": 382,
+                        "y": 282
+                    }
+                },
+                {
+                    "id": "1783990977543",
+                    "data": {
+                        "type": "knowledge-retrieval",
+                        "title": "知识检索",
+                        "selected": false,
+                        "dataset_ids": [
+                            "bc9aeb94-de93-4210-8e7d-5b932a731252"
+                        ],
+                        "retrieval_mode": "multiple",
+                        "query_variable_selector": [
+                            "1783990934733",
+                            "query"
+                        ],
+                        "multiple_retrieval_config": {
+                            "top_k": 4,
+                            "weights": null,
+                            "reranking_mode": "reranking_model",
+                            "reranking_model": {
+                                "model": "qwen3-rerank",
+                                "provider": "langgenius/tongyi/tongyi"
+                            },
+                            "score_threshold": null,
+                            "reranking_enable": true
+                        },
+                        "query_attachment_selector": [
+                        ]
+                    },
+                    "type": "custom",
+                    "width": 241,
+                    "height": 51,
+                    "zIndex": 0,
+                    "position": {
+                        "x": 609,
+                        "y": 552
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "positionAbsolute": {
+                        "x": 609,
+                        "y": 552
+                    }
+                },
+                {
+                    "id": "1783990989034",
+                    "data": {
+                        "type": "template-transform",
+                        "title": "模板转换",
+                        "selected": false,
+                        "template": "{% for item in arg1 %}\r\n{{ item.content }}\r\n{% endfor %}\r\n",
+                        "variables": [
+                            {
+                                "variable": "arg1",
+                                "value_type": "array[object]",
+                                "value_selector": [
+                                    "1783990977543",
+                                    "result"
+                                ]
+                            }
+                        ]
+                    },
+                    "type": "custom",
+                    "width": 241,
+                    "height": 51,
+                    "zIndex": 0,
+                    "position": {
+                        "x": 908.2588988734078,
+                        "y": 552
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "positionAbsolute": {
+                        "x": 908.2588988734078,
+                        "y": 552
+                    }
+                },
+                {
+                    "id": "1783991048409",
+                    "data": {
+                        "type": "llm",
+                        "model": {
+                            "mode": "chat",
+                            "name": "deepseek-v4-flash",
+                            "provider": "langgenius/deepseek/deepseek",
+                            "completion_params": {
+                                "temperature": 0.7
+                            }
+                        },
+                        "title": "参数提取",
+                        "vision": {
+                            "enabled": false
+                        },
+                        "context": {
+                            "enabled": true,
+                            "variable_selector": [
+                                "1783990989034",
+                                "output"
+                            ]
+                        },
+                        "selected": false,
+                        "prompt_template": [
+                            {
+                                "id": "34a28900-fed5-4647-a9ac-8f3e72ac49c7",
+                                "role": "system",
+                                "text": ""
+                            },
+                            {
+                                "id": "2207227c-adc1-4894-ba3e-34c701909807",
+                                "role": "user",
+                                "text": "你是 jwave 声学仿真参数提取器。\n\n根据用户需求和知识库内容，确定以下仿真参数。请按 JSON 格式输出。\n\n用户需求：{{#1783990934733.query#}}\n知识库参考：{{#1783990989034.output#}}\n\n输出 JSON 格式：\n{\n  \"sound_speed\": 1500.0,\n  \"density\": 1000.0,\n  \"source_frequency\": 2000000.0,\n  \"domain_N\": [128, 128],\n  \"domain_dx\": [0.0001, 0.0001],\n  \"t_end\": 0.000005,\n  \"cfl\": 0.3,\n  \"description\": \"仿真描述文字\"\n}\n\n参数说明：\n- sound_speed: 介质声速 (m/s)，如 1500(水), 1540(软组织), 343(空气)\n- density: 介质密度 (kg/m³)，如 1000(水), 1050(软组织), 1.2(空气)\n- source_frequency: 声源频率 (Hz)，如 2000000(2MHz 超声)\n- domain_N: 网格点数 [Nx, Ny] 或 [Nx, Ny, Nz]\n- domain_dx: 网格间距 [dx, dy] 或 [dx, dy, dz] (米)\n- t_end: 仿真总时长 (秒)\n- cfl: CFL 数，默认 0.3\n- description: 一句话描述仿真场景\n\n严格的 JSON 输出要求：\n1. 只输出合法的 JSON 对象，不要有任何额外文字\n2. 所有数值使用数字类型，不要用字符串\n3. 缺失的值用 null"
+                            }
+                        ]
+                    },
+                    "type": "custom",
+                    "width": 241,
+                    "height": 87,
+                    "zIndex": 0,
+                    "position": {
+                        "x": 1165.1614897520058,
+                        "y": 282
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "positionAbsolute": {
+                        "x": 1165.1614897520058,
+                        "y": 282
+                    }
+                },
+                {
+                    "id": "1783991079665",
+                    "data": {
+                        "type": "llm",
+                        "model": {
+                            "mode": "chat",
+                            "name": "deepseek-coder",
+                            "provider": "langgenius/deepseek/deepseek",
+                            "completion_params": {
+                                "temperature": 0.7
+                            }
+                        },
+                        "title": "代码生成",
+                        "vision": {
+                            "enabled": false
+                        },
+                        "context": {
+                            "enabled": false,
+                            "variable_selector": [
+                            ]
+                        },
+                        "selected": false,
+                        "prompt_template": [
+                            {
+                                "id": "961f94cd-f0ed-4ca0-ab49-7d797d67f6a6",
+                                "role": "system",
+                                "text": ""
+                            },
+                            {
+                                "id": "1562435c-7ca5-40fb-8e7d-fa8b2c5496e6",
+                                "role": "user",
+                                "text": "你是 jwave Python 代码生成器。\n\n# 输出规则（最高优先级）\n你的输出就是最终要执行的Python代码。没有JSON包裹，没有markdown标记，没有任何其他文字。\n输出的第一个字符必须是 import 或 # （注释）。\n输出的每一行都是有效的Python代码。\n\n你会收到：\n- 用户需求：{{#1783990934733.query#}}\n- 仿真参数：{{#1783991048409.text#}}\n\n# jwave 0.2.1 API 参考（已验证，必须严格遵守！）\n\nimport jax\nimport jax.numpy as jnp\nfrom jwave import FourierSeries\nfrom jwave.geometry import Domain, Medium, TimeAxis, Sources\nfrom jwave.acoustics import simulate_wave_propagation\n\n## Domain\ndomain = Domain(N=(Nx, Ny), dx=(dx, dx))\n\n## Medium\nmedium = Medium(domain=domain, sound_speed=1540.0, density=1050.0)\n\n## TimeAxis\ntime_axis = TimeAxis.from_medium(medium, cfl=0.3, t_end=5e-6)\nt = time_axis.to_array()  # 1D array, shape (Nt,)\n\n## Sources —— 4个位置参数，不能用关键字\npositions = (jnp.array([cx]), jnp.array([cy]))\nsignals = jnp.expand_dims(jnp.sin(2*jnp.pi*freq*t), 0)  # 2D (1,Nt)\nsources = Sources(positions, signals, time_axis.dt, domain)\n\n## simulate_wave_propagation\np = simulate_wave_propagation(medium, time_axis, sources=sources)\npressure = p.params[0]\n\nprint(f\"压力场形状: {pressure.shape}\")\nprint(f\"最大压力: {float(pressure.max()):.6f}\")\n"
+                            }
+                        ],
+                        "structured_output_enabled": false
+                    },
+                    "type": "custom",
+                    "width": 241,
+                    "height": 87,
+                    "zIndex": 0,
+                    "position": {
+                        "x": 1550.4773256211458,
+                        "y": 282
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "positionAbsolute": {
+                        "x": 1550.4773256211458,
+                        "y": 282
+                    }
+                },
+                {
+                    "id": "1783992518452",
+                    "data": {
+                        "type": "end",
+                        "title": "输出",
+                        "outputs": [
+                            {
+                                "variable": "text",
+                                "value_type": "array[object]",
+                                "value_selector": [
+                                    "5655556822808",
+                                    "json"
+                                ]
+                            }
+                        ],
+                        "selected": false
+                    },
+                    "type": "custom",
+                    "width": 241,
+                    "height": 87,
+                    "zIndex": 0,
+                    "position": {
+                        "x": 2300.0,
+                        "y": 282
+                    },
+                    "selected": true,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "positionAbsolute": {
+                        "x": 2300.0,
+                        "y": 282
+                    }
+                },
+                {
+                    "id": "5655556822808",
+                    "data": {
+                        "meta": null,
+                        "type": "tool",
+                        "title": "run_jwave_code_with_retry",
+                        "params": {
+                            "code": "",
+                            "max_retries": "",
+                            "timeout_seconds": ""
+                        },
+                        "isInLoop": false,
+                        "selected": false,
+                        "plugin_id": "",
+                        "tool_name": "run_jwave_code_with_retry",
+                        "tool_label": "run_jwave_code_with_retry",
+                        "provider_id": "jwave-mcp",
+                        "paramSchemas": [
+                            {
+                                "max": null,
+                                "min": null,
+                                "form": "llm",
+                                "name": "code",
+                                "type": "string",
+                                "label": {
+                                    "en_US": "code",
+                                    "ja_JP": "code",
+                                    "pt_BR": "code",
+                                    "zh_Hans": "code"
+                                },
+                                "scope": null,
+                                "default": null,
+                                "options": [
+                                ],
+                                "multiple": false,
+                                "required": true,
+                                "template": null,
+                                "precision": null,
+                                "placeholder": null,
+                                "input_schema": null,
+                                "auto_generate": null,
+                                "llm_description": "",
+                                "human_description": {
+                                    "en_US": "",
+                                    "ja_JP": "",
+                                    "pt_BR": "",
+                                    "zh_Hans": ""
+                                }
+                            },
+                            {
+                                "max": null,
+                                "min": null,
+                                "form": "llm",
+                                "name": "timeout_seconds",
+                                "type": "number",
+                                "label": {
+                                    "en_US": "timeout_seconds",
+                                    "ja_JP": "timeout_seconds",
+                                    "pt_BR": "timeout_seconds",
+                                    "zh_Hans": "timeout_seconds"
+                                },
+                                "scope": null,
+                                "default": null,
+                                "options": [
+                                ],
+                                "multiple": false,
+                                "required": false,
+                                "template": null,
+                                "precision": null,
+                                "placeholder": null,
+                                "input_schema": null,
+                                "auto_generate": null,
+                                "llm_description": "",
+                                "human_description": {
+                                    "en_US": "",
+                                    "ja_JP": "",
+                                    "pt_BR": "",
+                                    "zh_Hans": ""
+                                }
+                            },
+                            {
+                                "max": null,
+                                "min": null,
+                                "form": "llm",
+                                "name": "max_retries",
+                                "type": "number",
+                                "label": {
+                                    "en_US": "max_retries",
+                                    "ja_JP": "max_retries",
+                                    "pt_BR": "max_retries",
+                                    "zh_Hans": "max_retries"
+                                },
+                                "scope": null,
+                                "default": null,
+                                "options": [
+                                ],
+                                "multiple": false,
+                                "required": false,
+                                "template": null,
+                                "precision": null,
+                                "placeholder": null,
+                                "input_schema": null,
+                                "auto_generate": null,
+                                "llm_description": "",
+                                "human_description": {
+                                    "en_US": "",
+                                    "ja_JP": "",
+                                    "pt_BR": "",
+                                    "zh_Hans": ""
+                                }
+                            }
+                        ],
+                        "isInIteration": false,
+                        "provider_icon": {
+                            "content": "🔗",
+                            "background": "#6366F1"
+                        },
+                        "provider_name": "jwave-mcp",
+                        "provider_type": "mcp",
+                        "tool_parameters": {
+                            "code": {
+                                "type": "mixed",
+                                "value": "{{#1783991079665.text#}}"
+                            },
+                            "max_retries": {
+                                "type": "constant",
+                                "value": 7
+                            },
+                            "timeout_seconds": {
+                                "type": "constant",
+                                "value": null
+                            }
+                        },
+                        "tool_description": "Run Python code and auto-fix errors using DeepSeek LLM. Returns final_code, history, and execution results.",
+                        "tool_node_version": "2",
+                        "provider_icon_dark": null,
+                        "provider_show_name": "jwave-mcp",
+                        "tool_configurations": {
+                        },
+                        "is_team_authorization": true,
+                        "plugin_unique_identifier": ""
+                    },
+                    "type": "custom",
+                    "width": 241,
+                    "height": 83,
+                    "zIndex": 0,
+                    "position": {
+                        "x": 1954.565796394374,
+                        "y": 282
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "positionAbsolute": {
+                        "x": 1954.565796394374,
+                        "y": 282
+                    }
+                }
+            ],
+            "viewport": {
+                "x": 222.73762337573862,
+                "y": 146.13892765390665,
+                "zoom": 0.5000000000000013
+            }
+        },
+        "version": "published",
+        "features": {
+            "file_upload": {
+                "image": {
+                    "enabled": false,
+                    "number_limits": 3,
+                    "transfer_methods": [
+                        "local_file",
+                        "remote_url"
+                    ]
+                },
+                "enabled": false,
+                "number_limits": 3,
+                "fileUploadConfig": {
+                    "file_size_limit": 15,
+                    "batch_count_limit": 5,
+                    "file_upload_limit": 50,
+                    "audio_file_size_limit": 50,
+                    "image_file_size_limit": 10,
+                    "video_file_size_limit": 100,
+                    "image_file_batch_limit": 10,
+                    "workflow_file_upload_limit": 10,
+                    "single_chunk_attachment_limit": 10,
+                    "attachment_image_file_size_limit": 2
+                },
+                "allowed_file_types": [
+                    "image"
+                ],
+                "allowed_file_extensions": [
+                    ".JPG",
+                    ".JPEG",
+                    ".PNG",
+                    ".GIF",
+                    ".WEBP",
+                    ".SVG"
+                ],
+                "allowed_file_upload_methods": [
+                    "local_file",
+                    "remote_url"
+                ]
+            },
+            "speech_to_text": {
+                "enabled": false
+            },
+            "text_to_speech": {
+                "voice": "",
+                "enabled": false,
+                "language": ""
+            },
+            "opening_statement": "",
+            "retriever_resource": {
+                "enabled": true
+            },
+            "suggested_questions": [
+            ],
+            "sensitive_word_avoidance": {
+                "enabled": false
+            },
+            "suggested_questions_after_answer": {
+                "enabled": false
+            }
+        },
+        "created_at": "2026-08-06T16:37:00",
+        "updated_at": "2026-08-07T15:08:19.896466",
+        "marked_name": "",
+        "workflow_id": "e0a92c7a-428d-41a4-95d5-e5131aecd23c",
+        "environment_variables": {
+        },
+        "conversation_variables": {
+        }
+    },
+    {
+        "type": "workflow",
+        "graph": {
+            "edges": [
+                {
+                    "id": "1783990934733-source-1783990970058-target",
+                    "data": {
+                        "loop_id": null,
+                        "isInLoop": false,
+                        "sourceType": "start",
+                        "targetType": "llm",
+                        "iteration_id": null,
+                        "isInIteration": false
+                    },
+                    "type": "custom",
+                    "source": "1783990934733",
+                    "target": "1783990970058",
+                    "zIndex": 0,
+                    "selected": false,
+                    "sourceHandle": "source",
+                    "targetHandle": "target"
+                },
+                {
+                    "id": "1783990970058-source-1783990977543-target",
+                    "data": {
+                        "loop_id": null,
+                        "isInLoop": false,
+                        "sourceType": "llm",
+                        "targetType": "knowledge-retrieval",
+                        "iteration_id": null,
+                        "isInIteration": false
+                    },
+                    "type": "custom",
+                    "source": "1783990970058",
+                    "target": "1783990977543",
+                    "zIndex": 0,
+                    "selected": false,
+                    "sourceHandle": "source",
+                    "targetHandle": "target"
+                },
+                {
+                    "id": "1783990970058-source-1783991048409-target",
+                    "data": {
+                        "loop_id": null,
+                        "isInLoop": false,
+                        "sourceType": "llm",
+                        "targetType": "llm",
+                        "iteration_id": null,
+                        "isInIteration": false
+                    },
+                    "type": "custom",
+                    "source": "1783990970058",
+                    "target": "1783991048409",
+                    "zIndex": 0,
+                    "selected": false,
+                    "sourceHandle": "source",
+                    "targetHandle": "target"
+                },
+                {
+                    "id": "1783990977543-source-1783990989034-target",
+                    "data": {
+                        "loop_id": null,
+                        "isInLoop": false,
+                        "sourceType": "knowledge-retrieval",
+                        "targetType": "template-transform",
+                        "iteration_id": null,
+                        "isInIteration": false
+                    },
+                    "type": "custom",
+                    "source": "1783990977543",
+                    "target": "1783990989034",
+                    "zIndex": 0,
+                    "selected": false,
+                    "sourceHandle": "source",
+                    "targetHandle": "target"
+                },
+                {
+                    "id": "1783990989034-source-1783991048409-target",
+                    "data": {
+                        "loop_id": null,
+                        "isInLoop": false,
+                        "sourceType": "template-transform",
+                        "targetType": "llm",
+                        "iteration_id": null,
+                        "isInIteration": false
+                    },
+                    "type": "custom",
+                    "source": "1783990989034",
+                    "target": "1783991048409",
+                    "zIndex": 0,
+                    "selected": false,
+                    "sourceHandle": "source",
+                    "targetHandle": "target"
+                },
+                {
+                    "id": "1783991048409-source-1783991079665-target",
+                    "data": {
+                        "loop_id": null,
+                        "isInLoop": false,
+                        "sourceType": "llm",
+                        "targetType": "llm",
+                        "iteration_id": null,
+                        "isInIteration": false
+                    },
+                    "type": "custom",
+                    "source": "1783991048409",
+                    "target": "1783991079665",
+                    "zIndex": 0,
+                    "selected": false,
+                    "sourceHandle": "source",
+                    "targetHandle": "target"
+                },
+                {
+                    "id": "1783991079665-source-5655556822808-target",
+                    "data": {
+                        "loop_id": null,
+                        "isInLoop": false,
+                        "sourceType": "llm",
+                        "targetType": "tool",
+                        "iteration_id": null,
+                        "isInIteration": false
+                    },
+                    "type": "custom",
+                    "source": "1783991079665",
+                    "target": "5655556822808",
+                    "zIndex": 0,
+                    "selected": false,
+                    "sourceHandle": "source",
+                    "targetHandle": "target"
+                },
+                {
+                    "id": "1786278074940-source-1783992518452-target",
+                    "data": {
+                        "loop_id": null,
+                        "isInLoop": false,
+                        "sourceType": "code",
+                        "targetType": "end",
+                        "iteration_id": null,
+                        "isInIteration": false
+                    },
+                    "type": "custom",
+                    "source": "1786278074940",
+                    "target": "1783992518452",
+                    "zIndex": 0,
+                    "sourceHandle": "source",
+                    "targetHandle": "target"
+                },
+                {
+                    "id": "5655556822808-source-1786278074940-target",
+                    "data": {
+                        "loop_id": null,
+                        "isInLoop": false,
+                        "sourceType": "tool",
+                        "targetType": "code",
+                        "iteration_id": null,
+                        "isInIteration": false
+                    },
+                    "type": "custom",
+                    "source": "5655556822808",
+                    "target": "1786278074940",
+                    "zIndex": 0,
+                    "sourceHandle": "source",
+                    "targetHandle": "target"
+                }
+            ],
+            "nodes": [
+                {
+                    "id": "1783990934733",
+                    "data": {
+                        "type": "start",
+                        "title": "用户输入",
+                        "selected": false,
+                        "variables": [
+                            {
+                                "hint": "",
+                                "type": "text-input",
+                                "label": "query",
+                                "default": "",
+                                "options": [
+                                ],
+                                "required": true,
+                                "variable": "query",
+                                "placeholder": ""
+                            }
+                        ]
+                    },
+                    "type": "custom",
+                    "width": 242,
+                    "height": 108,
+                    "zIndex": 0,
+                    "position": {
+                        "x": 58.46997602878599,
+                        "y": 261
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "positionAbsolute": {
+                        "x": 58.46997602878599,
+                        "y": 261
+                    }
+                },
+                {
+                    "id": "1783990970058",
+                    "data": {
+                        "type": "llm",
+                        "model": {
+                            "mode": "chat",
+                            "name": "deepseek-v4-flash",
+                            "provider": "langgenius/deepseek/deepseek",
+                            "completion_params": {
+                                "temperature": 0.7
+                            }
+                        },
+                        "title": "LLM",
+                        "vision": {
+                            "enabled": false
+                        },
+                        "context": {
+                            "enabled": true,
+                            "variable_selector": [
+                                "1783990934733",
+                                "query"
+                            ]
+                        },
+                        "selected": false,
+                        "prompt_template": [
+                            {
+                                "id": "15d9e831-d7da-410d-a2dd-c45dd75d796c",
+                                "role": "system",
+                                "text": ""
+                            },
+                            {
+                                "id": "6527c4e3-d31e-4fb2-ae19-6979c1a78730",
+                                "role": "user",
+                                "text": "你是一个声学仿真需求分析师。\n\n阅读用户输入，提取并整理仿真需求。如果用户没提，根据常识合理推测。\n\n用户输入：{{#1783990934733.query#}}\n\n请整理以下信息并输出一段通顺的仿真需求描述：\n1. 仿真维度（2D 还是 3D）？\n2. 介质类型和参数（声速、密度）？\n3. 声源类型、频率、位置？\n4. 仿真区域大小？\n5. 期望输出什么结果？\n\n注意：\n- 超声波仿真（MHz 级）需要 dx < 0.5mm 的分辨率\n- 3D 仿真计算量大，如无特殊需要默认为 2D\n- 生物组织声速通常在 1500-1600 m/s"
+                            }
+                        ]
+                    },
+                    "type": "custom",
+                    "width": 241,
+                    "height": 87,
+                    "zIndex": 0,
+                    "position": {
+                        "x": 382,
+                        "y": 282
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "positionAbsolute": {
+                        "x": 382,
+                        "y": 282
+                    }
+                },
+                {
+                    "id": "1783990977543",
+                    "data": {
+                        "type": "knowledge-retrieval",
+                        "title": "知识检索",
+                        "selected": false,
+                        "dataset_ids": [
+                            "bc9aeb94-de93-4210-8e7d-5b932a731252"
+                        ],
+                        "retrieval_mode": "multiple",
+                        "query_variable_selector": [
+                            "1783990934733",
+                            "query"
+                        ],
+                        "multiple_retrieval_config": {
+                            "top_k": 4,
+                            "weights": null,
+                            "reranking_mode": "reranking_model",
+                            "reranking_model": {
+                                "model": "qwen3-rerank",
+                                "provider": "langgenius/tongyi/tongyi"
+                            },
+                            "score_threshold": null,
+                            "reranking_enable": true
+                        },
+                        "query_attachment_selector": [
+                        ]
+                    },
+                    "type": "custom",
+                    "width": 241,
+                    "height": 89,
+                    "zIndex": 0,
+                    "position": {
+                        "x": 617.7055056329614,
+                        "y": 466.6860447969799
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "positionAbsolute": {
+                        "x": 617.7055056329614,
+                        "y": 466.6860447969799
+                    }
+                },
+                {
+                    "id": "1783990989034",
+                    "data": {
+                        "type": "template-transform",
+                        "title": "模板转换",
+                        "selected": false,
+                        "template": "{% for item in arg1 %}\r\n{{ item.content }}\r\n{% endfor %}\r\n",
+                        "variables": [
+                            {
+                                "variable": "arg1",
+                                "value_type": "array[object]",
+                                "value_selector": [
+                                    "1783990977543",
+                                    "result"
+                                ]
+                            }
+                        ]
+                    },
+                    "type": "custom",
+                    "width": 241,
+                    "height": 51,
+                    "zIndex": 0,
+                    "position": {
+                        "x": 931.4110112659225,
+                        "y": 466.6860447969799
+                    },
+                    "selected": true,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "positionAbsolute": {
+                        "x": 931.4110112659225,
+                        "y": 466.6860447969799
+                    }
+                },
+                {
+                    "id": "1783991048409",
+                    "data": {
+                        "type": "llm",
+                        "model": {
+                            "mode": "chat",
+                            "name": "deepseek-v4-flash",
+                            "provider": "langgenius/deepseek/deepseek",
+                            "completion_params": {
+                                "temperature": 0.7
+                            }
+                        },
+                        "title": "参数提取",
+                        "vision": {
+                            "enabled": false
+                        },
+                        "context": {
+                            "enabled": true,
+                            "variable_selector": [
+                                "1783990989034",
+                                "output"
+                            ]
+                        },
+                        "selected": false,
+                        "prompt_template": [
+                            {
+                                "id": "34a28900-fed5-4647-a9ac-8f3e72ac49c7",
+                                "role": "system",
+                                "text": ""
+                            },
+                            {
+                                "id": "2207227c-adc1-4894-ba3e-34c701909807",
+                                "role": "user",
+                                "text": "你是 jwave 声学仿真参数提取器。\n\n根据用户需求和知识库内容，确定以下仿真参数。请按 JSON 格式输出。\n\n用户需求：{{#1783990934733.query#}}\n知识库参考：{{#1783990989034.output#}}\n\n输出 JSON 格式：\n{\n  \"sound_speed\": 1500.0,\n  \"density\": 1000.0,\n  \"source_frequency\": 2000000.0,\n  \"domain_N\": [128, 128],\n  \"domain_dx\": [0.0001, 0.0001],\n  \"t_end\": 0.000005,\n  \"cfl\": 0.3,\n  \"description\": \"仿真描述文字\"\n}\n\n参数说明：\n- sound_speed: 介质声速 (m/s)，如 1500(水), 1540(软组织), 343(空气)\n- density: 介质密度 (kg/m³)，如 1000(水), 1050(软组织), 1.2(空气)\n- source_frequency: 声源频率 (Hz)，如 2000000(2MHz 超声)\n- domain_N: 网格点数 [Nx, Ny] 或 [Nx, Ny, Nz]\n- domain_dx: 网格间距 [dx, dy] 或 [dx, dy, dz] (米)\n- t_end: 仿真总时长 (秒)\n- cfl: CFL 数，默认 0.3\n- description: 一句话描述仿真场景\n\n严格的 JSON 输出要求：\n1. 只输出合法的 JSON 对象，不要有任何额外文字\n2. 所有数值使用数字类型，不要用字符串\n3. 缺失的值用 null"
+                            }
+                        ]
+                    },
+                    "type": "custom",
+                    "width": 241,
+                    "height": 87,
+                    "zIndex": 0,
+                    "position": {
+                        "x": 1169.1614897520058,
+                        "y": 282
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "positionAbsolute": {
+                        "x": 1169.1614897520058,
+                        "y": 282
+                    }
+                },
+                {
+                    "id": "1783991079665",
+                    "data": {
+                        "type": "llm",
+                        "model": {
+                            "mode": "chat",
+                            "name": "deepseek-coder",
+                            "provider": "langgenius/deepseek/deepseek",
+                            "completion_params": {
+                                "temperature": 0.7
+                            }
+                        },
+                        "title": "代码生成",
+                        "vision": {
+                            "enabled": false
+                        },
+                        "context": {
+                            "enabled": false,
+                            "variable_selector": [
+                            ]
+                        },
+                        "selected": false,
+                        "prompt_template": [
+                            {
+                                "id": "961f94cd-f0ed-4ca0-ab49-7d797d67f6a6",
+                                "role": "system",
+                                "text": ""
+                            },
+                            {
+                                "id": "1562435c-7ca5-40fb-8e7d-fa8b2c5496e6",
+                                "role": "user",
+                                "text": "你是 jwave Python 代码生成器。\n\n# 输出规则（最高优先级）\n你的输出就是最终要执行的Python代码。没有JSON包裹，没有markdown标记，没有任何其他文字。\n输出的第一个字符必须是 import 或 # （注释）。\n输出的每一行都是有效的Python代码。\n\n你会收到：\n- 用户需求：{{#1783990934733.query#}}\n- 仿真参数：{{#1783991048409.text#}}\n\n# jwave 0.2.1 API 参考（已验证，必须严格遵守！）\n\nimport jax\nimport jax.numpy as jnp\nfrom jwave import FourierSeries\nfrom jwave.geometry import Domain, Medium, TimeAxis, Sources\nfrom jwave.acoustics import simulate_wave_propagation\n\n## Domain\ndomain = Domain(N=(Nx, Ny), dx=(dx, dx))\n\n## Medium\nmedium = Medium(domain=domain, sound_speed=1540.0, density=1050.0)\n\n## TimeAxis\ntime_axis = TimeAxis.from_medium(medium, cfl=0.3, t_end=5e-6)\nt = time_axis.to_array()  # 1D array, shape (Nt,)\n\n## Sources —— 4个位置参数，不能用关键字\npositions = (jnp.array([cx]), jnp.array([cy]))\nsignals = jnp.expand_dims(jnp.sin(2*jnp.pi*freq*t), 0)  # 2D (1,Nt)\nsources = Sources(positions, signals, time_axis.dt, domain)\n\n## simulate_wave_propagation\np = simulate_wave_propagation(medium, time_axis, sources=sources)\npressure = p.params[0]\n\nprint(f\"压力场形状: {pressure.shape}\")\nprint(f\"最大压力: {float(pressure.max()):.6f}\")\n"
+                            }
+                        ],
+                        "structured_output_enabled": false
+                    },
+                    "type": "custom",
+                    "width": 241,
+                    "height": 87,
+                    "zIndex": 0,
+                    "position": {
+                        "x": 1554.4773256211458,
+                        "y": 282
+                    },
+                    "selected": true,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "positionAbsolute": {
+                        "x": 1554.4773256211458,
+                        "y": 282
+                    }
+                },
+                {
+                    "id": "1783992518452",
+                    "data": {
+                        "type": "end",
+                        "title": "输出",
+                        "outputs": [
+                            {
+                                "variable": "text",
+                                "value_type": "string",
+                                "value_selector": [
+                                    "1786278074940",
+                                    "result"
+                                ]
+                            }
+                        ],
+                        "selected": false
+                    },
+                    "type": "custom",
+                    "width": 241,
+                    "height": 87,
+                    "zIndex": 0,
+                    "position": {
+                        "x": 2681.48698354997,
+                        "y": 282
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "positionAbsolute": {
+                        "x": 2681.48698354997,
+                        "y": 282
+                    }
+                },
+                {
+                    "id": "1786278074940",
+                    "data": {
+                        "code": "import json\n\ndef main(mcp_json):\n      data = mcp_json\n      # Dify 可能把 MCP json 包在 list 里\n      if isinstance(data, list) and len(data) > 0:\n          data = data[0]\n      if isinstance(data, str):\n          try:\n              data = json.loads(data)\n          except Exception:\n              return {\"result\": data}\n      if not isinstance(data, dict):\n          return {\"result\": str(data)}\n      report = data.get(\"report\", \"\")\n      if report:\n          return {\"result\": report}\n      return {\"result\": json.dumps(data, ensure_ascii=False, indent=2)}",
+                        "type": "code",
+                        "title": "代码执行",
+                        "outputs": {
+                            "result": {
+                                "type": "string",
+                                "children": null
+                            }
+                        },
+                        "selected": false,
+                        "variables": [
+                            {
+                                "variable": "mcp_json",
+                                "value_type": "array[object]",
+                                "value_selector": [
+                                    "5655556822808",
+                                    "json"
+                                ]
+                            }
+                        ],
+                        "code_language": "python3"
+                    },
+                    "type": "custom",
+                    "width": 241,
+                    "height": 51,
+                    "zIndex": 0,
+                    "position": {
+                        "x": 2346.0437311072574,
+                        "y": 282
+                    },
+                    "selected": true,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "positionAbsolute": {
+                        "x": 2346.0437311072574,
+                        "y": 282
+                    }
+                },
+                {
+                    "id": "5655556822808",
+                    "data": {
+                        "meta": null,
+                        "type": "tool",
+                        "title": "run_jwave_code_with_retry",
+                        "params": {
+                            "code": "",
+                            "max_retries": "",
+                            "timeout_seconds": ""
+                        },
+                        "isInLoop": false,
+                        "selected": true,
+                        "plugin_id": "",
+                        "tool_name": "run_jwave_code_with_retry",
+                        "tool_label": "run_jwave_code_with_retry",
+                        "provider_id": "jwave-mcp",
+                        "paramSchemas": [
+                            {
+                                "max": null,
+                                "min": null,
+                                "form": "llm",
+                                "name": "code",
+                                "type": "string",
+                                "label": {
+                                    "en_US": "code",
+                                    "ja_JP": "code",
+                                    "pt_BR": "code",
+                                    "zh_Hans": "code"
+                                },
+                                "scope": null,
+                                "default": null,
+                                "options": [
+                                ],
+                                "multiple": false,
+                                "required": true,
+                                "template": null,
+                                "precision": null,
+                                "placeholder": null,
+                                "input_schema": null,
+                                "auto_generate": null,
+                                "llm_description": "",
+                                "human_description": {
+                                    "en_US": "",
+                                    "ja_JP": "",
+                                    "pt_BR": "",
+                                    "zh_Hans": ""
+                                }
+                            },
+                            {
+                                "max": null,
+                                "min": null,
+                                "form": "llm",
+                                "name": "timeout_seconds",
+                                "type": "number",
+                                "label": {
+                                    "en_US": "timeout_seconds",
+                                    "ja_JP": "timeout_seconds",
+                                    "pt_BR": "timeout_seconds",
+                                    "zh_Hans": "timeout_seconds"
+                                },
+                                "scope": null,
+                                "default": null,
+                                "options": [
+                                ],
+                                "multiple": false,
+                                "required": false,
+                                "template": null,
+                                "precision": null,
+                                "placeholder": null,
+                                "input_schema": null,
+                                "auto_generate": null,
+                                "llm_description": "",
+                                "human_description": {
+                                    "en_US": "",
+                                    "ja_JP": "",
+                                    "pt_BR": "",
+                                    "zh_Hans": ""
+                                }
+                            },
+                            {
+                                "max": null,
+                                "min": null,
+                                "form": "llm",
+                                "name": "max_retries",
+                                "type": "number",
+                                "label": {
+                                    "en_US": "max_retries",
+                                    "ja_JP": "max_retries",
+                                    "pt_BR": "max_retries",
+                                    "zh_Hans": "max_retries"
+                                },
+                                "scope": null,
+                                "default": null,
+                                "options": [
+                                ],
+                                "multiple": false,
+                                "required": false,
+                                "template": null,
+                                "precision": null,
+                                "placeholder": null,
+                                "input_schema": null,
+                                "auto_generate": null,
+                                "llm_description": "",
+                                "human_description": {
+                                    "en_US": "",
+                                    "ja_JP": "",
+                                    "pt_BR": "",
+                                    "zh_Hans": ""
+                                }
+                            }
+                        ],
+                        "isInIteration": false,
+                        "provider_icon": {
+                            "content": "🔗",
+                            "background": "#6366F1"
+                        },
+                        "provider_name": "jwave-mcp",
+                        "provider_type": "mcp",
+                        "tool_parameters": {
+                            "code": {
+                                "type": "mixed",
+                                "value": "{{#1783991079665.text#}}"
+                            },
+                            "max_retries": {
+                                "type": "constant",
+                                "value": 7
+                            },
+                            "timeout_seconds": {
+                                "type": "constant",
+                                "value": null
+                            }
+                        },
+                        "tool_description": "Run Python code and auto-fix errors using DeepSeek LLM. Returns final_code, history, and execution results.",
+                        "tool_node_version": "2",
+                        "provider_icon_dark": null,
+                        "provider_show_name": "jwave-mcp",
+                        "tool_configurations": {
+                        },
+                        "is_team_authorization": true,
+                        "plugin_unique_identifier": ""
+                    },
+                    "type": "custom",
+                    "width": 241,
+                    "height": 83,
+                    "zIndex": 0,
+                    "position": {
+                        "x": 1955.8853043051467,
+                        "y": 282
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "positionAbsolute": {
+                        "x": 1955.8853043051467,
+                        "y": 282
+                    }
+                }
+            ],
+            "viewport": {
+                "x": -1101.2108673310245,
+                "y": 53.93804296940439,
+                "zoom": 0.7578582832552003
+            }
+        },
+        "version": "draft",
+        "features": {
+            "file_upload": {
+                "image": {
+                    "enabled": false,
+                    "number_limits": 3,
+                    "transfer_methods": [
+                        "local_file",
+                        "remote_url"
+                    ]
+                },
+                "enabled": false,
+                "number_limits": 3,
+                "fileUploadConfig": {
+                    "file_size_limit": 15,
+                    "batch_count_limit": 5,
+                    "file_upload_limit": 50,
+                    "audio_file_size_limit": 50,
+                    "image_file_size_limit": 10,
+                    "video_file_size_limit": 100,
+                    "image_file_batch_limit": 10,
+                    "workflow_file_upload_limit": 10,
+                    "single_chunk_attachment_limit": 10,
+                    "attachment_image_file_size_limit": 2
+                },
+                "allowed_file_types": [
+                    "image"
+                ],
+                "allowed_file_extensions": [
+                    ".JPG",
+                    ".JPEG",
+                    ".PNG",
+                    ".GIF",
+                    ".WEBP",
+                    ".SVG"
+                ],
+                "allowed_file_upload_methods": [
+                    "local_file",
+                    "remote_url"
+                ]
+            },
+            "speech_to_text": {
+                "enabled": false
+            },
+            "text_to_speech": {
+                "voice": "",
+                "enabled": false,
+                "language": ""
+            },
+            "opening_statement": "",
+            "retriever_resource": {
+                "enabled": true
+            },
+            "suggested_questions": [
+            ],
+            "sensitive_word_avoidance": {
+                "enabled": false
+            },
+            "suggested_questions_after_answer": {
+                "enabled": false
+            }
+        },
+        "created_at": "2026-08-07T15:24:59",
+        "updated_at": "2026-08-10T12:04:41.613581",
+        "marked_name": "",
+        "workflow_id": "641c4530-b8f5-4365-8da7-17208c9e701a",
+        "environment_variables": {
+        },
+        "conversation_variables": {
+        }
+    },
+    {
+        "type": "workflow",
+        "graph": {
+            "edges": [
+                {
+                    "id": "1783990934733-source-1783990970058-target",
+                    "data": {
+                        "isInLoop": false,
+                        "sourceType": "start",
+                        "targetType": "llm",
+                        "isInIteration": false
+                    },
+                    "type": "custom",
+                    "source": "1783990934733",
+                    "target": "1783990970058",
+                    "zIndex": 0,
+                    "selected": false,
+                    "sourceHandle": "source",
+                    "targetHandle": "target"
+                },
+                {
+                    "id": "1783990970058-source-1783990977543-target",
+                    "data": {
+                        "isInLoop": false,
+                        "sourceType": "llm",
+                        "targetType": "knowledge-retrieval",
+                        "isInIteration": false
+                    },
+                    "type": "custom",
+                    "source": "1783990970058",
+                    "target": "1783990977543",
+                    "zIndex": 0,
+                    "selected": false,
+                    "sourceHandle": "source",
+                    "targetHandle": "target"
+                },
+                {
+                    "id": "1783990970058-source-1783991048409-target",
+                    "data": {
+                        "isInLoop": false,
+                        "sourceType": "llm",
+                        "targetType": "llm",
+                        "isInIteration": false
+                    },
+                    "type": "custom",
+                    "source": "1783990970058",
+                    "target": "1783991048409",
+                    "zIndex": 0,
+                    "selected": false,
+                    "sourceHandle": "source",
+                    "targetHandle": "target"
+                },
+                {
+                    "id": "1783990977543-source-1783990989034-target",
+                    "data": {
+                        "isInLoop": false,
+                        "sourceType": "knowledge-retrieval",
+                        "targetType": "template-transform",
+                        "isInIteration": false
+                    },
+                    "type": "custom",
+                    "source": "1783990977543",
+                    "target": "1783990989034",
+                    "zIndex": 0,
+                    "selected": false,
+                    "sourceHandle": "source",
+                    "targetHandle": "target"
+                },
+                {
+                    "id": "1783990989034-source-1783991048409-target",
+                    "data": {
+                        "isInLoop": false,
+                        "sourceType": "template-transform",
+                        "targetType": "llm",
+                        "isInIteration": false
+                    },
+                    "type": "custom",
+                    "source": "1783990989034",
+                    "target": "1783991048409",
+                    "zIndex": 0,
+                    "selected": false,
+                    "sourceHandle": "source",
+                    "targetHandle": "target"
+                },
+                {
+                    "id": "1783991048409-source-1783991079665-target",
+                    "data": {
+                        "isInLoop": false,
+                        "sourceType": "llm",
+                        "targetType": "llm",
+                        "isInIteration": false
+                    },
+                    "type": "custom",
+                    "source": "1783991048409",
+                    "target": "1783991079665",
+                    "zIndex": 0,
+                    "selected": false,
+                    "sourceHandle": "source",
+                    "targetHandle": "target"
+                },
+                {
+                    "id": "1783991079665-source-5655556822808-target",
+                    "data": {
+                        "isInLoop": false,
+                        "sourceType": "llm",
+                        "targetType": "tool",
+                        "isInIteration": false
+                    },
+                    "type": "custom",
+                    "source": "1783991079665",
+                    "target": "5655556822808",
+                    "zIndex": 0,
+                    "selected": false,
+                    "sourceHandle": "source",
+                    "targetHandle": "target"
+                },
+                {
+                    "id": "5655556822808-source-1786278074940-target",
+                    "data": {
+                        "isInLoop": false,
+                        "sourceType": "tool",
+                        "targetType": "code",
+                        "isInIteration": false
+                    },
+                    "type": "custom",
+                    "source": "5655556822808",
+                    "target": "1786278074940",
+                    "zIndex": 0,
+                    "sourceHandle": "source",
+                    "targetHandle": "target"
+                },
+                {
+                    "id": "1786278074940-source-1783992518452-target",
+                    "data": {
+                        "isInLoop": false,
+                        "sourceType": "code",
+                        "targetType": "end",
+                        "isInIteration": false
+                    },
+                    "type": "custom",
+                    "source": "1786278074940",
+                    "target": "1783992518452",
+                    "zIndex": 0,
+                    "sourceHandle": "source",
+                    "targetHandle": "target"
+                }
+            ],
+            "nodes": [
+                {
+                    "id": "1783990934733",
+                    "data": {
+                        "type": "start",
+                        "title": "用户输入",
+                        "selected": false,
+                        "variables": [
+                            {
+                                "hint": "",
+                                "type": "text-input",
+                                "label": "query",
+                                "default": "",
+                                "options": [
+                                ],
+                                "required": true,
+                                "variable": "query",
+                                "placeholder": ""
+                            }
+                        ]
+                    },
+                    "type": "custom",
+                    "width": 242,
+                    "height": 108,
+                    "zIndex": 0,
+                    "position": {
+                        "x": 58.46997602878599,
+                        "y": 261
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "positionAbsolute": {
+                        "x": 58.46997602878599,
+                        "y": 261
+                    }
+                },
+                {
+                    "id": "1783990970058",
+                    "data": {
+                        "type": "llm",
+                        "model": {
+                            "mode": "chat",
+                            "name": "deepseek-v4-flash",
+                            "provider": "langgenius/deepseek/deepseek",
+                            "completion_params": {
+                                "temperature": 0.7
+                            }
+                        },
+                        "title": "LLM",
+                        "vision": {
+                            "enabled": false
+                        },
+                        "context": {
+                            "enabled": true,
+                            "variable_selector": [
+                                "1783990934733",
+                                "query"
+                            ]
+                        },
+                        "selected": false,
+                        "prompt_template": [
+                            {
+                                "id": "15d9e831-d7da-410d-a2dd-c45dd75d796c",
+                                "role": "system",
+                                "text": ""
+                            },
+                            {
+                                "id": "6527c4e3-d31e-4fb2-ae19-6979c1a78730",
+                                "role": "user",
+                                "text": "你是一个声学仿真需求分析师。\n\n阅读用户输入，提取并整理仿真需求。如果用户没提，根据常识合理推测。\n\n用户输入：{{#1783990934733.query#}}\n\n请整理以下信息并输出一段通顺的仿真需求描述：\n1. 仿真维度（2D 还是 3D）？\n2. 介质类型和参数（声速、密度）？\n3. 声源类型、频率、位置？\n4. 仿真区域大小？\n5. 期望输出什么结果？\n\n注意：\n- 超声波仿真（MHz 级）需要 dx < 0.5mm 的分辨率\n- 3D 仿真计算量大，如无特殊需要默认为 2D\n- 生物组织声速通常在 1500-1600 m/s"
+                            }
+                        ]
+                    },
+                    "type": "custom",
+                    "width": 241,
+                    "height": 87,
+                    "zIndex": 0,
+                    "position": {
+                        "x": 382,
+                        "y": 282
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "positionAbsolute": {
+                        "x": 382,
+                        "y": 282
+                    }
+                },
+                {
+                    "id": "1783990977543",
+                    "data": {
+                        "type": "knowledge-retrieval",
+                        "title": "知识检索",
+                        "selected": false,
+                        "dataset_ids": [
+                            "bc9aeb94-de93-4210-8e7d-5b932a731252"
+                        ],
+                        "retrieval_mode": "multiple",
+                        "query_variable_selector": [
+                            "1783990934733",
+                            "query"
+                        ],
+                        "multiple_retrieval_config": {
+                            "top_k": 4,
+                            "weights": null,
+                            "reranking_mode": "reranking_model",
+                            "reranking_model": {
+                                "model": "qwen3-rerank",
+                                "provider": "langgenius/tongyi/tongyi"
+                            },
+                            "score_threshold": null,
+                            "reranking_enable": true
+                        },
+                        "query_attachment_selector": [
+                        ]
+                    },
+                    "type": "custom",
+                    "width": 241,
+                    "height": 89,
+                    "zIndex": 0,
+                    "position": {
+                        "x": 609,
+                        "y": 552
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "positionAbsolute": {
+                        "x": 609,
+                        "y": 552
+                    }
+                },
+                {
+                    "id": "1783990989034",
+                    "data": {
+                        "type": "template-transform",
+                        "title": "模板转换",
+                        "selected": false,
+                        "template": "{% for item in arg1 %}\r\n{{ item.content }}\r\n{% endfor %}\r\n",
+                        "variables": [
+                            {
+                                "variable": "arg1",
+                                "value_type": "array[object]",
+                                "value_selector": [
+                                    "1783990977543",
+                                    "result"
+                                ]
+                            }
+                        ]
+                    },
+                    "type": "custom",
+                    "width": 241,
+                    "height": 51,
+                    "zIndex": 0,
+                    "position": {
+                        "x": 908.2588988734078,
+                        "y": 552
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "positionAbsolute": {
+                        "x": 908.2588988734078,
+                        "y": 552
+                    }
+                },
+                {
+                    "id": "1783991048409",
+                    "data": {
+                        "type": "llm",
+                        "model": {
+                            "mode": "chat",
+                            "name": "deepseek-v4-flash",
+                            "provider": "langgenius/deepseek/deepseek",
+                            "completion_params": {
+                                "temperature": 0.7
+                            }
+                        },
+                        "title": "参数提取",
+                        "vision": {
+                            "enabled": false
+                        },
+                        "context": {
+                            "enabled": true,
+                            "variable_selector": [
+                                "1783990989034",
+                                "output"
+                            ]
+                        },
+                        "selected": false,
+                        "prompt_template": [
+                            {
+                                "id": "34a28900-fed5-4647-a9ac-8f3e72ac49c7",
+                                "role": "system",
+                                "text": ""
+                            },
+                            {
+                                "id": "2207227c-adc1-4894-ba3e-34c701909807",
+                                "role": "user",
+                                "text": "你是 jwave 声学仿真参数提取器。\n\n根据用户需求和知识库内容，确定以下仿真参数。请按 JSON 格式输出。\n\n用户需求：{{#1783990934733.query#}}\n知识库参考：{{#1783990989034.output#}}\n\n输出 JSON 格式：\n{\n  \"sound_speed\": 1500.0,\n  \"density\": 1000.0,\n  \"source_frequency\": 2000000.0,\n  \"domain_N\": [128, 128],\n  \"domain_dx\": [0.0001, 0.0001],\n  \"t_end\": 0.000005,\n  \"cfl\": 0.3,\n  \"description\": \"仿真描述文字\"\n}\n\n参数说明：\n- sound_speed: 介质声速 (m/s)，如 1500(水), 1540(软组织), 343(空气)\n- density: 介质密度 (kg/m³)，如 1000(水), 1050(软组织), 1.2(空气)\n- source_frequency: 声源频率 (Hz)，如 2000000(2MHz 超声)\n- domain_N: 网格点数 [Nx, Ny] 或 [Nx, Ny, Nz]\n- domain_dx: 网格间距 [dx, dy] 或 [dx, dy, dz] (米)\n- t_end: 仿真总时长 (秒)\n- cfl: CFL 数，默认 0.3\n- description: 一句话描述仿真场景\n\n严格的 JSON 输出要求：\n1. 只输出合法的 JSON 对象，不要有任何额外文字\n2. 所有数值使用数字类型，不要用字符串\n3. 缺失的值用 null"
+                            }
+                        ]
+                    },
+                    "type": "custom",
+                    "width": 241,
+                    "height": 87,
+                    "zIndex": 0,
+                    "position": {
+                        "x": 1165.1614897520058,
+                        "y": 282
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "positionAbsolute": {
+                        "x": 1165.1614897520058,
+                        "y": 282
+                    }
+                },
+                {
+                    "id": "1783991079665",
+                    "data": {
+                        "type": "llm",
+                        "model": {
+                            "mode": "chat",
+                            "name": "deepseek-coder",
+                            "provider": "langgenius/deepseek/deepseek",
+                            "completion_params": {
+                                "temperature": 0.7
+                            }
+                        },
+                        "title": "代码生成",
+                        "vision": {
+                            "enabled": false
+                        },
+                        "context": {
+                            "enabled": false,
+                            "variable_selector": [
+                            ]
+                        },
+                        "selected": false,
+                        "prompt_template": [
+                            {
+                                "id": "961f94cd-f0ed-4ca0-ab49-7d797d67f6a6",
+                                "role": "system",
+                                "text": ""
+                            },
+                            {
+                                "id": "1562435c-7ca5-40fb-8e7d-fa8b2c5496e6",
+                                "role": "user",
+                                "text": "你是 jwave Python 代码生成器。\n\n# 输出规则（最高优先级）\n你的输出就是最终要执行的Python代码。没有JSON包裹，没有markdown标记，没有任何其他文字。\n输出的第一个字符必须是 import 或 # （注释）。\n输出的每一行都是有效的Python代码。\n\n你会收到：\n- 用户需求：{{#1783990934733.query#}}\n- 仿真参数：{{#1783991048409.text#}}\n\n# jwave 0.2.1 API 参考（已验证，必须严格遵守！）\n\nimport jax\nimport jax.numpy as jnp\nfrom jwave import FourierSeries\nfrom jwave.geometry import Domain, Medium, TimeAxis, Sources\nfrom jwave.acoustics import simulate_wave_propagation\n\n## Domain\ndomain = Domain(N=(Nx, Ny), dx=(dx, dx))\n\n## Medium\nmedium = Medium(domain=domain, sound_speed=1540.0, density=1050.0)\n\n## TimeAxis\ntime_axis = TimeAxis.from_medium(medium, cfl=0.3, t_end=5e-6)\nt = time_axis.to_array()  # 1D array, shape (Nt,)\n\n## Sources —— 4个位置参数，不能用关键字\npositions = (jnp.array([cx]), jnp.array([cy]))\nsignals = jnp.expand_dims(jnp.sin(2*jnp.pi*freq*t), 0)  # 2D (1,Nt)\nsources = Sources(positions, signals, time_axis.dt, domain)\n\n## simulate_wave_propagation\np = simulate_wave_propagation(medium, time_axis, sources=sources)\npressure = p.params[0]\n\nprint(f\"压力场形状: {pressure.shape}\")\nprint(f\"最大压力: {float(pressure.max()):.6f}\")\n"
+                            }
+                        ],
+                        "structured_output_enabled": false
+                    },
+                    "type": "custom",
+                    "width": 241,
+                    "height": 87,
+                    "zIndex": 0,
+                    "position": {
+                        "x": 1550.4773256211458,
+                        "y": 282
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "positionAbsolute": {
+                        "x": 1550.4773256211458,
+                        "y": 282
+                    }
+                },
+                {
+                    "id": "1783992518452",
+                    "data": {
+                        "type": "end",
+                        "title": "输出",
+                        "outputs": [
+                            {
+                                "variable": "text",
+                                "value_type": "string",
+                                "value_selector": [
+                                    "1786278074940",
+                                    "result"
+                                ]
+                            }
+                        ],
+                        "selected": true
+                    },
+                    "type": "custom",
+                    "width": 241,
+                    "height": 87,
+                    "zIndex": 0,
+                    "position": {
+                        "x": 3467.486983549969,
+                        "y": 282
+                    },
+                    "selected": true,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "positionAbsolute": {
+                        "x": 3467.486983549969,
+                        "y": 282
+                    }
+                },
+                {
+                    "id": "5655556822808",
+                    "data": {
+                        "meta": null,
+                        "type": "tool",
+                        "title": "run_jwave_code_with_retry",
+                        "params": {
+                            "code": "",
+                            "max_retries": "",
+                            "timeout_seconds": ""
+                        },
+                        "isInLoop": false,
+                        "selected": false,
+                        "plugin_id": "",
+                        "tool_name": "run_jwave_code_with_retry",
+                        "tool_label": "run_jwave_code_with_retry",
+                        "provider_id": "jwave-mcp",
+                        "paramSchemas": [
+                            {
+                                "max": null,
+                                "min": null,
+                                "form": "llm",
+                                "name": "code",
+                                "type": "string",
+                                "label": {
+                                    "en_US": "code",
+                                    "ja_JP": "code",
+                                    "pt_BR": "code",
+                                    "zh_Hans": "code"
+                                },
+                                "scope": null,
+                                "default": null,
+                                "options": [
+                                ],
+                                "multiple": false,
+                                "required": true,
+                                "template": null,
+                                "precision": null,
+                                "placeholder": null,
+                                "input_schema": null,
+                                "auto_generate": null,
+                                "llm_description": "",
+                                "human_description": {
+                                    "en_US": "",
+                                    "ja_JP": "",
+                                    "pt_BR": "",
+                                    "zh_Hans": ""
+                                }
+                            },
+                            {
+                                "max": null,
+                                "min": null,
+                                "form": "llm",
+                                "name": "timeout_seconds",
+                                "type": "number",
+                                "label": {
+                                    "en_US": "timeout_seconds",
+                                    "ja_JP": "timeout_seconds",
+                                    "pt_BR": "timeout_seconds",
+                                    "zh_Hans": "timeout_seconds"
+                                },
+                                "scope": null,
+                                "default": null,
+                                "options": [
+                                ],
+                                "multiple": false,
+                                "required": false,
+                                "template": null,
+                                "precision": null,
+                                "placeholder": null,
+                                "input_schema": null,
+                                "auto_generate": null,
+                                "llm_description": "",
+                                "human_description": {
+                                    "en_US": "",
+                                    "ja_JP": "",
+                                    "pt_BR": "",
+                                    "zh_Hans": ""
+                                }
+                            },
+                            {
+                                "max": null,
+                                "min": null,
+                                "form": "llm",
+                                "name": "max_retries",
+                                "type": "number",
+                                "label": {
+                                    "en_US": "max_retries",
+                                    "ja_JP": "max_retries",
+                                    "pt_BR": "max_retries",
+                                    "zh_Hans": "max_retries"
+                                },
+                                "scope": null,
+                                "default": null,
+                                "options": [
+                                ],
+                                "multiple": false,
+                                "required": false,
+                                "template": null,
+                                "precision": null,
+                                "placeholder": null,
+                                "input_schema": null,
+                                "auto_generate": null,
+                                "llm_description": "",
+                                "human_description": {
+                                    "en_US": "",
+                                    "ja_JP": "",
+                                    "pt_BR": "",
+                                    "zh_Hans": ""
+                                }
+                            }
+                        ],
+                        "isInIteration": false,
+                        "provider_icon": {
+                            "content": "🔗",
+                            "background": "#6366F1"
+                        },
+                        "provider_name": "jwave-mcp",
+                        "provider_type": "mcp",
+                        "tool_parameters": {
+                            "code": {
+                                "type": "mixed",
+                                "value": "{{#1783991079665.text#}}"
+                            },
+                            "max_retries": {
+                                "type": "constant",
+                                "value": 7
+                            },
+                            "timeout_seconds": {
+                                "type": "constant",
+                                "value": null
+                            }
+                        },
+                        "tool_description": "Run Python code and auto-fix errors using DeepSeek LLM. Returns final_code, history, and execution results.",
+                        "tool_node_version": "2",
+                        "provider_icon_dark": null,
+                        "provider_show_name": "jwave-mcp",
+                        "tool_configurations": {
+                        },
+                        "is_team_authorization": true,
+                        "plugin_unique_identifier": ""
+                    },
+                    "type": "custom",
+                    "width": 241,
+                    "height": 83,
+                    "zIndex": 0,
+                    "position": {
+                        "x": 1955.8853043051467,
+                        "y": 282
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "positionAbsolute": {
+                        "x": 1955.8853043051467,
+                        "y": 282
+                    }
+                },
+                {
+                    "id": "1786278074940",
+                    "data": {
+                        "code": "\nimport json\n\n  def main(mcp_json):\n      # mcp_json 是 MCP 工具返回的完整 dict\n      data = mcp_json if isinstance(mcp_json, dict) else json.loads(mcp_json)\n      report = data.get(\"report\", \"\")\n      if report:\n          return {\"result\": report}\n      # 降级：如果没有 report 字段\n      return {\"result\": json.dumps(data, ensure_ascii=False, indent=2)}",
+                        "type": "code",
+                        "title": "代码执行",
+                        "outputs": {
+                            "result": {
+                                "type": "string",
+                                "children": null
+                            }
+                        },
+                        "selected": false,
+                        "variables": [
+                            {
+                                "variable": "mcp_json",
+                                "value_type": "array[object]",
+                                "value_selector": [
+                                    "5655556822808",
+                                    "json"
+                                ]
+                            }
+                        ],
+                        "code_language": "python3"
+                    },
+                    "type": "custom",
+                    "width": 241,
+                    "height": 51,
+                    "position": {
+                        "x": 2866.5280145407464,
+                        "y": 282
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "positionAbsolute": {
+                        "x": 2866.5280145407464,
+                        "y": 282
+                    }
+                }
+            ],
+            "viewport": {
+                "x": -665.3359618610073,
+                "y": 344.83199848001107,
+                "zoom": 0.43527528164806273
+            }
+        },
+        "version": "2026-08-09 12:23:55.137215",
+        "features": {
+            "file_upload": {
+                "image": {
+                    "enabled": false,
+                    "number_limits": 3,
+                    "transfer_methods": [
+                        "local_file",
+                        "remote_url"
+                    ]
+                },
+                "enabled": false,
+                "number_limits": 3,
+                "fileUploadConfig": {
+                    "file_size_limit": 15,
+                    "batch_count_limit": 5,
+                    "file_upload_limit": 50,
+                    "audio_file_size_limit": 50,
+                    "image_file_size_limit": 10,
+                    "video_file_size_limit": 100,
+                    "image_file_batch_limit": 10,
+                    "workflow_file_upload_limit": 10,
+                    "single_chunk_attachment_limit": 10,
+                    "attachment_image_file_size_limit": 2
+                },
+                "allowed_file_types": [
+                    "image"
+                ],
+                "allowed_file_extensions": [
+                    ".JPG",
+                    ".JPEG",
+                    ".PNG",
+                    ".GIF",
+                    ".WEBP",
+                    ".SVG"
+                ],
+                "allowed_file_upload_methods": [
+                    "local_file",
+                    "remote_url"
+                ]
+            },
+            "speech_to_text": {
+                "enabled": false
+            },
+            "text_to_speech": {
+                "voice": "",
+                "enabled": false,
+                "language": ""
+            },
+            "opening_statement": "",
+            "retriever_resource": {
+                "enabled": true
+            },
+            "suggested_questions": [
+            ],
+            "sensitive_word_avoidance": {
+                "enabled": false
+            },
+            "suggested_questions_after_answer": {
+                "enabled": false
+            }
+        },
+        "created_at": "2026-08-09T12:23:55.137387",
+        "updated_at": "2026-08-09T12:23:55.137387",
+        "marked_name": "",
+        "workflow_id": "ec62f814-f2c3-4bf5-abc8-24751b3693fa",
+        "environment_variables": {
+        },
+        "conversation_variables": {
+        }
+    },
+    {
+        "type": "workflow",
+        "graph": {
+            "edges": [
+                {
+                    "id": "1783990934733-source-1783990970058-target",
+                    "data": {
+                        "loop_id": null,
+                        "isInLoop": false,
+                        "sourceType": "start",
+                        "targetType": "llm",
+                        "iteration_id": null,
+                        "isInIteration": false
+                    },
+                    "type": "custom",
+                    "source": "1783990934733",
+                    "target": "1783990970058",
+                    "zIndex": 0,
+                    "selected": false,
+                    "sourceHandle": "source",
+                    "targetHandle": "target"
+                },
+                {
+                    "id": "1783990970058-source-1783990977543-target",
+                    "data": {
+                        "loop_id": null,
+                        "isInLoop": false,
+                        "sourceType": "llm",
+                        "targetType": "knowledge-retrieval",
+                        "iteration_id": null,
+                        "isInIteration": false
+                    },
+                    "type": "custom",
+                    "source": "1783990970058",
+                    "target": "1783990977543",
+                    "zIndex": 0,
+                    "selected": false,
+                    "sourceHandle": "source",
+                    "targetHandle": "target"
+                },
+                {
+                    "id": "1783990970058-source-1783991048409-target",
+                    "data": {
+                        "loop_id": null,
+                        "isInLoop": false,
+                        "sourceType": "llm",
+                        "targetType": "llm",
+                        "iteration_id": null,
+                        "isInIteration": false
+                    },
+                    "type": "custom",
+                    "source": "1783990970058",
+                    "target": "1783991048409",
+                    "zIndex": 0,
+                    "selected": false,
+                    "sourceHandle": "source",
+                    "targetHandle": "target"
+                },
+                {
+                    "id": "1783990977543-source-1783990989034-target",
+                    "data": {
+                        "loop_id": null,
+                        "isInLoop": false,
+                        "sourceType": "knowledge-retrieval",
+                        "targetType": "template-transform",
+                        "iteration_id": null,
+                        "isInIteration": false
+                    },
+                    "type": "custom",
+                    "source": "1783990977543",
+                    "target": "1783990989034",
+                    "zIndex": 0,
+                    "selected": false,
+                    "sourceHandle": "source",
+                    "targetHandle": "target"
+                },
+                {
+                    "id": "1783990989034-source-1783991048409-target",
+                    "data": {
+                        "loop_id": null,
+                        "isInLoop": false,
+                        "sourceType": "template-transform",
+                        "targetType": "llm",
+                        "iteration_id": null,
+                        "isInIteration": false
+                    },
+                    "type": "custom",
+                    "source": "1783990989034",
+                    "target": "1783991048409",
+                    "zIndex": 0,
+                    "selected": false,
+                    "sourceHandle": "source",
+                    "targetHandle": "target"
+                },
+                {
+                    "id": "1783991048409-source-1783991079665-target",
+                    "data": {
+                        "loop_id": null,
+                        "isInLoop": false,
+                        "sourceType": "llm",
+                        "targetType": "llm",
+                        "iteration_id": null,
+                        "isInIteration": false
+                    },
+                    "type": "custom",
+                    "source": "1783991048409",
+                    "target": "1783991079665",
+                    "zIndex": 0,
+                    "selected": false,
+                    "sourceHandle": "source",
+                    "targetHandle": "target"
+                },
+                {
+                    "id": "1783991079665-source-5655556822808-target",
+                    "data": {
+                        "loop_id": null,
+                        "isInLoop": false,
+                        "sourceType": "llm",
+                        "targetType": "tool",
+                        "iteration_id": null,
+                        "isInIteration": false
+                    },
+                    "type": "custom",
+                    "source": "1783991079665",
+                    "target": "5655556822808",
+                    "zIndex": 0,
+                    "selected": false,
+                    "sourceHandle": "source",
+                    "targetHandle": "target"
+                },
+                {
+                    "id": "1786278074940-source-1783992518452-target",
+                    "data": {
+                        "loop_id": null,
+                        "isInLoop": false,
+                        "sourceType": "code",
+                        "targetType": "end",
+                        "iteration_id": null,
+                        "isInIteration": false
+                    },
+                    "type": "custom",
+                    "source": "1786278074940",
+                    "target": "1783992518452",
+                    "zIndex": 0,
+                    "sourceHandle": "source",
+                    "targetHandle": "target"
+                },
+                {
+                    "id": "5655556822808-source-1786278074940-target",
+                    "data": {
+                        "loop_id": null,
+                        "isInLoop": false,
+                        "sourceType": "tool",
+                        "targetType": "code",
+                        "iteration_id": null,
+                        "isInIteration": false
+                    },
+                    "type": "custom",
+                    "source": "5655556822808",
+                    "target": "1786278074940",
+                    "zIndex": 0,
+                    "sourceHandle": "source",
+                    "targetHandle": "target"
+                }
+            ],
+            "nodes": [
+                {
+                    "id": "1783990934733",
+                    "data": {
+                        "type": "start",
+                        "title": "用户输入",
+                        "selected": false,
+                        "variables": [
+                            {
+                                "hint": "",
+                                "type": "text-input",
+                                "label": "query",
+                                "default": "",
+                                "options": [
+                                ],
+                                "required": true,
+                                "variable": "query",
+                                "placeholder": ""
+                            }
+                        ]
+                    },
+                    "type": "custom",
+                    "width": 242,
+                    "height": 108,
+                    "zIndex": 0,
+                    "position": {
+                        "x": 58.46997602878599,
+                        "y": 261
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "positionAbsolute": {
+                        "x": 58.46997602878599,
+                        "y": 261
+                    }
+                },
+                {
+                    "id": "1783990970058",
+                    "data": {
+                        "type": "llm",
+                        "model": {
+                            "mode": "chat",
+                            "name": "deepseek-v4-flash",
+                            "provider": "langgenius/deepseek/deepseek",
+                            "completion_params": {
+                                "temperature": 0.7
+                            }
+                        },
+                        "title": "LLM",
+                        "vision": {
+                            "enabled": false
+                        },
+                        "context": {
+                            "enabled": true,
+                            "variable_selector": [
+                                "1783990934733",
+                                "query"
+                            ]
+                        },
+                        "selected": false,
+                        "prompt_template": [
+                            {
+                                "id": "15d9e831-d7da-410d-a2dd-c45dd75d796c",
+                                "role": "system",
+                                "text": ""
+                            },
+                            {
+                                "id": "6527c4e3-d31e-4fb2-ae19-6979c1a78730",
+                                "role": "user",
+                                "text": "你是一个声学仿真需求分析师。\n\n阅读用户输入，提取并整理仿真需求。如果用户没提，根据常识合理推测。\n\n用户输入：{{#1783990934733.query#}}\n\n请整理以下信息并输出一段通顺的仿真需求描述：\n1. 仿真维度（2D 还是 3D）？\n2. 介质类型和参数（声速、密度）？\n3. 声源类型、频率、位置？\n4. 仿真区域大小？\n5. 期望输出什么结果？\n\n注意：\n- 超声波仿真（MHz 级）需要 dx < 0.5mm 的分辨率\n- 3D 仿真计算量大，如无特殊需要默认为 2D\n- 生物组织声速通常在 1500-1600 m/s"
+                            }
+                        ]
+                    },
+                    "type": "custom",
+                    "width": 241,
+                    "height": 87,
+                    "zIndex": 0,
+                    "position": {
+                        "x": 382,
+                        "y": 282
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "positionAbsolute": {
+                        "x": 382,
+                        "y": 282
+                    }
+                },
+                {
+                    "id": "1783990977543",
+                    "data": {
+                        "type": "knowledge-retrieval",
+                        "title": "知识检索",
+                        "selected": false,
+                        "dataset_ids": [
+                            "bc9aeb94-de93-4210-8e7d-5b932a731252"
+                        ],
+                        "retrieval_mode": "multiple",
+                        "query_variable_selector": [
+                            "1783990934733",
+                            "query"
+                        ],
+                        "multiple_retrieval_config": {
+                            "top_k": 4,
+                            "weights": null,
+                            "reranking_mode": "reranking_model",
+                            "reranking_model": {
+                                "model": "qwen3-rerank",
+                                "provider": "langgenius/tongyi/tongyi"
+                            },
+                            "score_threshold": null,
+                            "reranking_enable": true
+                        },
+                        "query_attachment_selector": [
+                        ]
+                    },
+                    "type": "custom",
+                    "width": 241,
+                    "height": 51,
+                    "zIndex": 0,
+                    "position": {
+                        "x": 609,
+                        "y": 552
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "positionAbsolute": {
+                        "x": 609,
+                        "y": 552
+                    }
+                },
+                {
+                    "id": "1783990989034",
+                    "data": {
+                        "type": "template-transform",
+                        "title": "模板转换",
+                        "selected": false,
+                        "template": "{% for item in arg1 %}\r\n{{ item.content }}\r\n{% endfor %}\r\n",
+                        "variables": [
+                            {
+                                "variable": "arg1",
+                                "value_type": "array[object]",
+                                "value_selector": [
+                                    "1783990977543",
+                                    "result"
+                                ]
+                            }
+                        ]
+                    },
+                    "type": "custom",
+                    "width": 241,
+                    "height": 51,
+                    "zIndex": 0,
+                    "position": {
+                        "x": 908.2588988734078,
+                        "y": 552
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "positionAbsolute": {
+                        "x": 908.2588988734078,
+                        "y": 552
+                    }
+                },
+                {
+                    "id": "1783991048409",
+                    "data": {
+                        "type": "llm",
+                        "model": {
+                            "mode": "chat",
+                            "name": "deepseek-v4-flash",
+                            "provider": "langgenius/deepseek/deepseek",
+                            "completion_params": {
+                                "temperature": 0.7
+                            }
+                        },
+                        "title": "参数提取",
+                        "vision": {
+                            "enabled": false
+                        },
+                        "context": {
+                            "enabled": true,
+                            "variable_selector": [
+                                "1783990989034",
+                                "output"
+                            ]
+                        },
+                        "selected": false,
+                        "prompt_template": [
+                            {
+                                "id": "34a28900-fed5-4647-a9ac-8f3e72ac49c7",
+                                "role": "system",
+                                "text": ""
+                            },
+                            {
+                                "id": "2207227c-adc1-4894-ba3e-34c701909807",
+                                "role": "user",
+                                "text": "你是 jwave 声学仿真参数提取器。\n\n根据用户需求和知识库内容，确定以下仿真参数。请按 JSON 格式输出。\n\n用户需求：{{#1783990934733.query#}}\n知识库参考：{{#1783990989034.output#}}\n\n输出 JSON 格式：\n{\n  \"sound_speed\": 1500.0,\n  \"density\": 1000.0,\n  \"source_frequency\": 2000000.0,\n  \"domain_N\": [128, 128],\n  \"domain_dx\": [0.0001, 0.0001],\n  \"t_end\": 0.000005,\n  \"cfl\": 0.3,\n  \"description\": \"仿真描述文字\"\n}\n\n参数说明：\n- sound_speed: 介质声速 (m/s)，如 1500(水), 1540(软组织), 343(空气)\n- density: 介质密度 (kg/m³)，如 1000(水), 1050(软组织), 1.2(空气)\n- source_frequency: 声源频率 (Hz)，如 2000000(2MHz 超声)\n- domain_N: 网格点数 [Nx, Ny] 或 [Nx, Ny, Nz]\n- domain_dx: 网格间距 [dx, dy] 或 [dx, dy, dz] (米)\n- t_end: 仿真总时长 (秒)\n- cfl: CFL 数，默认 0.3\n- description: 一句话描述仿真场景\n\n严格的 JSON 输出要求：\n1. 只输出合法的 JSON 对象，不要有任何额外文字\n2. 所有数值使用数字类型，不要用字符串\n3. 缺失的值用 null"
+                            }
+                        ]
+                    },
+                    "type": "custom",
+                    "width": 241,
+                    "height": 87,
+                    "zIndex": 0,
+                    "position": {
+                        "x": 1165.1614897520058,
+                        "y": 282
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "positionAbsolute": {
+                        "x": 1165.1614897520058,
+                        "y": 282
+                    }
+                },
+                {
+                    "id": "1783991079665",
+                    "data": {
+                        "type": "llm",
+                        "model": {
+                            "mode": "chat",
+                            "name": "deepseek-coder",
+                            "provider": "langgenius/deepseek/deepseek",
+                            "completion_params": {
+                                "temperature": 0.7
+                            }
+                        },
+                        "title": "代码生成",
+                        "vision": {
+                            "enabled": false
+                        },
+                        "context": {
+                            "enabled": false,
+                            "variable_selector": [
+                            ]
+                        },
+                        "selected": false,
+                        "prompt_template": [
+                            {
+                                "id": "961f94cd-f0ed-4ca0-ab49-7d797d67f6a6",
+                                "role": "system",
+                                "text": ""
+                            },
+                            {
+                                "id": "1562435c-7ca5-40fb-8e7d-fa8b2c5496e6",
+                                "role": "user",
+                                "text": "你是 jwave Python 代码生成器。\n\n# 输出规则（最高优先级）\n你的输出就是最终要执行的Python代码。没有JSON包裹，没有markdown标记，没有任何其他文字。\n输出的第一个字符必须是 import 或 # （注释）。\n输出的每一行都是有效的Python代码。\n\n你会收到：\n- 用户需求：{{#1783990934733.query#}}\n- 仿真参数：{{#1783991048409.text#}}\n\n# jwave 0.2.1 API 参考（已验证，必须严格遵守！）\n\nimport jax\nimport jax.numpy as jnp\nfrom jwave import FourierSeries\nfrom jwave.geometry import Domain, Medium, TimeAxis, Sources\nfrom jwave.acoustics import simulate_wave_propagation\n\n## Domain\ndomain = Domain(N=(Nx, Ny), dx=(dx, dx))\n\n## Medium\nmedium = Medium(domain=domain, sound_speed=1540.0, density=1050.0)\n\n## TimeAxis\ntime_axis = TimeAxis.from_medium(medium, cfl=0.3, t_end=5e-6)\nt = time_axis.to_array()  # 1D array, shape (Nt,)\n\n## Sources —— 4个位置参数，不能用关键字\npositions = (jnp.array([cx]), jnp.array([cy]))\nsignals = jnp.expand_dims(jnp.sin(2*jnp.pi*freq*t), 0)  # 2D (1,Nt)\nsources = Sources(positions, signals, time_axis.dt, domain)\n\n## simulate_wave_propagation\np = simulate_wave_propagation(medium, time_axis, sources=sources)\npressure = p.params[0]\n\nprint(f\"压力场形状: {pressure.shape}\")\nprint(f\"最大压力: {float(pressure.max()):.6f}\")\n"
+                            }
+                        ],
+                        "structured_output_enabled": false
+                    },
+                    "type": "custom",
+                    "width": 241,
+                    "height": 87,
+                    "zIndex": 0,
+                    "position": {
+                        "x": 1550.4773256211458,
+                        "y": 282
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "positionAbsolute": {
+                        "x": 1550.4773256211458,
+                        "y": 282
+                    }
+                },
+                {
+                    "id": "1783992518452",
+                    "data": {
+                        "type": "end",
+                        "title": "输出",
+                        "outputs": [
+                            {
+                                "variable": "text",
+                                "value_type": "string",
+                                "value_selector": [
+                                    "1786278074940",
+                                    "result"
+                                ]
+                            }
+                        ],
+                        "selected": true
+                    },
+                    "type": "custom",
+                    "width": 241,
+                    "height": 87,
+                    "zIndex": 0,
+                    "position": {
+                        "x": 3467.486983549969,
+                        "y": 282
+                    },
+                    "selected": true,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "positionAbsolute": {
+                        "x": 3467.486983549969,
+                        "y": 282
+                    }
+                },
+                {
+                    "id": "1786278074940",
+                    "data": {
+                        "code": "import json\n\ndef main(mcp_json):\n      data = mcp_json\n      # Dify 可能把 MCP json 包在 list 里\n      if isinstance(data, list) and len(data) > 0:\n          data = data[0]\n      if isinstance(data, str):\n          try:\n              data = json.loads(data)\n          except Exception:\n              return {\"result\": data}\n      if not isinstance(data, dict):\n          return {\"result\": str(data)}\n      report = data.get(\"report\", \"\")\n      if report:\n          return {\"result\": report}\n      return {\"result\": json.dumps(data, ensure_ascii=False, indent=2)}",
+                        "type": "code",
+                        "title": "代码执行",
+                        "outputs": {
+                            "result": {
+                                "type": "string",
+                                "children": null
+                            }
+                        },
+                        "selected": false,
+                        "variables": [
+                            {
+                                "variable": "mcp_json",
+                                "value_type": "array[object]",
+                                "value_selector": [
+                                    "5655556822808",
+                                    "json"
+                                ]
+                            }
+                        ],
+                        "code_language": "python3"
+                    },
+                    "type": "custom",
+                    "width": 241,
+                    "height": 51,
+                    "position": {
+                        "x": 2866.5280145407464,
+                        "y": 282
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "positionAbsolute": {
+                        "x": 2866.5280145407464,
+                        "y": 282
+                    }
+                },
+                {
+                    "id": "5655556822808",
+                    "data": {
+                        "meta": null,
+                        "type": "tool",
+                        "title": "run_jwave_code_with_retry",
+                        "params": {
+                            "code": "",
+                            "max_retries": "",
+                            "timeout_seconds": ""
+                        },
+                        "isInLoop": false,
+                        "selected": false,
+                        "plugin_id": "",
+                        "tool_name": "run_jwave_code_with_retry",
+                        "tool_label": "run_jwave_code_with_retry",
+                        "provider_id": "jwave-mcp",
+                        "paramSchemas": [
+                            {
+                                "max": null,
+                                "min": null,
+                                "form": "llm",
+                                "name": "code",
+                                "type": "string",
+                                "label": {
+                                    "en_US": "code",
+                                    "ja_JP": "code",
+                                    "pt_BR": "code",
+                                    "zh_Hans": "code"
+                                },
+                                "scope": null,
+                                "default": null,
+                                "options": [
+                                ],
+                                "multiple": false,
+                                "required": true,
+                                "template": null,
+                                "precision": null,
+                                "placeholder": null,
+                                "input_schema": null,
+                                "auto_generate": null,
+                                "llm_description": "",
+                                "human_description": {
+                                    "en_US": "",
+                                    "ja_JP": "",
+                                    "pt_BR": "",
+                                    "zh_Hans": ""
+                                }
+                            },
+                            {
+                                "max": null,
+                                "min": null,
+                                "form": "llm",
+                                "name": "timeout_seconds",
+                                "type": "number",
+                                "label": {
+                                    "en_US": "timeout_seconds",
+                                    "ja_JP": "timeout_seconds",
+                                    "pt_BR": "timeout_seconds",
+                                    "zh_Hans": "timeout_seconds"
+                                },
+                                "scope": null,
+                                "default": null,
+                                "options": [
+                                ],
+                                "multiple": false,
+                                "required": false,
+                                "template": null,
+                                "precision": null,
+                                "placeholder": null,
+                                "input_schema": null,
+                                "auto_generate": null,
+                                "llm_description": "",
+                                "human_description": {
+                                    "en_US": "",
+                                    "ja_JP": "",
+                                    "pt_BR": "",
+                                    "zh_Hans": ""
+                                }
+                            },
+                            {
+                                "max": null,
+                                "min": null,
+                                "form": "llm",
+                                "name": "max_retries",
+                                "type": "number",
+                                "label": {
+                                    "en_US": "max_retries",
+                                    "ja_JP": "max_retries",
+                                    "pt_BR": "max_retries",
+                                    "zh_Hans": "max_retries"
+                                },
+                                "scope": null,
+                                "default": null,
+                                "options": [
+                                ],
+                                "multiple": false,
+                                "required": false,
+                                "template": null,
+                                "precision": null,
+                                "placeholder": null,
+                                "input_schema": null,
+                                "auto_generate": null,
+                                "llm_description": "",
+                                "human_description": {
+                                    "en_US": "",
+                                    "ja_JP": "",
+                                    "pt_BR": "",
+                                    "zh_Hans": ""
+                                }
+                            }
+                        ],
+                        "isInIteration": false,
+                        "provider_icon": {
+                            "content": "🔗",
+                            "background": "#6366F1"
+                        },
+                        "provider_name": "jwave-mcp",
+                        "provider_type": "mcp",
+                        "tool_parameters": {
+                            "code": {
+                                "type": "mixed",
+                                "value": "{{#1783991079665.text#}}"
+                            },
+                            "max_retries": {
+                                "type": "constant",
+                                "value": 7
+                            },
+                            "timeout_seconds": {
+                                "type": "constant",
+                                "value": null
+                            }
+                        },
+                        "tool_description": "Run Python code and auto-fix errors using DeepSeek LLM. Returns final_code, history, and execution results.",
+                        "tool_node_version": "2",
+                        "provider_icon_dark": null,
+                        "provider_show_name": "jwave-mcp",
+                        "tool_configurations": {
+                        },
+                        "is_team_authorization": true,
+                        "plugin_unique_identifier": ""
+                    },
+                    "type": "custom",
+                    "width": 241,
+                    "height": 83,
+                    "zIndex": 0,
+                    "position": {
+                        "x": 1955.8853043051467,
+                        "y": 282
+                    },
+                    "selected": false,
+                    "sourcePosition": "right",
+                    "targetPosition": "left",
+                    "positionAbsolute": {
+                        "x": 1955.8853043051467,
+                        "y": 282
+                    }
+                }
+            ],
+            "viewport": {
+                "x": -1021.2620448142957,
+                "y": 262.81789582355555,
+                "zoom": 0.43527528164806273
+            }
+        },
+        "version": "2026-08-09 12:37:46.536638",
+        "features": {
+            "file_upload": {
+                "image": {
+                    "enabled": false,
+                    "number_limits": 3,
+                    "transfer_methods": [
+                        "local_file",
+                        "remote_url"
+                    ]
+                },
+                "enabled": false,
+                "number_limits": 3,
+                "fileUploadConfig": {
+                    "file_size_limit": 15,
+                    "batch_count_limit": 5,
+                    "file_upload_limit": 50,
+                    "audio_file_size_limit": 50,
+                    "image_file_size_limit": 10,
+                    "video_file_size_limit": 100,
+                    "image_file_batch_limit": 10,
+                    "workflow_file_upload_limit": 10,
+                    "single_chunk_attachment_limit": 10,
+                    "attachment_image_file_size_limit": 2
+                },
+                "allowed_file_types": [
+                    "image"
+                ],
+                "allowed_file_extensions": [
+                    ".JPG",
+                    ".JPEG",
+                    ".PNG",
+                    ".GIF",
+                    ".WEBP",
+                    ".SVG"
+                ],
+                "allowed_file_upload_methods": [
+                    "local_file",
+                    "remote_url"
+                ]
+            },
+            "speech_to_text": {
+                "enabled": false
+            },
+            "text_to_speech": {
+                "voice": "",
+                "enabled": false,
+                "language": ""
+            },
+            "opening_statement": "",
+            "retriever_resource": {
+                "enabled": true
+            },
+            "suggested_questions": [
+            ],
+            "sensitive_word_avoidance": {
+                "enabled": false
+            },
+            "suggested_questions_after_answer": {
+                "enabled": false
+            }
+        },
+        "created_at": "2026-08-09T12:37:46.536782",
+        "updated_at": "2026-08-09T12:37:46.536782",
+        "marked_name": "",
+        "workflow_id": "3d05c047-4d5a-436c-9f9a-4bd3bb834717",
+        "environment_variables": {
+        },
+        "conversation_variables": {
+        }
+    }
+]

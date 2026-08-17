@@ -18,7 +18,7 @@ except ImportError:
     from fastmcp.server.auth import StaticTokenVerifier
 
 from library_tools import ALLOWED_TOOLS
-from dashboard import init_db, record_execution, clear_executions, PORTAL_HTML, DEMO_HTML, get_executions, get_stats, load_test_results
+from dashboard import init_db, record_execution, clear_executions, PORTAL_HTML, DEMO_HTML, CHAT_HTML, get_executions, get_stats, load_test_results
 
 
 token = os.environ.get("MCP_AUTH_TOKEN")
@@ -491,6 +491,56 @@ async def cache_page(_: Request) -> PlainTextResponse:
     return HTMLResponse(html)
 
 
+def _extract_report(output: Any) -> str:
+    """从 Dify 工作流 outputs.text 中提取 Markdown 报告字符串。"""
+    if isinstance(output, str):
+        return output
+    if isinstance(output, list) and output:
+        first = output[0]
+        if isinstance(first, str):
+            return first
+        if isinstance(first, dict):
+            return first.get("result", "") or first.get("report", "") or json.dumps(first, ensure_ascii=False)
+    if isinstance(output, dict):
+        return output.get("result", "") or output.get("report", "") or json.dumps(output, ensure_ascii=False)
+    return ""
+
+
+async def _merge_requirement(requirement: str, message: str) -> str:
+    """用 DeepSeek 把「历史需求 + 本轮增量修改」合并成完整需求。"""
+    if not deepseek_api_key:
+        return f"{requirement}；{message}"
+    prompt = (
+        "你是声学仿真需求整理助手。请根据「当前完整需求」和「用户新修改」，输出更新后的完整需求。\n"
+        "要求：输出一段完整的中文需求描述，包含所有当前有效的仿真参数"
+        "（如声源频率、网格大小、仿真区域、声速、介质/异质结构、传感器位置、仿真时长等）；"
+        "用户的新修改要覆盖旧值；只输出需求本身，不要任何解释或前缀。\n\n"
+        f"当前完整需求：\n{requirement}\n\n"
+        f"用户新修改：\n{message}\n\n"
+        "更新后的完整需求："
+    )
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.post(
+                "https://api.deepseek.com/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {deepseek_api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": deepseek_model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.1,
+                    "max_tokens": 1200,
+                },
+            )
+        resp.raise_for_status()
+        merged = resp.json()["choices"][0]["message"]["content"].strip()
+        return merged or f"{requirement}；{message}"
+    except Exception:
+        return f"{requirement}；{message}"
+
+
 @mcp.custom_route("/ask", methods=["POST"])
 async def ask_api(request: Request) -> PlainTextResponse:
     """Proxy to Dify workflow API for portal-based queries."""
@@ -519,20 +569,73 @@ async def ask_api(request: Request) -> PlainTextResponse:
         )
     data = resp.json()
     wf = data.get("data", {})
-    output = wf.get("outputs", {}).get("text")
-    # Dify 返回的是 Markdown 字符串（代码节点 result 字段的值）
-    report = ""
-    if isinstance(output, str):
-        report = output
-    elif isinstance(output, list) and len(output) > 0:
-        o = output[0]
-        report = o if isinstance(o, str) else o.get("result", "") or o.get("report", "") or json.dumps(o, ensure_ascii=False)
-    elif isinstance(output, dict):
-        report = output.get("result", "") or output.get("report", "") or json.dumps(output, ensure_ascii=False)
+    report = _extract_report(wf.get("outputs", {}).get("text"))
     if not report or not report.strip():
         report = f"_(工作流返回空结果, status={wf.get('status')}, error={wf.get('error')})_"
     return PlainTextResponse(
         json.dumps({"report": report, "workflow_status": wf.get("status")}, ensure_ascii=False),
+        media_type="application/json",
+    )
+
+
+@mcp.custom_route("/chat", methods=["POST"])
+async def chat_api(request: Request) -> PlainTextResponse:
+    """多轮对话：合并历史需求 → 调用 Dify 工作流执行仿真。"""
+    body = await request.json()
+    message = (body.get("message") or "").strip()
+    requirement = (body.get("requirement") or "").strip()
+    if not message:
+        return PlainTextResponse(
+            json.dumps({"error": "message is required"}, ensure_ascii=False),
+            status_code=400, media_type="application/json",
+        )
+
+    if requirement:
+        full_requirement = await _merge_requirement(requirement, message)
+        merge_used = True
+    else:
+        full_requirement = message
+        merge_used = False
+
+    dify_url = "http://nginx/v1/workflows/run"
+    try:
+        async with httpx.AsyncClient(timeout=180) as client:
+            resp = await client.post(
+                dify_url,
+                headers={
+                    "Authorization": f"Bearer {dify_api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "inputs": {"query": full_requirement},
+                    "response_mode": "blocking",
+                    "user": "portal",
+                },
+            )
+        data = resp.json()
+    except Exception as exc:
+        return PlainTextResponse(
+            json.dumps({
+                "report": f"_(调用 Dify 工作流失败：{exc})_",
+                "requirement": full_requirement,
+                "merge_used": merge_used,
+                "workflow_status": "error",
+            }, ensure_ascii=False),
+            media_type="application/json",
+        )
+
+    wf = data.get("data", {})
+    report = _extract_report(wf.get("outputs", {}).get("text"))
+    if not report or not report.strip():
+        report = f"_(工作流返回空结果, status={wf.get('status')}, error={wf.get('error')})_"
+
+    return PlainTextResponse(
+        json.dumps({
+            "report": report,
+            "requirement": full_requirement,
+            "merge_used": merge_used,
+            "workflow_status": wf.get("status"),
+        }, ensure_ascii=False),
         media_type="application/json",
     )
 
@@ -561,6 +664,12 @@ async def dashboard(_: Request) -> PlainTextResponse:
 async def demo_page(_: Request) -> PlainTextResponse:
     from starlette.responses import HTMLResponse
     return HTMLResponse(DEMO_HTML)
+
+
+@mcp.custom_route("/chat", methods=["GET"])
+async def chat_page(_: Request) -> PlainTextResponse:
+    from starlette.responses import HTMLResponse
+    return HTMLResponse(CHAT_HTML)
 
 
 @mcp.custom_route("/demo/api/run", methods=["POST"])

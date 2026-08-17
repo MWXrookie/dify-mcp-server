@@ -493,21 +493,33 @@ PORTAL_HTML = r"""<!DOCTYPE html>
     font-size: 14px; font-weight: 500; white-space: nowrap;
   }
   .ask-row button:disabled { opacity: 0.5; cursor: not-allowed; }
-  .answer {
-    margin-top: 16px; padding: 16px; background: #0d1117;
-    border: 1px solid var(--border); border-radius: 10px;
-    font-size: 14px; line-height: 1.8; display: none;
-    max-height: 600px; overflow-y: auto;
+  .ask-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .ask-head h2 { font-size: 18px; margin: 0; }
+  #reset-btn {
+    padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--muted); cursor: pointer; font-size: 12px;
   }
-  .answer.visible { display: block; }
-  .answer h2 { border-bottom: 1px solid var(--border); padding-bottom: 6px; margin: 16px 0 10px; font-size: 18px; }
-  .answer h3 { margin: 14px 0 6px; font-size: 15px; color: var(--blue); }
-  .answer table { border-collapse: collapse; margin: 8px 0; font-size: 13px; }
-  .answer td, .answer th { padding: 4px 12px; border: 1px solid var(--border); text-align: left; }
-  .answer th { background: #1c2129; }
-  .answer code { background: #1c2129; padding: 1px 5px; border-radius: 4px; font-size: 13px; }
-  .answer pre { background: #0d1117; border: 1px solid var(--border); border-radius: 6px; padding: 12px; overflow-x: auto; font-size: 12px; }
-  .answer .loading-text { color: var(--muted); text-align: center; padding: 20px; }
+  #reset-btn:hover { color: var(--text); border-color: var(--accent); }
+  .chat-log {
+    display: flex; flex-direction: column; gap: 12px;
+    max-height: 560px; overflow-y: auto; padding: 4px; margin-bottom: 14px;
+  }
+  .chat-empty { color: var(--muted); font-size: 13px; text-align: center; padding: 28px 12px; line-height: 1.6; }
+  .msg { max-width: 86%; padding: 12px 14px; border-radius: 12px; font-size: 14px; line-height: 1.7; }
+  .msg.user {
+    align-self: flex-end; background: rgba(31,111,235,.22);
+    border: 1px solid rgba(88,166,255,.3); white-space: pre-wrap; word-break: break-word;
+  }
+  .msg.assistant { align-self: flex-start; background: #0d1117; border: 1px solid var(--border); }
+  .msg.assistant h2 { border-bottom: 1px solid var(--border); padding-bottom: 6px; margin: 12px 0 8px; font-size: 17px; }
+  .msg.assistant h3 { margin: 12px 0 6px; font-size: 14px; color: var(--blue); }
+  .msg.assistant table { border-collapse: collapse; margin: 8px 0; font-size: 13px; }
+  .msg.assistant td, .msg.assistant th { padding: 4px 12px; border: 1px solid var(--border); text-align: left; }
+  .msg.assistant th { background: #1c2129; }
+  .msg.assistant code { background: #1c2129; padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+  .msg.assistant pre { background: #0d1117; border: 1px solid var(--border); border-radius: 6px; padding: 12px; overflow-x: auto; font-size: 12px; }
+  .msg.assistant .loading-text { color: var(--muted); }
+  .merge-hint { margin-top: 10px; color: var(--muted); font-size: 12px; min-height: 16px; }
   @media (max-width: 768px) {
     body { padding: 16px; }
     .hero h1 { font-size: 24px; }
@@ -523,15 +535,24 @@ PORTAL_HTML = r"""<!DOCTYPE html>
   </div>
 
   <div class="ask-section">
-    <h2>🔬 声学仿真问答</h2>
-    <div class="ask-row">
-      <input type="text" id="query-input" placeholder="输入你的声学问题，例如：模拟一个2 MHz点声源在水中传播，网格128x128，区域1cm，仿真5微秒" onkeydown="if(event.key==='Enter')ask()">
-      <button id="ask-btn" onclick="ask()">🚀 开始仿真</button>
+    <div class="ask-head">
+      <h2>🔬 声学仿真问答</h2>
+      <button id="reset-btn" onclick="resetChat()">🆕 新对话</button>
     </div>
-    <div class="answer" id="answer"></div>
+    <div class="chat-log" id="chat-log"></div>
+    <div class="ask-row">
+      <input type="text" id="query-input" placeholder="描述声学仿真需求，或输入修改（如：改成 5 MHz）" onkeydown="if(event.key==='Enter')ask()">
+      <button id="ask-btn" onclick="ask()">🚀 发送</button>
+    </div>
+    <div class="merge-hint" id="merge-hint"></div>
   </div>
 
   <div class="grid">
+    <a class="card" href="/chat">
+      <h2>💬 多轮对话</h2>
+      <p>连续对话式仿真：先给完整需求，再逐步修改参数，自动合并并重新执行。</p>
+      <div class="go">开始对话 →</div>
+    </a>
     <a class="card" href="/dashboard">
       <h2>📊 执行看板</h2>
       <p>查看实时执行记录、代码详情、图像缩略图和失败状态。</p>
@@ -594,35 +615,71 @@ function renderMarkdown(md) {
   return html;
 }
 
+var conversation = [];        // {role:'user'|'assistant', content}
+var currentRequirement = '';  // 累计完整需求
+
+function renderChat() {
+  var log = document.getElementById('chat-log');
+  if (!conversation.length) {
+    log.innerHTML = '<div class="chat-empty">输入你的声学仿真需求开始对话。<br>支持多轮修改：例如先描述完整需求，再输入「改成 5 MHz」。</div>';
+    return;
+  }
+  log.innerHTML = conversation.map(function(m) {
+    var cls = m.role === 'user' ? 'user' : 'assistant';
+    var body = m.role === 'user' ? esc(m.content) : renderMarkdown(m.content);
+    return '<div class="msg ' + cls + '">' + body + '</div>';
+  }).join('');
+  log.scrollTop = log.scrollHeight;
+}
+
 async function ask() {
   var input = document.getElementById('query-input');
   var btn = document.getElementById('ask-btn');
-  var answer = document.getElementById('answer');
-  var query = input.value.trim();
-  if (!query) return;
+  var hint = document.getElementById('merge-hint');
+  var message = input.value.trim();
+  if (!message) return;
+  input.value = '';
+  hint.textContent = '';
+
+  conversation.push({role: 'user', content: message});
+  renderChat();
   btn.disabled = true;
   btn.textContent = '⏳ 运行中...';
-  answer.classList.add('visible');
-  answer.innerHTML = '<div class="loading-text">🔬 正在调用 Dify 工作流执行仿真...</div>';
+
+  var loadingIdx = conversation.length;
+  conversation.push({role: 'assistant', content: '🔬 正在调用 Dify 工作流执行仿真...'});
+  renderChat();
+
   try {
-    var resp = await fetch('/ask', {
+    var resp = await fetch('/chat', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({query: query})
+      body: JSON.stringify({message: message, requirement: currentRequirement})
     });
     var data = await resp.json();
     var report = data.report || '';
-    if (report) {
-      answer.innerHTML = renderMarkdown(report);
-    } else {
-      answer.innerHTML = '<div style="color:var(--red)">未获取到结果</div>';
+    currentRequirement = data.requirement || '';
+    conversation[loadingIdx] = {role: 'assistant', content: report || '未获取到结果'};
+    if (data.merge_used) {
+      hint.textContent = '已根据历史需求合并本轮修改';
     }
   } catch(e) {
-    answer.innerHTML = '<div style="color:var(--red)">请求失败：' + esc(String(e)) + '</div>';
+    conversation[loadingIdx] = {role: 'assistant', content: '请求失败：' + esc(String(e))};
   }
+  renderChat();
   btn.disabled = false;
-  btn.textContent = '🚀 开始仿真';
+  btn.textContent = '🚀 发送';
 }
+
+function resetChat() {
+  conversation = [];
+  currentRequirement = '';
+  document.getElementById('merge-hint').textContent = '';
+  renderChat();
+  document.getElementById('query-input').focus();
+}
+
+renderChat();
 </script>
 </body>
 </html>"""
@@ -927,6 +984,187 @@ function renderHistory() {
 
 // Init
 renderCards();
+</script>
+</body>
+</html>
+"""
+
+CHAT_HTML = r"""<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>多轮对话 · Dify MCP</title>
+<style>
+  :root {
+    --bg: #0d1117; --surface: #161b22; --border: #30363d;
+    --text: #c9d1d9; --muted: #8b949e; --green: #3fb950;
+    --blue: #58a6ff; --accent: #1f6feb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh;
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    display: flex; flex-direction: column;
+  }
+  .header {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 24px; border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .header a { color: var(--muted); text-decoration: none; font-size: 14px; }
+  .header a:hover { color: var(--blue); }
+  .header h1 { font-size: 19px; margin: 0; font-weight: 600; }
+  .header h1 span { color: var(--muted); font-weight: 400; font-size: 13px; margin-left: 8px; }
+  .header .reset-btn {
+    margin-left: auto; padding: 6px 14px; border-radius: 8px;
+    border: 1px solid var(--border); background: transparent;
+    color: var(--muted); cursor: pointer; font-size: 13px;
+  }
+  .header .reset-btn:hover { color: var(--text); border-color: var(--accent); }
+
+  .chat-log {
+    flex: 1; overflow-y: auto; padding: 24px;
+    display: flex; flex-direction: column; gap: 14px;
+    max-width: 900px; width: 100%; margin: 0 auto;
+  }
+  .chat-empty { color: var(--muted); font-size: 14px; text-align: center; padding: 80px 12px; line-height: 1.7; }
+  .msg { max-width: 78%; padding: 12px 16px; border-radius: 14px; font-size: 15px; line-height: 1.7; }
+  .msg.user {
+    align-self: flex-end; background: rgba(31,111,235,.22);
+    border: 1px solid rgba(88,166,255,.3); white-space: pre-wrap; word-break: break-word;
+  }
+  .msg.assistant { align-self: flex-start; background: #0d1117; border: 1px solid var(--border); }
+  .msg.assistant h2 { border-bottom: 1px solid var(--border); padding-bottom: 6px; margin: 12px 0 8px; font-size: 17px; }
+  .msg.assistant h3 { margin: 12px 0 6px; font-size: 14px; color: var(--blue); }
+  .msg.assistant table { border-collapse: collapse; margin: 8px 0; font-size: 13px; }
+  .msg.assistant td, .msg.assistant th { padding: 4px 12px; border: 1px solid var(--border); text-align: left; }
+  .msg.assistant th { background: #1c2129; }
+  .msg.assistant code { background: #1c2129; padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+  .msg.assistant pre { background: #0d1117; border: 1px solid var(--border); border-radius: 6px; padding: 12px; overflow-x: auto; font-size: 12px; }
+
+  .input-bar { border-top: 1px solid var(--border); background: var(--surface); padding: 14px 24px; }
+  .input-wrap { max-width: 900px; margin: 0 auto; display: flex; gap: 10px; }
+  .input-wrap input {
+    flex: 1; padding: 12px 16px; border-radius: 10px;
+    border: 1px solid var(--border); background: var(--bg);
+    color: var(--text); font-size: 15px; outline: none;
+  }
+  .input-wrap input:focus { border-color: var(--accent); }
+  .input-wrap button {
+    padding: 12px 24px; border-radius: 10px; border: none;
+    background: var(--accent); color: #fff; cursor: pointer;
+    font-size: 15px; font-weight: 500; white-space: nowrap;
+  }
+  .input-wrap button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .merge-hint { max-width: 900px; margin: 8px auto 0; color: var(--muted); font-size: 12px; min-height: 16px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <a href="/">← 返回门户</a>
+  <h1>💬 多轮对话<span>声学仿真 · 支持连续修改</span></h1>
+  <button class="reset-btn" onclick="resetChat()">🆕 新对话</button>
+</div>
+
+<div class="chat-log" id="chat-log"></div>
+
+<div class="input-bar">
+  <div class="input-wrap">
+    <input type="text" id="query-input" placeholder="描述声学仿真需求，或输入修改（如：改成 5 MHz）" onkeydown="if(event.key==='Enter')ask()">
+    <button id="ask-btn" onclick="ask()">🚀 发送</button>
+  </div>
+  <div class="merge-hint" id="merge-hint"></div>
+</div>
+
+<script>
+function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+function renderMarkdown(md) {
+  var html = md;
+  html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+  html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+  html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre>$2</pre>');
+  html = html.replace(/(\|[^\n]+\|\n)(\|[-:\s|]+\|\n)((?:\|[^\n]+\|\n?)*)/g, function(m, hdr, sep, rows) {
+    var ths = hdr.split('|').filter(function(c) { return c.trim(); }).map(function(c) { return '<th>' + c.trim() + '</th>'; }).join('');
+    var trs = rows.split('\n').filter(function(r) { return r.trim(); }).map(function(r) {
+      var tds = r.split('|').filter(function(c) { return c.trim(); }).map(function(c) { return '<td>' + c.trim() + '</td>'; }).join('');
+      return '<tr>' + tds + '</tr>';
+    }).join('');
+    return '<table><thead><tr>' + ths + '</tr></thead><tbody>' + trs + '</tbody></table>';
+  });
+  html = html.replace(/\n\n/g, '<br><br>');
+  return html;
+}
+
+var conversation = [];
+var currentRequirement = '';
+
+function renderChat() {
+  var log = document.getElementById('chat-log');
+  if (!conversation.length) {
+    log.innerHTML = '<div class="chat-empty">💬 输入你的声学仿真需求开始对话。<br>支持多轮修改：例如先描述完整需求，再输入「改成 5 MHz」。</div>';
+    return;
+  }
+  log.innerHTML = conversation.map(function(m) {
+    var cls = m.role === 'user' ? 'user' : 'assistant';
+    var body = m.role === 'user' ? esc(m.content) : renderMarkdown(m.content);
+    return '<div class="msg ' + cls + '">' + body + '</div>';
+  }).join('');
+  log.scrollTop = log.scrollHeight;
+}
+
+async function ask() {
+  var input = document.getElementById('query-input');
+  var btn = document.getElementById('ask-btn');
+  var hint = document.getElementById('merge-hint');
+  var message = input.value.trim();
+  if (!message) return;
+  input.value = '';
+  hint.textContent = '';
+
+  conversation.push({role: 'user', content: message});
+  renderChat();
+  btn.disabled = true;
+  btn.textContent = '⏳ 运行中...';
+
+  var loadingIdx = conversation.length;
+  conversation.push({role: 'assistant', content: '🔬 正在调用 Dify 工作流执行仿真...'});
+  renderChat();
+
+  try {
+    var resp = await fetch('/chat', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({message: message, requirement: currentRequirement})
+    });
+    var data = await resp.json();
+    var report = data.report || '';
+    currentRequirement = data.requirement || '';
+    conversation[loadingIdx] = {role: 'assistant', content: report || '未获取到结果'};
+    if (data.merge_used) {
+      hint.textContent = '已根据历史需求合并本轮修改';
+    }
+  } catch(e) {
+    conversation[loadingIdx] = {role: 'assistant', content: '请求失败：' + esc(String(e))};
+  }
+  renderChat();
+  btn.disabled = false;
+  btn.textContent = '🚀 发送';
+}
+
+function resetChat() {
+  conversation = [];
+  currentRequirement = '';
+  document.getElementById('merge-hint').textContent = '';
+  renderChat();
+  document.getElementById('query-input').focus();
+}
+
+renderChat();
 </script>
 </body>
 </html>

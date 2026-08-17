@@ -4,6 +4,52 @@
 
 ---
 
+## 2026-08-17 · 会话: 阶段一收尾 + 开发规划校准（文档类低风险变更）
+
+### 完成
+- [x] 核对开发规划（`docs/DEVELOPMENT_PLAN.md`）：阶段一 T-001~T-006 全部完成，T-006 实测 96%（48/50）已过门禁
+- [x] 补打 `git tag phase-1-complete`（阶段一正式关闭，此前未打）
+- [x] 修复 `docs/AGENTS.md` 与 `docs/DEVELOPMENT_PLAN.md` 任务编号冲突：新增编号映射表（AGENTS.md T-001~T-010 ↔ PLAN.md T-001~T-017），T-001/T-002/T-003 标记 [DONE]
+- [x] 更新 `docs/DEVELOPMENT_PLAN.md`：3.3 门禁清单勾选、附录进度表 T-006 → ✅ 96%、标注 P2「2D均质初始压力 80%」遗留
+- [x] 提交仓库：`docs/` 三份文档 + HANDOFF，push 到 origin/main，tag 一并推送
+
+### 变更文件
+- `docs/DEVELOPMENT_PLAN.md` — 门禁勾选 + 进度表更新 + 阶段一关闭说明
+- `docs/AGENTS.md` — 编号映射表 + [DONE] 标记
+- `docs/CHANGELOG.md` — 本记录
+- `docs/HANDOFF_2026-08-17.md` — P1 修复标记（此前会话）
+
+### 当前状态
+- 阶段一 ✅ 正式关闭（tag phase-1-complete）
+- 阶段二未开始；P2（2D均质初始压力 80%）为阶段一遗留质量项
+- 下个任务: 阶段二 T-007（analyze_simulation_result，需先确认 executor 有 matplotlib）或 P2
+
+---
+
+## 2026-08-17 · 会话: P1 修复 .env 中 MCP_AUTH_TOKEN 重复两行
+
+### 完成
+- [x] P1: 实测确认 VM `~/dify-mcp-server/.env` 中 `MCP_AUTH_TOKEN=` 重复 2 行（第 1、3 行，值相同 64 位 hex，sha256 `29920d60…`）
+- [x] 顺带发现并确认 `MCP_EXTRA_MODULES=` 也重复 2 行（第 2、4 行，值相同 7 字符）——HANDOFF 未记录
+- [x] 备份 `.env` → `.env.bak.20260817_125722`，用 `awk -F= '!seen[$1]++'` 按键去重保留首次出现，8 行 → 6 行
+- [x] `docker compose up -d --force-recreate dify-mcp` 重建容器，容器内 `MCP_AUTH_TOKEN` len=64 且与 .env 文件一致
+
+### 验证
+- `/health` → 200 "ok"
+- MCP `initialize`（Bearer + Accept: application/json, text/event-stream）→ 200，serverInfo "Dify JWave Tools" 3.4.6
+- `tools/list` → 200，工具列表正常
+- 之前的 400（Authorization 头被拆行）不再出现
+
+### 变更文件
+- VM `~/dify-mcp-server/.env`（去重后 6 行）+ 备份 `.env.bak.20260817_125722`
+- 本机 `docs/CHANGELOG.md`、`docs/HANDOFF_2026-08-17.md`（P1 标记已修复）
+
+### 当前状态
+- P1 ✅ 已修复；P2（2D均质初始压力 80%）、P3（DIFY_API_KEY 用途确认）、P4（nginx 0.0.0.0）待办
+- 下个任务: P2 或按用户指示
+
+---
+
 ## 2026-08-08 · 会话: T-006 50次端到端测试 + p0 初始压力修复
 
 ### 完成

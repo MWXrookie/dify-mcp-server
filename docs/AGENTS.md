@@ -117,9 +117,24 @@ DB:           docker exec docker-db_postgres-1 psql -U postgres -d dify
 
 Agent 应**按编号顺序**领取任务。每完成一个任务，在 `docs/CHANGELOG.md` 中追加一条记录，并将本文件中对应任务标记为 `[DONE]`。
 
+> ⚠️ **编号说明（2026-08-17 校准）**：本文件的任务编号（T-001~T-010）与 `docs/DEVELOPMENT_PLAN.md` 的阶段化编号（T-001~T-017）**从 T-004 起错位**。统一以 **DEVELOPMENT_PLAN.md 为准**，映射关系：
+>
+> | AGENTS.md | PLAN.md | 状态 |
+> |-----------|---------|------|
+> | T-001 Sources 排查 | T-001 | ✅ [DONE] |
+> | T-002 Prompt 强化 | T-002 | ✅ [DONE] |
+> | T-003 参数校验工具 | T-003 | ✅ [DONE] |
+> | T-004 结果分析工具 | T-007 | ⬜ TODO |
+> | T-005 迭代循环 | T-009 | ⬜ TODO |
+> | T-006 Gradio 前端 | T-010 | ⬜ TODO |
+> | T-007 多轮记忆 | T-011 | ⬜ TODO |
+> | T-008 知识库扩展 | T-013 | ⬜ TODO |
+> | T-009 回归测试套件 | （PLAN 无对应，阶段三 T-016 前置） | ⬜ TODO |
+> | T-010 技术文档完善 | T-017 | ⬜ TODO |
+
 ---
 
-### T-001: 修复 Sources 点源压力场全零
+### T-001: [DONE] 修复 Sources 点源压力场全零
 
 | 字段 | 值 |
 |------|-----|
@@ -139,7 +154,7 @@ Agent 应**按编号顺序**领取任务。每完成一个任务，在 `docs/CHA
 
 ---
 
-### T-002: 代码生成 Prompt 强化 + 知识库更新
+### T-002: [DONE] 代码生成 Prompt 强化 + 知识库更新
 
 | 字段 | 值 |
 |------|------|
@@ -165,7 +180,7 @@ Agent 应**按编号顺序**领取任务。每完成一个任务，在 `docs/CHA
 
 ---
 
-### T-003: validate_simulation_params MCP 工具
+### T-003: [DONE] validate_simulation_params MCP 工具
 
 | 字段 | 值 |
 |------|------|

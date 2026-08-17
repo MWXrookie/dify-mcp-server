@@ -1,5 +1,9 @@
 .env
+.env.bak.*
+.env.*.bak
+*.bak.*
 __pycache__/
 *.log
 *.tar.gz
 .claude/worktrees/
+.session-dump.tmp.jsonl

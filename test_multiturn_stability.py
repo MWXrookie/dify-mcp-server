@@ -8,7 +8,7 @@ import sys
 import time
 import urllib.request
 
-BASE = "http://localhost:8001"
+BASE = "http://192.168.30.200:8001"
 
 # (本轮输入, 是否预期触发合并)
 TURNS = [

@@ -33,6 +33,7 @@
   .badge-ok { background: rgba(63,185,80,0.15); color: var(--green); }
   .badge-err { background: rgba(248,81,73,0.15); color: var(--red); }
   .badge-to { background: rgba(210,153,29,0.15); color: var(--yellow); }
+  .badge-warn { background: rgba(163,113,247,0.15); color: var(--purple); }
   .time { color: var(--muted); font-size: 13px; white-space: nowrap; }
   .dur { font-size: 13px; text-align: right; }
   .empty { text-align: center; padding: 48px; color: var(--muted); }
@@ -160,10 +161,12 @@ function smartSummary(code) {
   return meaningful;
 }
 
-function badge(exit, to) {
-  if (to) return '<span class="badge badge-to">超时</span>';
-  if (exit === 0) return '<span class="badge badge-ok">成功</span>';
-  return '<span class="badge badge-err">失败 (' + exit + ')</span>';
+function badge(r) {
+  if (r.timed_out) return '<span class="badge badge-to">超时</span>';
+  if (r.exit_code !== 0) return '<span class="badge badge-err">失败 (' + r.exit_code + ')</span>';
+  var m = /最大压力[：:]?\s*\**\s*([\d.eE+-]+)/.exec(r.stdout || '');
+  if (m && parseFloat(m[1]) === 0) return '<span class="badge badge-warn">全零</span>';
+  return '<span class="badge badge-ok">成功</span>';
 }
 
 function renderRow(r) {
@@ -179,10 +182,10 @@ function renderRow(r) {
     + '<td style="color:var(--muted);font-size:12px">' + r.id + '</td>'
     + '<td class="time" title="' + r.timestamp + '">' + timeAgo(r.timestamp) + '</td>'
     + '<td class="code-cell">' + esc(summary) + imgDot + '</td>'
-    + '<td>' + badge(r.exit_code, r.timed_out) + '</td>'
+    + '<td>' + badge(r) + '</td>'
     + '<td class="dur">' + dur + '</td>'
     + '</tr>'
-    + '<tr class="detail-row" id="detail-' + r.id + '"><td colspan="5">'
+    + '<tr class="detail-row" id="detail-' + r.id + '"><td colspan="6">'
     + '<div class="detail-tabs">'
     + '<span class="detail-tab active" onclick="event.stopPropagation();switchTab(' + r.id + ',\'code\')">📝 代码</span>'
     + '<span class="detail-tab" onclick="event.stopPropagation();switchTab(' + r.id + ',\'stdout\')">📤 stdout</span>'
@@ -215,7 +218,13 @@ function onCompareToggle(cb) {
   renderCompare();
 }
 
-function _cmpStatus(r) { return r.timed_out ? '⏱ 超时' : (r.exit_code === 0 ? '✅ 成功' : '❌ 失败(' + r.exit_code + ')'); }
+function _cmpStatus(r) {
+  if (r.timed_out) return '⏱ 超时';
+  if (r.exit_code !== 0) return '❌ 失败(' + r.exit_code + ')';
+  var m = /最大压力[：:]?\s*\**\s*([\d.eE+-]+)/.exec(r.stdout || '');
+  if (m && parseFloat(m[1]) === 0) return '⚠️ 全零';
+  return '✅ 成功';
+}
 function _cmpMaxP(r) {
   var m = /最大压力[：:]?\s*\**\s*([\d.eE+-]+)/.exec(r.stdout || '');
   return m ? m[1] : '-';
@@ -270,7 +279,7 @@ function revealFailure(id) {
   var detailRow = document.getElementById('detail-' + id);
   if (detailRow) {
     detailRow.classList.add('open');
-    detailRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    detailRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 }
 

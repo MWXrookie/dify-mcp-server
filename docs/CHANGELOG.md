@@ -4,6 +4,28 @@
 
 ---
 
+## 2026-08-18 · 会话: 安全处置——仓库敏感内容清理 + 双密钥轮换
+
+### 背景
+- 审查发现公开仓库存在真实凭证泄露：AGENTS.md 明文 MCP Bearer token（`***TOKEN_PREFIX***…`，与线上一致）；`.claude/backups/` 内旧代码硬编码 Dify app key（`***KEY_PREFIX***…`，查 DB 确认仍有效）
+
+### 完成
+- [x] **轮换 MCP_AUTH_TOKEN**：新 64 位 hex（`b7ff717f…`）
+  - 更新 VM `.env` + Dify `tool_mcp_providers.encrypted_headers`（用 Dify `encrypt_token` 加密，明文格式 `Bearer <token>`）
+  - 重建 dify-mcp；验证：新 token 通（7 工具）、**旧 token 401**、工作流端到端 succeeded
+- [x] **轮换 Dify app key**：`***KEY_PREFIX***…` → `app-9d44dd0c79…`（api_tokens 表 + VM `.env` 同步）
+- [x] **仓库清理**：`git rm --cached -r .claude`（8 文件、-6406 行）；`.gitignore` 加 `.claude/`；AGENTS.md 删除明文 token（改指向 VM `.env`）
+- [x] 备份：`.env.bak.rotate_20260818_070432` + Dify 表 dump（api_tokens/tool_mcp_providers）
+
+### 待办（需 Owner 决策）
+- ⚠️ **git 历史仍含泄露内容**（历史 commit 里有 .claude 备份与 AGENTS.md 明文 token）。若仓库完全公开且在意，需 `git filter-repo` 重写历史（会改变所有 commit hash，影响组员本地仓库，需协商后执行）
+- 旧 `.env.bak.*`、`.claude/` 备份文件保留在 VM 本地（不进仓库）
+
+### 变更文件
+- `.gitignore`（+`.claude/`、`test_multiturn_result.json`）、`docs/AGENTS.md`（删明文 token）
+
+---
+
 ## 2026-08-18 · 会话: executor 环境切换（纯 pip 方案，验证后采纳）
 
 ### 背景

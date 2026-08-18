@@ -3,7 +3,7 @@
 用途
 ----
 阶段二 VAL-1：为 T-007 analyze_simulation_result 的 verdict 提供物理基准。
-三个用例均为解析解可对照的无损线性声学问题，不调用 DeepSeek（零模型费用）。
+四个用例均为解析解可对照的无损线性声学问题，不调用 DeepSeek（零模型费用）。
 
 用例（理论值 vs 仿真实测，误差 < 1% 判 PASS）
 --------------------------------------------
@@ -17,6 +17,9 @@
 3. 平界面反射/透射（法向入射平面波）
    两种介质半空间界面（声速/密度阶跃），法向入射平面波。
    理论：R = (Z2-Z1)/(Z2+Z1)，T_p = 2*Z2/(Z1+Z2)，Z = rho*c。
+4. 点源球面波远场衰减（3D 几何扩散）
+   3D 点源 3 周期 tone burst → 远场压力包络 ∝ 1/r。
+   理论：A(r2)/A(r1) = r1/r2。
 
 实测要点（已逐一在沙箱内验证，2026-08-17）
 ------------------------------------------
@@ -31,6 +34,11 @@
 - 不用 Sensors 类（位置约定有歧义），直接取全场结果 p[n, x, y, 0] 按 (x, y) 索引。
   实测确认：params 轴序 = (Nt, Nx, Ny, 1)，axis0=x、axis1=y，PML 位于各向边缘。
 
+- 3D 用例（case4）：探针必须位于 PML 物理区之内。jwave 各向边缘各占 pml_size
+  网格为吸收层，物理区半径 = N/2 - pml_size。N=56/pml=8 时物理区仅 10mm，
+  曾把 r=18mm 探针放进 PML 导致振幅被吸收至 1e-4、比值失真（err 94.5%）。
+  现用 N=72（物理区 14mm），探针 8mm/12mm，实测 err < 0.1%。
+
 判定
 ----
 每用例误差 = |实测/理论 - 1| * 100%，< 1% 判 PASS。
@@ -39,10 +47,10 @@
 ----------------------------------------------------------------
   docker exec -i jwave-executor sh -c "cat > /tmp/validation_baseline.py" < executor/validation_baseline.py
   docker exec -e JAX_PLATFORMS=cpu -e XLA_PYTHON_CLIENT_PREALLOCATE=false -e HOME=/tmp \
-      jwave-executor /opt/jwave/bin/python /tmp/validation_baseline.py
+      jwave-executor python /tmp/validation_baseline.py
 
 说明：直接 docker exec 运行无 30s 上限（该上限仅作用于 run_jwave_code HTTP 通道）。
-三个用例合计含 3 次 JAX 编译，全程约 1-3 分钟。
+四个用例合计含 4 次 JAX 编译，全程约 2-5 分钟。
 """
 
 import json
@@ -212,9 +220,54 @@ def case3_interface_reflection() -> dict:
     }
 
 
+# ---------------------------------------------------------------------------
+# 用例 4: 3D 球面波远场 1/r 衰减（3D 几何扩散，P1 3D 能力扩展）
+# ---------------------------------------------------------------------------
+def case4_3d_spherical_decay() -> dict:
+    dx = 0.5e-3  # 0.5 mm
+    # N=72: 36mm 立方体, pml=8 -> 物理区半径 = 36-8 = 28 网格 = 14mm。
+    # ⚠️ 曾用 N=56 时物理区半径仅 10mm，r2=36(18mm) 探针落在 PML 吸收层内，
+    #    振幅被吸收至 1e-4 量级、比值完全失真（err 94.5%）。探针必须位于物理区。
+    N = 72
+    domain = jw.Domain((N, N, N), (dx, dx, dx))
+    medium = jw.Medium(domain, sound_speed=1500.0, density=1000.0, pml_size=8)
+
+    f0 = 300e3  # 300 kHz -> lambda = 5mm = 10 网格
+    time_axis = jw.TimeAxis.from_medium(medium, cfl=CFL, t_end=25e-6)
+    dt = time_axis.dt
+    sig = jw.signal_processing.tone_burst(1.0 / dt, f0, 3)
+    sig = jnp.concatenate([sig, jnp.zeros(int(time_axis.Nt) - len(sig))])
+    signals = jnp.expand_dims(sig, 0)
+    c0 = N // 2
+    positions = (jnp.array([c0]), jnp.array([c0]), jnp.array([c0]))  # 3D 整数坐标
+    sources = jw.Sources(positions, signals, dt, domain)
+
+    p = jw.simulate_wave_propagation(
+        medium, time_axis, sources=sources, settings=SETTINGS
+    ).params
+    t = time_axis.to_array()
+
+    # 沿 +x 轴物理区内两点（r1=8mm, r2=12mm；均 < 14mm 物理区半径）
+    r1, r2 = 16, 24  # 网格
+    t_burst = 3.0 / f0
+    t1_arr = r1 * dx / 1500.0
+    t2_arr = r2 * dx / 1500.0
+    a1 = window_peak(p[:, c0 + r1, c0, c0, 0], t, t1_arr - t_burst / 2, t1_arr + t_burst)
+    a2 = window_peak(p[:, c0 + r2, c0, c0, 0], t, t2_arr - t_burst / 2, t2_arr + t_burst)
+
+    # 3D 球面波: 能量摊到 4πr² 球面 -> 振幅 ∝ 1/r
+    theory_ratio = float(r1 / r2)
+    return {
+        "case": "4 3D 球面波 1/r 衰减",
+        "measured": {"peak_r1": a1, "peak_r2": a2, "ratio_r2_r1": a2 / a1},
+        "theory": {"ratio": theory_ratio},
+        "err_pct": {"ratio": err_pct(a2 / a1, theory_ratio)},
+    }
+
+
 def main() -> None:
     cases = [case1_plane_wave_conservation, case2_cylindrical_spreading,
-             case3_interface_reflection]
+             case3_interface_reflection, case4_3d_spherical_decay]
     results = []
     print("=" * 78)
     print("AcouAgent VAL-1 验证基准集 · jwave 0.2.1 · executor 沙箱")

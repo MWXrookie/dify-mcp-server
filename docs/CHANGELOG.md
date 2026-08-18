@@ -4,6 +4,34 @@
 
 ---
 
+## 2026-08-18 · 会话: 审核组员提交（T-014 失败分析）+ 3D 能力扩展落地
+
+### 组员提交审核（✅ 通过）
+- 组员 3 个提交：T-014 Dashboard「失败分析」区块（超时/退出码非0/全零三组分类 + 展开详情）+ 修复（colspan/滚动/全零误判成功）
+- 审核项全过：提交规范 ✅、无敏感内容 ✅、只动前端不碰工作流 ✅、先 pull 再开发 ✅、VM 验证 dashboard 200 ✅
+- 顺带修复价值：exit_code=0 但最大压力=0 的记录原被误判"成功"→ 新增紫色"全零"标签
+
+### P1 3D 仿真能力扩展（甲）—— 完成
+- **VAL-1 新增用例 4：3D 球面波 1/r 衰减**（`executor/validation_baseline.py`）
+  - 3D 点源 tone burst（300 kHz，N=72，dx=0.5mm），探针 8mm/12mm，实测比值 0.66661 vs 理论 0.66667，**误差 0.009%** → 基准集 4/4 PASS
+  - 踩坑记录：初版 N=56 时物理区半径仅 N/2−pml=20 网格=10mm，r₂=18mm 探针落入 PML 吸收层 → 振幅被吸收 16×、比值失真（err 94.5%）；探针必须在物理区内
+- **`tools.py` validate_simulation_params 新增规则 9：3D 网格内存预算校验**
+  - 全场 float32 = N³×Nt×4B；>3GB → error（如 128³ ≈ 6.3GB），>1.5GB → warning（96³ ≈ 2.7GB）；2D 不受影响
+  - VM 容器内 + 线上 MCP 端点双验证通过（128³ 返回 error）
+- **工作流代码生成 prompt 追加「## 3D 仿真」示例**（`_apply_3d_prompt.py`，幂等）
+  - 3D Domain / 3D meshgrid+高斯球 p0 / 3D Sources 三坐标数组 / 取点 p[t,x,y,z,0] / 内存红线 N≤72
+  - 已写入线上工作流 graph（live row `3d05c047-...`，DB 验证 marker 存在）
+- 端到端验证：线上 MCP 网关 3D 仿真（48³ 高斯球 p0）exit 0、max 0.90、字段 (360,48,48,48,1)
+- 文档：`docs/VALIDATION_BASELINE.md` 补用例 4 + PML 踩坑 + 内存红线
+
+### 变更文件
+- `executor/validation_baseline.py`（case4 修 PML 探针 + 文档）
+- `tools.py`（规则 9 3D 内存校验）
+- `_apply_3d_prompt.py`（新增，工作流 3D prompt 幂等注入）
+- `docs/VALIDATION_BASELINE.md`、`docs/CHANGELOG.md`（本记录）
+
+---
+
 ## 2026-08-18 · 会话: 审核组员提交（T-014 失败分析）+ 启动 3D 能力扩展
 
 ### 组员提交审核（✅ 通过）

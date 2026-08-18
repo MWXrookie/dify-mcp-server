@@ -413,6 +413,38 @@ def register(mcp) -> None:
                                 ),
                             })
 
+        # -------------------------------------------------------------------
+        # 9. 3D 内存预算（P1 3D 扩展：全场 (Nt,Nx,Ny,Nz,1) float32）
+        # -------------------------------------------------------------------
+        if len(domain_N_list) == 3:
+            cells = 1
+            for n in domain_N_list:
+                cells *= int(n)
+            est_nt = None
+            if t_end is not None and isinstance(t_end, (int, float)) and float(t_end) > 0 \
+                    and cfl is not None and isinstance(cfl, (int, float)) and float(cfl) > 0:
+                dt = float(cfl) * min(float(d) for d in domain_dx_list) / sound_speed
+                est_nt = float(t_end) / dt
+            field_bytes = cells * (est_nt or 800) * 4  # float32
+            if field_bytes > 3.0e9:
+                errors.append({
+                    "field": "domain_N",
+                    "message": (
+                        f"3D 网格 {domain_N_list} 内存预算约 {field_bytes/1e9:.1f}GB"
+                        f"（全压力场 {cells} 单元 × {int(est_nt or 800)} 时间步 × 4B），"
+                        f"超过 executor 4GB 限制，请减小 N 或 t_end（建议 N ≤ 72，"
+                        f"72³ ≈ 1.1GB）"
+                    ),
+                })
+            elif field_bytes > 1.5e9:
+                warnings.append({
+                    "field": "domain_N",
+                    "message": (
+                        f"3D 网格 {domain_N_list} 内存预算约 {field_bytes/1e9:.1f}GB，"
+                        f"接近 4GB 上限，建议 N ≤ 72（72³ ≈ 1.1GB）或缩短 t_end"
+                    ),
+                })
+
         return {
             "valid": len(errors) == 0,
             "errors": errors,

@@ -13,8 +13,9 @@
 | 2. 圆柱波远场 1/√r 衰减 | 0.75593 | 0.74990 | **0.80%** | ✅ PASS |
 | 3. 平界面反射系数 R | 0.53846 | 0.53848 | **0.003%** | ✅ PASS |
 | 3. 平界面透射系数 T_p | 1.53846 | 1.53843 | **0.002%** | ✅ PASS |
+| 4. 球面波远场 1/r 衰减（3D） | 0.66667 | 0.66661 | **0.009%** | ✅ PASS |
 
-**门禁：≥3 个用例误差 < 1% → 通过（4/4 项，其中 3 项 < 0.01%）。**
+**门禁：全部用例误差 < 1% → 通过（5/5 项，其中 4 项 < 0.01%）。**
 
 可一键重跑脚本：`executor/validation_baseline.py`（已同步至 VM `~/dify-mcp-server/executor/`，并在 executor 容器内实测通过）。
 
@@ -97,7 +98,39 @@ p0(x,y) = A·exp(−(x−x₀)²/(2σ²))，沿 x 变化、y 均匀，A=1 Pa。
 
 ---
 
-## 4. 可复现性
+## 4. 用例 4 · 点源球面波远场 1/r 衰减（3D）
+
+> P1 3D 能力扩展新增（2026-08-18）。jwave 支持任意维度 Domain，3D 球面波能量摊到
+> 4πr² 球面 → 压力包络 ∝ 1/r，与用例 2 的 2D 1/√r 对应同一几何扩散定律。
+
+### 场景
+均匀介质，3D 立方域中心单格点源（`Sources`，三坐标整数数组），3 周期 300 kHz tone burst（λ=5 mm=10 网格）。
+两探针位于 +x 轴上距源 r₁=8 mm、r₂=12 mm（1.6λ / 2.4λ）。
+域 36 mm（N=72, dx=0.5 mm），pml=8 → 物理区半径 = N/2·dx − pml·dx = 18−4 = 14 mm，探针均在物理区内。
+
+### 理论
+3D 球面波远场压力包络 ∝ 1/r：
+**A(r₂)/A(r₁) = r₁/r₂ = 16/24 = 0.66667**。
+
+### 实测
+| 观测点 | 距源 | 实测包络峰 | 比值 | 理论 | 误差 |
+|--------|------|-----------|------|------|------|
+| r₁ | 8 mm | 0.006249 | — | — | — |
+| r₂ | 12 mm | 0.004165 | 0.66661 | 0.66667 | **0.009%** |
+
+### 关键实测发现（重要踩坑）
+- ⚠️ **探针必须位于 PML 物理区之内**。jwave 各向边缘各占 pml_size 网格为吸收层，
+  物理区半径 = N/2 − pml_size（网格）。**N=56/pml=8 时物理区仅 20 网格 = 10 mm**，
+  曾把 r₂=36 网格（18 mm）探针放进 PML → 振幅被吸收至 1e-4 量级，
+  比值完全失真（err 94.5%）。诊断确认 r=10 mm 处 0.04355 与理论 σe^{-1/2}/(2r)=0.0455 吻合，
+  而 r=18 mm 处只剩 0.0016（吸收 16×）。
+- 3D 内存红线：全场 float32 = N³ × Nt × 4B。executor 4GB 上限：
+  N=72（373k 单元 × 750 步）≈ 1.1 GB 安全；N=96 ≈ 2.7 GB 接近上限；N=128 ≈ 6.3 GB 超限。
+  已同步进 `validate_simulation_params` 规则 9（3D 网格内存预算校验）。
+
+---
+
+## 5. 可复现性
 
 ### 一键重跑（VM 上）
 
@@ -105,11 +138,11 @@ p0(x,y) = A·exp(−(x−x₀)²/(2σ²))，沿 x 变化、y 均匀，A=1 Pa。
 cd ~/dify-mcp-server
 docker exec -i jwave-executor sh -c "cat > /tmp/validation_baseline.py" < executor/validation_baseline.py
 docker exec -e JAX_PLATFORMS=cpu -e XLA_PYTHON_CLIENT_PREALLOCATE=false -e HOME=/tmp \
-    jwave-executor /opt/jwave/bin/python /tmp/validation_baseline.py
+    jwave-executor python /tmp/validation_baseline.py
 ```
 
-- 输出：每用例 JSON（measured / theory / err_pct / status）+ 汇总（x/3 PASS）。
-- 耗时：约 1 分钟（3 次 JAX 编译，cfl=0.1）。
+- 输出：每用例 JSON（measured / theory / err_pct / status）+ 汇总（x/4 PASS）。
+- 耗时：约 1-2 分钟（4 次 JAX 编译，cfl=0.1）。
 - 零模型费用：不调用 DeepSeek/Dify。
 
 ### 环境
@@ -127,10 +160,11 @@ docker exec -e JAX_PLATFORMS=cpu -e XLA_PYTHON_CLIENT_PREALLOCATE=false -e HOME=
 | 峰值采样对齐 | ~5% | cfl=0.1（每 σ_t ≥ 100 采样） |
 | 包络/Hilbert 伪影 | ~10% | 弃用包络，raw max + 窄窗 |
 | 点源近场修正（用例 2） | ~0.8% | 远场观测（r ≥ 4λ），r 增大误差进一步下降 |
+| 探针落入 PML（用例 4） | 可达 95% | 探针须在物理区（半径 N/2 − pml_size）内 |
 | 界面离散 | <0.01% | 界面与网格对齐，k-space 色散校正 |
 
 收敛趋势：用例 2 的误差随观测距离增大单调下降（近场修正项 ∝ λ²/r² 衰减），
-用例 1/3 的误差已在当前分辨率下达到机器精度级（<0.01%）。
+用例 1/3/4 的误差已在当前分辨率下达到机器精度级（<0.01%）。
 
 ---
 

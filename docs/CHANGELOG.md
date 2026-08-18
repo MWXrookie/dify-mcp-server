@@ -4,6 +4,26 @@
 
 ---
 
+## 2026-08-18 · 会话: git 历史重写——彻底清除泄露内容（⚠️ 所有 commit hash 已变更）
+
+### 背景
+- 仓库公开且历史含敏感内容（.claude 私有备份目录、AGENTS.md 明文 MCP token、旧代码硬编码 app key）
+- 前次已轮换密钥 + 清理当前快照；本次**重写全历史**彻底清除
+
+### 执行（git-filter-repo 2.47）
+1. 在 fresh clone 上 `--invert-paths --path .claude`（删除私有备份目录，历史中全部移除）
+2. `--blob-callback` 替换明文凭证（完整 token、app key、以及前 8 位截断）为 `***REMOVED***` 占位
+3. 验证：全历史含 `***TOKEN_PREFIX***`/`***KEY_PREFIX***`/`.claude` 均为 **0**；commit 数不变（35）
+4. force push：main `fe44f5b → 850680d`、tag `phase-1-complete` 已重写推送、**feat/multiturn-chat 分支已删除**
+
+### ⚠️ 影响与后续
+- **所有 commit hash 已变**：任何本地仓库需 `git fetch origin && git reset --hard origin/main`
+- **GitHub PR #1 仍指向旧 commit**：需在 GitHub UI 关闭（命令行无法操作）
+- fork 副本/旧 commit 的 GitHub 缓存无法控制（随 GC 自然失效），密钥已轮换故泄露值已失效
+- VM 原仓库已 `git reset --hard origin/main` 切换完成，.env 等未跟踪文件不受影响
+
+---
+
 ## 2026-08-18 · 会话: 安全处置——仓库敏感内容清理 + 双密钥轮换
 
 ### 背景

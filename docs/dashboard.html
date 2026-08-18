@@ -43,9 +43,11 @@
   .detail-row td { padding: 0 14px 14px 14px; border-top: none; }
   .detail-box { background: #0d1117; border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-size: 12px; font-family: "SF Mono","Fira Code",monospace; white-space: pre-wrap; word-break: break-all; max-height: 240px; overflow-y: auto; }
   .detail-box.code { color: var(--blue); }
-  .detail-box.stdout { color: var(--text); }
-  .detail-box.stderr { color: var(--red); }
-  .detail-tabs { display: flex; gap: 4px; margin-bottom: 8px; }
+  .detail-box.code.expanded { max-height: none; }
+  .detail-box .code-empty { color: var(--muted); font-style: italic; }
+  .expand-btn { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; padding: 3px 10px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; }
+  .expand-btn:hover { color: var(--text); border-color: var(--accent); }
+  .detail-tabs { display: flex; gap: 4px; margin-bottom: 8px; align-items: center; }
   .detail-tab { padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; border: 1px solid var(--border); background: transparent; color: var(--muted); }
   .detail-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
   .detail-section { display: none; }
@@ -144,11 +146,13 @@ function smartSummary(code) {
   for (var i = 0; i < lines.length; i++) {
     var line = lines[i].trim();
     if (!line) continue;
+    // 跳过 import/from/shebang 与纯注释行（# 开头），取第一条实质代码
     if (/^(import |from |#!|\/\/)/.test(line)) continue;
+    if (/^#/.test(line)) continue;
     meaningful = line;
     break;
   }
-  // If nothing left (all imports), use the first non-empty line
+  // If nothing left (all imports/comments), use the first non-empty non-shebang line
   if (!meaningful && lines.length > 0) {
     for (var j = 0; j < lines.length; j++) {
       var l = lines[j].trim();
@@ -176,12 +180,20 @@ function renderRow(r) {
   var imgDot = hasImg
     ? '<span class="img-dot" title="有图像" onclick="event.stopPropagation();showLightbox(\'data:image/png;base64,' + r.image_base64 + '\')"></span>'
     : '';
+  // 无代码工具（analyze_simulation_result 等）显示占位说明，不再空白
+  var codeSummary = r.code ? esc(summary) : '<span class="code-empty">（结果分析 · 无代码）</span>';
+  var codeDetail = r.code
+    ? '<div class="detail-box code" id="codebox-' + r.id + '">' + esc(r.code) + '</div>'
+    : '<div class="detail-box code"><span class="code-empty">（该工具不执行代码，仅分析上一步仿真输出）</span></div>';
+  var expandBtn = r.code && r.code.split("\n").length > 12
+    ? '<button class="expand-btn" onclick="event.stopPropagation();toggleCodeExpand(' + r.id + ')">↕ 展开/收起</button>'
+    : '';
 
   return '<tr onclick="toggleDetail(' + r.id + ')" style="cursor:pointer">'
     + '<td><input type="checkbox" class="cmp-cb" data-id="' + r.id + '" title="选择对比" onclick="event.stopPropagation();onCompareToggle(this)"></td>'
     + '<td style="color:var(--muted);font-size:12px">' + r.id + '</td>'
     + '<td class="time" title="' + r.timestamp + '">' + timeAgo(r.timestamp) + '</td>'
-    + '<td class="code-cell">' + esc(summary) + imgDot + '</td>'
+    + '<td class="code-cell">' + codeSummary + imgDot + '</td>'
     + '<td>' + badge(r) + '</td>'
     + '<td class="dur">' + dur + '</td>'
     + '</tr>'
@@ -190,14 +202,21 @@ function renderRow(r) {
     + '<span class="detail-tab active" onclick="event.stopPropagation();switchTab(' + r.id + ',\'code\')">📝 代码</span>'
     + '<span class="detail-tab" onclick="event.stopPropagation();switchTab(' + r.id + ',\'stdout\')">📤 stdout</span>'
     + '<span class="detail-tab" onclick="event.stopPropagation();switchTab(' + r.id + ',\'stderr\')">📥 stderr</span>'
+    + expandBtn
     + '</div>'
-    + '<div class="detail-section active" id="sec-' + r.id + '-code"><div class="detail-box code">' + esc(r.code) + '</div></div>'
+    + '<div class="detail-section active" id="sec-' + r.id + '-code">' + codeDetail + '</div>'
     + '<div class="detail-section" id="sec-' + r.id + '-stdout"><div class="detail-box stdout">' + (esc(r.stdout) || "(无输出)") + '</div></div>'
     + '<div class="detail-section" id="sec-' + r.id + '-stderr"><div class="detail-box stderr">' + (esc(r.stderr) || "(无输出)") + '</div></div>'
     + '</td></tr>';
 }
 
 function toggleDetail(id) { document.getElementById("detail-" + id).classList.toggle("open"); }
+
+function toggleCodeExpand(id) {
+  var box = document.getElementById("codebox-" + id);
+  if (!box) return;
+  box.classList.toggle("expanded");
+}
 
 // ===== P0-3 结果对比：勾选两条执行记录，对比工具/状态/耗时/尝试/最大压力/图像 =====
 var compareSel = [];
@@ -284,7 +303,7 @@ function revealFailure(id) {
 }
 
 function _faItem(r) {
-  var summary = smartSummary(r.code || '');
+  var summary = r.code ? smartSummary(r.code) : '（结果分析 · 无代码）';
   return '<div class="fa-item" onclick="revealFailure(' + r.id + ')" title="点击展开详情">'
     + '<span class="fa-id">#' + r.id + '</span>'
     + '<span class="fa-summary">' + esc(summary) + '</span>'

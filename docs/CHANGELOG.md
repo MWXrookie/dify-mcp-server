@@ -13,7 +13,7 @@
 ### 执行（git-filter-repo 2.47）
 1. 在 fresh clone 上 `--invert-paths --path .claude`（删除私有备份目录，历史中全部移除）
 2. `--blob-callback` 替换明文凭证（完整 token、app key、以及前 8 位截断）为 `***REMOVED***` 占位
-3. 验证：全历史含 `***TOKEN_PREFIX***`/`***KEY_PREFIX***`/`.claude` 均为 **0**；commit 数不变（35）
+3. 验证：全历史含 MCP token / Dify app key / `.claude` 均为 **0**；commit 数不变（35）
 4. force push：main `fe44f5b → 850680d`、tag `phase-1-complete` 已重写推送、**feat/multiturn-chat 分支已删除**
 
 ### ⚠️ 影响与后续
@@ -27,13 +27,13 @@
 ## 2026-08-18 · 会话: 安全处置——仓库敏感内容清理 + 双密钥轮换
 
 ### 背景
-- 审查发现公开仓库存在真实凭证泄露：AGENTS.md 明文 MCP Bearer token（`***TOKEN_PREFIX***…`，与线上一致）；`.claude/backups/` 内旧代码硬编码 Dify app key（`***KEY_PREFIX***…`，查 DB 确认仍有效）
+- 审查发现公开仓库存在真实凭证泄露：AGENTS.md 明文 MCP Bearer token（与线上一致）；`.claude/backups/` 内旧代码硬编码 Dify app key（查 DB 确认仍有效）
 
 ### 完成
 - [x] **轮换 MCP_AUTH_TOKEN**：新 64 位 hex（`b7ff717f…`）
   - 更新 VM `.env` + Dify `tool_mcp_providers.encrypted_headers`（用 Dify `encrypt_token` 加密，明文格式 `Bearer <token>`）
   - 重建 dify-mcp；验证：新 token 通（7 工具）、**旧 token 401**、工作流端到端 succeeded
-- [x] **轮换 Dify app key**：`***KEY_PREFIX***…` → `app-9d44dd0c79…`（api_tokens 表 + VM `.env` 同步）
+- [x] **轮换 Dify app key**：旧 `***KEY_PREFIX***…` → 新 `app-9d44dd0c79…`（api_tokens 表 + VM `.env` 同步）
 - [x] **仓库清理**：`git rm --cached -r .claude`（8 文件、-6406 行）；`.gitignore` 加 `.claude/`；AGENTS.md 删除明文 token（改指向 VM `.env`）
 - [x] 备份：`.env.bak.rotate_20260818_070432` + Dify 表 dump（api_tokens/tool_mcp_providers）
 

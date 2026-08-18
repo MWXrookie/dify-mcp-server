@@ -114,7 +114,19 @@ def run_one(idx: int, category: str, prompt: str) -> dict:
         data = json.loads(raw)
         wf = data.get("data", {})
         outputs = wf.get("outputs", {}).get("text", [])
-        o = outputs[0] if isinstance(outputs, list) and outputs else (outputs if isinstance(outputs, dict) else {})
+        # 新工作流（T-008/T-009 合并节点）输出为 markdown 报告字符串；
+        # 旧版输出为 MCP dict 列表。两种都兼容。
+        if isinstance(outputs, str):
+            o = {
+                "stdout": outputs,
+                "stderr": "",
+                "exit_code": 0 if wf.get("status") == "succeeded" else 1,
+                "timed_out": False,
+                "duration_ms": None,
+                "total_attempts": 1,
+            }
+        else:
+            o = outputs[0] if isinstance(outputs, list) and outputs else (outputs if isinstance(outputs, dict) else {})
 
         result = {
             "idx": idx,
@@ -150,10 +162,13 @@ def run_one(idx: int, category: str, prompt: str) -> dict:
                         pass
                     break
             result["max_pressure"] = max_pressure
+            # 成功判定：工作流 succeeded（或 exit_code 0）+ 未超时 + 报告含正压力
+            status_ok = wf.get("status") == "succeeded" or result.get("exit_code") == 0
             result["success"] = bool(
-                result.get("exit_code") == 0
+                status_ok
                 and not result.get("timed_out")
-                and (max_pressure is None or max_pressure > 0)
+                and max_pressure is not None
+                and max_pressure > 0
             )
         else:
             result["success"] = False
@@ -178,6 +193,8 @@ def summarize_failure(result: dict) -> str:
         return result["workflow_error"]
     if result.get("timed_out"):
         return "timed_out"
+    if result.get("workflow_status") not in (None, "succeeded", "running"):
+        return f"workflow_status={result.get('workflow_status')}"
     if result.get("exit_code") not in (None, 0):
         stderr = (result.get("stderr") or "").strip().splitlines()
         return stderr[-1][:120] if stderr else f"exit={result.get('exit_code')}"

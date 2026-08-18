@@ -25,14 +25,22 @@
 - 端到端：线上 MCP 衰减仿真（160² 点源 helmholtz）exit 0、err 0.093%
 - 文档：`docs/VALIDATION_BASELINE.md` 补用例 5
 
-### 50 次回归测试（见下方小节）
-- （本轮稍后运行 run_50_tests_new.py，结果追加于此）
+### 50 次回归测试（✅ 通过）
+- 跑 `run_50_tests_new.py`（Dify 工作流 API 50 个自然语言声学题，验证 3D/衰减 prompt 不回归）
+- **结果：49/50 成功 = 98.0%（门禁 ≥90% ✅）**
+  - 2D均质点源 9/10、2D均质初始压力 10/10、2D异质介质 10/10、传感器记录 10/10、边界情况 10/10
+  - 唯一失败 #8（点源 2MHz）：LLM 节点瞬时 `PluginInvokeError: Response output is missing`
+    —— 模型 API 抖动，与本次改动无关（同类 prompt #1/#4 均成功）
+- 脚本适配：新工作流（T-008/T-009 合并节点）输出为 markdown 报告字符串而非 MCP dict，
+  修正 `run_50_tests_new.py` 解析（兼容字符串报告，成功判定 = status succeeded + 报告含正压力）
+- 报告：`docs/test_report_phase1_new.md`、`docs/test_results_raw_new.json`
 
 ### 变更文件
 - `executor/validation_baseline.py`（case5 衰减用例）
 - `tools.py`（规则 10 衰减校验）
 - `_apply_atten_prompt.py`（新增，工作流衰减 prompt 幂等注入）
-- `docs/VALIDATION_BASELINE.md`、`docs/CHANGELOG.md`（本记录）
+- `run_50_tests_new.py`（回归脚本适配新报告输出格式）
+- `docs/VALIDATION_BASELINE.md`、`docs/CHANGELOG.md`（本记录）、`docs/test_report_phase1_new.md`、`docs/test_results_raw_new.json`
 
 ---
 

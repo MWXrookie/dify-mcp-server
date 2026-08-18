@@ -5,6 +5,6 @@
 __pycache__/
 *.log
 *.tar.gz
-.claude/worktrees/
+.claude/
 .session-dump.tmp.jsonl
 test_multiturn_result.json

@@ -171,7 +171,7 @@ DIFY_API_KEY=app-...               # Dify App API Key（门户 /ask 代理用）
 仓库：`github.com/MWXrookie/dify-mcp-server`（公开，分支 `main`）
 
 - **代码真正运行在 VM**（`~/dify-mcp-server`），GitHub 只是代码中转：合并后需在 VM 上 `git pull` → `docker compose up -d --build` 才生效
-- 提交信息/分支/PR 规范见 **《提交规范》**（Owner 桌面 `提交规范.md`，将同步进 `docs/COMMIT_CONVENTION.md`）
+- 提交信息/分支/PR 规范见 **`docs/COMMIT_CONVENTION.md`**（**每次提交前必读**：提交格式 + 密钥红线/可移植性/验证要求检查清单）
 - 红线：`.env` 及 `.env.bak.*` 密钥备份、`*.log`、`jwave-env.tar.gz`（268MB）、`__pycache__/` 一律不提交
 - 环境变量：`cp .env.example .env` 起步，真实密钥由 Owner 私发
 - 项目约束（jwave 0.2.1 锁定、沙箱安全限制不可削弱等）见 `docs/AGENTS.md` 第 4 节

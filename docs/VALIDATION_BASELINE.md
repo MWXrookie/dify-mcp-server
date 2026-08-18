@@ -14,8 +14,9 @@
 | 3. 平界面反射系数 R | 0.53846 | 0.53848 | **0.003%** | ✅ PASS |
 | 3. 平界面透射系数 T_p | 1.53846 | 1.53843 | **0.002%** | ✅ PASS |
 | 4. 球面波远场 1/r 衰减（3D） | 0.66667 | 0.66661 | **0.009%** | ✅ PASS |
+| 5. 介质衰减 1/√r×e^(−αr)（频域 Helmholtz） | 0.61586 | 0.61644 | **0.093%** | ✅ PASS |
 
-**门禁：全部用例误差 < 1% → 通过（5/5 项，其中 4 项 < 0.01%）。**
+**门禁：全部用例误差 < 1% → 通过（6/6 项，其中 5 项 < 0.1%）。**
 
 可一键重跑脚本：`executor/validation_baseline.py`（已同步至 VM `~/dify-mcp-server/executor/`，并在 executor 容器内实测通过）。
 
@@ -130,7 +131,39 @@ p0(x,y) = A·exp(−(x−x₀)²/(2σ²))，沿 x 变化、y 均匀，A=1 Pa。
 
 ---
 
-## 5. 可复现性
+## 5. 用例 5 · 介质衰减 1/√r×e^(−αr)（频域 Helmholtz，P1 衰减扩展）
+
+> P1 衰减扩展新增（2026-08-18）。**jwave 0.2.1 的时域 `simulate_wave_propagation`
+> 忽略 `Medium.attenuation`**——衰减只在频域 `helmholtz_solver`（`wavevector` 算子）中生效。
+> 这是从源码确认的求解器行为，已在 prompt/validate 中固化为约束。
+
+### 场景
+均匀吸收介质（`Medium(attenuation=alpha_db)`，dB 单位、幂律 y=2，k-Wave 约定），
+2D 域 N=160（pml=20，物理区半径 30mm），中心单格点复源，频率 1 MHz。
+两探针 +x 轴 r₁=12 mm、r₂=24 mm，α_db = 1.0。
+
+### 理论
+频域 wavevector：`k_mod = (ω/c)² + 2j·ω³·α/c`，`α = db2neper(α_db, 2.0)`。
+小衰减近似 `Im(k) = ω²·db2neper(α_db, 2.0)`（此处 = 11.51 neper/m）。
+2D 圆柱扩散 × 指数吸收：
+**A(r₂)/A(r₁) = √(r₁/r₂)·exp(−Im(k)·(r₂−r₁)) = √(12/24)·e^(−11.51×0.012) = 0.61586**。
+
+### 实测
+| 观测点 | 距源 | 实测幅值 | 比值 | 理论 | 误差 |
+|--------|------|-----------|------|------|------|
+| r₁ | 12 mm | 0.102453 | — | — | — |
+| r₂ | 24 mm | 0.063156 | 0.61644 | 0.61586 | **0.093%** |
+
+### 关键实测发现
+- 衰减幅度显著：α=0 时纯扩散比值 0.70711，α_db=1 时降至 0.61644（吸收贡献 ~13%），
+  误差仍 < 0.1%——频域衰减实现与 k-Wave 幂律模型一致。
+- `helmholtz_solver` 的 `source` 必须是 `FourierSeries`（OnGrid），传裸数组会报
+  plum NotFoundLookupError。
+- 探测点须在物理区内（半径 N/2−pml_size）；探针超出会被 PML 吸收（同用例 4 踩坑）。
+
+---
+
+## 6. 可复现性
 
 ### 一键重跑（VM 上）
 
@@ -141,8 +174,8 @@ docker exec -e JAX_PLATFORMS=cpu -e XLA_PYTHON_CLIENT_PREALLOCATE=false -e HOME=
     jwave-executor python /tmp/validation_baseline.py
 ```
 
-- 输出：每用例 JSON（measured / theory / err_pct / status）+ 汇总（x/4 PASS）。
-- 耗时：约 1-2 分钟（4 次 JAX 编译，cfl=0.1）。
+- 输出：每用例 JSON（measured / theory / err_pct / status）+ 汇总（x/5 PASS）。
+- 耗时：约 1-2 分钟（5 次 JAX 编译，cfl=0.1）。
 - 零模型费用：不调用 DeepSeek/Dify。
 
 ### 环境
@@ -152,7 +185,7 @@ docker exec -e JAX_PLATFORMS=cpu -e XLA_PYTHON_CLIENT_PREALLOCATE=false -e HOME=
 
 ---
 
-## 5. 收敛性与误差说明（对应 PLAN.md 要求）
+## 6. 收敛性与误差说明（对应 PLAN.md 要求）
 
 | 误差来源 | 影响 | 控制手段 |
 |----------|------|----------|
@@ -162,13 +195,14 @@ docker exec -e JAX_PLATFORMS=cpu -e XLA_PYTHON_CLIENT_PREALLOCATE=false -e HOME=
 | 点源近场修正（用例 2） | ~0.8% | 远场观测（r ≥ 4λ），r 增大误差进一步下降 |
 | 探针落入 PML（用例 4） | 可达 95% | 探针须在物理区（半径 N/2 − pml_size）内 |
 | 界面离散 | <0.01% | 界面与网格对齐，k-space 色散校正 |
+| 衰减小量近似（用例 5） | <0.1% | 频域直接解 helmholtz_solver，理论取 Im(k)=ω²·db2neper(α,2) |
 
 收敛趋势：用例 2 的误差随观测距离增大单调下降（近场修正项 ∝ λ²/r² 衰减），
-用例 1/3/4 的误差已在当前分辨率下达到机器精度级（<0.01%）。
+用例 1/3/4/5 的误差已在当前分辨率下达到机器精度级（<0.1%）。
 
 ---
 
-## 6. 与后续任务的关系
+## 7. 与后续任务的关系
 
 - **T-007 analyze_simulation_result**：可用本基准集的物理规律作为 verdict 判据，例如——
   - 点源仿真：峰值压力应 ∝ 1/√r（2D）或 1/r（3D），量级异常即 abnormal；

@@ -445,6 +445,39 @@ def register(mcp) -> None:
                     ),
                 })
 
+        # -------------------------------------------------------------------
+        # 10. 介质衰减（P1 衰减扩展：Medium.attenuation，频域 Helmholtz 专用）
+        # -------------------------------------------------------------------
+        attenuation = params.get("attenuation")
+        if attenuation is not None:
+            if isinstance(attenuation, (int, float)):
+                if attenuation < 0:
+                    errors.append({
+                        "field": "attenuation",
+                        "message": f"attenuation({attenuation}) 不能为负（衰减系数 ≥ 0，单位 dB，幂律 y=2）",
+                    })
+                elif attenuation > 100:
+                    warnings.append({
+                        "field": "attenuation",
+                        "message": (
+                            f"attenuation({attenuation}) 很大（dB 单位、幂律 y=2，k-Wave 约定），"
+                            f"注意 db2neper(α,2) 换算后指数吸收 exp(-ω²α·r) 可能使远场信号过弱"
+                        ),
+                    })
+                warnings.append({
+                    "field": "attenuation",
+                    "message": (
+                        "jwave 0.2.1 时域 simulate_wave_propagation 忽略 attenuation，"
+                        "衰减仅在频域 helmholtz_solver（wavevector 算子）生效；"
+                        "需求含'衰减/吸收/attenuation'时必须用 helmholtz_solver 频域求解"
+                    ),
+                })
+            elif not isinstance(attenuation, (list, dict)):
+                errors.append({
+                    "field": "attenuation",
+                    "message": "attenuation 必须是数值或与介质空间分布对应的 list/dict",
+                })
+
         return {
             "valid": len(errors) == 0,
             "errors": errors,

@@ -4,6 +4,38 @@
 
 ---
 
+## 2026-08-18 · 会话: P1 衰减扩展（频域 Helmholtz）+ 50 次回归测试
+
+### P1 介质衰减/吸收扩展（甲）—— 完成
+- **关键发现（源码确认）**：jwave 0.2.1 的**时域** `simulate_wave_propagation` **忽略**
+  `Medium.attenuation`（仅检查字段类型）；衰减只在**频域** `helmholtz_solver`
+  （`wavevector` 算子：`k_mod = (ω/c)² + 2j·ω³·α/c`，`α = db2neper(α_db, 2.0)`）生效。
+- **VAL-1 新增用例 5：介质衰减**（`executor/validation_baseline.py`）
+  - 频域 Helmholtz + 点源（N=160, 1MHz, α_db=1.0），探针 12mm/24mm
+  - 理论 `A(r2)/A(r1)=√(r1/r2)·exp(−Im(k)·(r2−r1))`，Im(k)=ω²·db2neper(α,2)=11.51 neper/m
+  - 实测 0.61644 vs 理论 0.61586，**误差 0.093%** → 基准集 5/5 PASS
+  - 探测点须在物理区（半径 N/2−pml_size）；source 必须是 FourierSeries
+- **`tools.py` validate_simulation_params 新增规则 10：衰减参数校验**
+  - attenuation < 0 → error；> 100 → warning（信号可能过弱）
+  - 一律 warning：时域忽略 attenuation，含衰减需求必须走频域 helmholtz_solver
+  - 线上 MCP 端点验证：500kHz 参数 valid=True + 仅 attenuation warning
+- **工作流代码生成 prompt 追加「## 介质衰减」示例**（`_apply_atten_prompt.py`，幂等）
+  - 时域忽略衰减的约束 + 频域 helmholtz_solver 完整示例 + 理论公式
+  - 已写入线上 live graph（DB 验证 3D+衰减双 marker 存在）
+- 端到端：线上 MCP 衰减仿真（160² 点源 helmholtz）exit 0、err 0.093%
+- 文档：`docs/VALIDATION_BASELINE.md` 补用例 5
+
+### 50 次回归测试（见下方小节）
+- （本轮稍后运行 run_50_tests_new.py，结果追加于此）
+
+### 变更文件
+- `executor/validation_baseline.py`（case5 衰减用例）
+- `tools.py`（规则 10 衰减校验）
+- `_apply_atten_prompt.py`（新增，工作流衰减 prompt 幂等注入）
+- `docs/VALIDATION_BASELINE.md`、`docs/CHANGELOG.md`（本记录）
+
+---
+
 ## 2026-08-18 · 会话: 审核组员提交（T-014 失败分析）+ 3D 能力扩展落地
 
 ### 组员提交审核（✅ 通过）

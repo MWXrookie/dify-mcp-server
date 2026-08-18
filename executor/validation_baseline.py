@@ -20,6 +20,11 @@
 4. 点源球面波远场衰减（3D 几何扩散）
    3D 点源 3 周期 tone burst → 远场压力包络 ∝ 1/r。
    理论：A(r2)/A(r1) = r1/r2。
+5. 频域 Helmholtz 介质衰减（吸收系数，P1 衰减扩展）
+   均匀吸收介质（Medium.attenuation，dB 单位、幂律 y=2）中点源频域解。
+   理论：A(r2)/A(r1) = sqrt(r1/r2) * exp(-Im(k)*(r2-r1))，
+   Im(k) = omega^2 * db2neper(alpha_db, 2.0)。
+   ⚠️ 时域 simulate_wave_propagation 忽略 attenuation，衰减只在频域 helmholtz_solver 生效。
 
 实测要点（已逐一在沙箱内验证，2026-08-17）
 ------------------------------------------
@@ -265,9 +270,57 @@ def case4_3d_spherical_decay() -> dict:
     }
 
 
+# ---------------------------------------------------------------------------
+# 用例 5: 频域 Helmholtz 介质衰减（吸收系数，P1 衰减扩展）
+# ---------------------------------------------------------------------------
+def case5_attenuation_helmholtz() -> dict:
+    """均匀吸收介质中的点源频域解: 圆柱扩散 1/sqrt(r) × 指数吸收 exp(-Im(k) r)。
+
+    jwave 0.2.1 的时域 simulate_wave_propagation **忽略** Medium.attenuation；
+    衰减只在频域 helmholtz_solver 的 wavevector 算子中生效：
+      k_mod = (omega/c)^2 + 2j * omega^3 * alpha / c,  alpha = db2neper(attenuation, 2.0)
+    => Im(k) = omega^2 * db2neper(alpha_db, 2.0)（小衰减近似）。
+    理论：A(r2)/A(r1) = sqrt(r1/r2) * exp(-Im(k) * (r2 - r1))。
+    """
+    from jwave.acoustics import db2neper, helmholtz_solver
+
+    dx = 0.5e-3
+    N = 160  # pml=20 -> 物理区半径 = 80-20 = 60 网格 = 30mm
+    domain = jw.Domain((N, N), (dx, dx))
+    f0 = 1e6  # 1 MHz: omega 大 -> 吸收项 Im(k) 显著（~11.5 neper/m @ alpha_db=1）
+    omega = 2 * jnp.pi * f0
+    c0 = 1500.0
+    alpha_db = 1.0
+    medium = jw.Medium(domain, sound_speed=c0, density=1000.0,
+                       attenuation=alpha_db, pml_size=20)
+
+    c = N // 2
+    src_grid = jnp.zeros((N, N), dtype=jnp.complex64).at[c, c].set(1.0)
+    src = jw.FourierSeries(src_grid, domain)
+    u = helmholtz_solver(medium, omega, src, method="gmres")
+    g = jnp.asarray(u.on_grid).reshape(N, N)
+
+    r1_mm, r2_mm = 12.0, 24.0  # 物理区内（< 30mm）
+    i1, i2 = int(r1_mm / (dx * 1e3)), int(r2_mm / (dx * 1e3))
+    a1 = float(jnp.abs(g[c + i1, c]))
+    a2 = float(jnp.abs(g[c + i2, c]))
+
+    alpha_np = float(db2neper(jnp.array([alpha_db]), 2.0)[0])
+    imk = float(omega ** 2 * alpha_np)
+    r1, r2 = r1_mm * 1e-3, r2_mm * 1e-3
+    theory_ratio = float(jnp.sqrt(r1 / r2) * jnp.exp(-imk * (r2 - r1)))
+    return {
+        "case": "5 介质衰减 1/sqrt(r)×e^(-αr)（频域 Helmholtz）",
+        "measured": {"amp_r1": a1, "amp_r2": a2, "ratio_r2_r1": a2 / a1},
+        "theory": {"ratio": theory_ratio, "im_k_neper_m": imk},
+        "err_pct": {"ratio": err_pct(a2 / a1, theory_ratio)},
+    }
+
+
 def main() -> None:
     cases = [case1_plane_wave_conservation, case2_cylindrical_spreading,
-             case3_interface_reflection, case4_3d_spherical_decay]
+             case3_interface_reflection, case4_3d_spherical_decay,
+             case5_attenuation_helmholtz]
     results = []
     print("=" * 78)
     print("AcouAgent VAL-1 验证基准集 · jwave 0.2.1 · executor 沙箱")

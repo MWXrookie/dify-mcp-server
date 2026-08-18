@@ -49,14 +49,23 @@ _FIELD_END = "__ACOU_FIELD_END__"
 
 # 可注入仿真代码末尾的"场数据输出"模板（T-008 接入 Dify 工作流时复制即用；
 # 也可由 LLM 依据该模板自行生成）。输出"全时最大绝对压力场"，避免 t=0 全零帧陷阱。
+# 自适应降采样：网格过大时按步长抽样，保证 stdout JSON < 40万字符（Dify 变量上限），
+# 同时把 max_pressure 直接放进 JSON，供 analyze 用（降采样不丢失峰值量级）。
 FIELD_OUTPUT_SNIPPET = '''\
 import json as __json
 import jax.numpy as __jnp
 __field = __jnp.max(__jnp.abs(p.params), axis=0)[..., 0]  # 全时最大 |p| 场 (Nx, Ny)
+__maxp = float(__jnp.max(__field))
+__step = 1
+while __field.size / (__step * __step) > 40000:  # 保底 400KB 内（Dify 变量上限）
+    __step += 1
+__field_out = __field[::__step, ::__step] if __step > 1 else __field
 print("__ACOU_FIELD_START__")
-print(__json.dumps({"shape": list(__field.shape), "kind": "field", "data": __field.tolist()}))
+print(__json.dumps({"shape": list(__field_out.shape), "kind": "field",
+                    "downsample": __step, "max_pressure": __maxp,
+                    "data": __field_out.tolist()}))
 print("__ACOU_FIELD_END__")
-print(f"最大压力: {float(__jnp.max(__field)):.6f}")
+print(f"最大压力: {__maxp:.6f}")
 '''
 
 # 物理发散阈值：声压超过该量级视为数值发散（超声非线性/空化远低于此）
@@ -289,6 +298,11 @@ def _analyze_impl(
         }
 
     metrics = _compute_metrics(rows, shape)
+    # 大网格降采样输出时，用 payload 里的全场 max_pressure 覆盖（不丢失峰值量级）
+    payload_max = payload.get("max_pressure")
+    if isinstance(payload_max, (int, float)) and payload_max > 0:
+        metrics["max_pressure"] = float(payload_max)
+        metrics["has_signal"] = metrics["has_signal"] or True
     verdict = _verdict(exit_code, False, metrics)
     heatmap = _heatmap_base64(rows, title="Pressure field (max-abs over time)" if payload.get("kind") == "field" else "Pressure field")
     waveform = _waveform_base64(rows)

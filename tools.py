@@ -70,6 +70,7 @@ def register(mcp) -> None:
         if not 1 <= timeout_seconds <= 30:
             raise ValueError("timeout_seconds must be between 1 and 30")
         result = execution._execute_code(code, timeout_seconds)
+        result["stdout"] = execution._shrink_field_in_stdout(result.get("stdout", ""))
         record_execution(
             tool_name="run_jwave_code",
             code=code,
@@ -123,6 +124,7 @@ def register(mcp) -> None:
 
         for attempt in range(max_retries + 1):  # 首次 + N 次重试
             result = execution._execute_code(current_code, timeout_seconds)
+            result["stdout"] = execution._shrink_field_in_stdout(result.get("stdout", ""))
             step = {
                 "attempt": attempt + 1,
                 "code": current_code,

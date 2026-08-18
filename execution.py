@@ -1,11 +1,16 @@
 """代码执行链路：代码清理（防护注入）、沙箱提交、Markdown 报告生成。"""
 
+import json
 import re
 from typing import Any
 
 import httpx
 
 import config
+
+# 与 analysis.py 的场数据输出约定一致
+_FIELD_START = "__ACOU_FIELD_START__"
+_FIELD_END = "__ACOU_FIELD_END__"
 
 
 def _clean_code(code: str) -> str:
@@ -79,6 +84,59 @@ def _execute_code(code: str, timeout_seconds: int) -> dict[str, Any]:
     )
     response.raise_for_status()
     return response.json()
+
+
+def _shrink_field_in_stdout(stdout: str, max_chars: int = 350000) -> str:
+    """强制压缩 stdout 中的场数据 JSON（Dify 变量上限 40 万字符）。
+
+    无论 LLM 生成代码是否按模板降采样，网关层都保证场 JSON 大小不超限：
+    解析 __ACOU_FIELD_START__/END__ 标记块，超限时对 data 做网格降采样，
+    并把全场 max_pressure 写入 payload（降采样不丢失峰值量级）。
+    """
+    if not stdout or len(stdout) <= max_chars:
+        return stdout
+    m = re.search(
+        re.escape(_FIELD_START) + r"\s*(\{.*?\})\s*" + re.escape(_FIELD_END),
+        stdout,
+        re.DOTALL,
+    )
+    if not m:
+        return stdout
+    block = m.group(0)
+    raw_json = m.group(1)
+    try:
+        payload = json.loads(raw_json)
+    except Exception:  # noqa: BLE001
+        return stdout
+    data = payload.get("data")
+    if not isinstance(data, list) or not data:
+        return stdout
+
+    def _shrink(data: list, step: int) -> list:
+        rows = data[::step]
+        return [row[::step] if isinstance(row, list) else row for row in rows]
+
+    step = 1
+    new_data = data
+    while True:
+        candidate = _shrink(data, step)
+        test_payload = dict(payload)
+        test_payload["data"] = candidate
+        test_payload["downsample"] = step
+        if len(json.dumps(test_payload, ensure_ascii=False)) <= max_chars - 2000:
+            new_data = candidate
+            break
+        step += 1
+        if step > 32:
+            break
+
+    new_payload = dict(payload)
+    new_payload["data"] = new_data
+    new_payload["downsample"] = step
+    if isinstance(payload.get("max_pressure"), (int, float)):
+        new_payload["max_pressure"] = payload["max_pressure"]
+    new_block = _FIELD_START + "\n" + json.dumps(new_payload, ensure_ascii=False) + "\n" + _FIELD_END
+    return stdout.replace(block, new_block)
 
 
 def _build_report(result: dict[str, Any], original_code: str) -> str:

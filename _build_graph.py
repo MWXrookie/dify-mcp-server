@@ -24,19 +24,26 @@ ANALYZE = "1786091111002"
 REVIEW = "1786091111003"
 EXPLAIN = "1786091111004"
 
-FIELD_OUTPUT_INSTRUCTION = """\n\n# 场数据输出（必须！最后输出压力场 JSON 供分析）
+FIELD_OUTPUT_INSTRUCTION = """\n\n# 场数据输出（必须！最后输出压力场 JSON 供分析，注意大网格自适应降采样防超限）
 仿真完成后，将"全时最大绝对压力场"按以下标记格式打印到 stdout，用于结果分析/热力图：
 __ACOU_FIELD_START__
-{"shape": [Nx, Ny], "kind": "field", "data": [[...]]}
+{"shape": [...], "kind": "field", "downsample": 1, "max_pressure": 0.0, "data": [[...]]}
 __ACOU_FIELD_END__
-参考实现（在仿真代码末尾追加）：
+参考实现（在仿真代码末尾追加；网格过大时自动降采样，保证 JSON 不超过 40 万字符）：
 import json as __json
 import jax.numpy as __jnp
 __field = __jnp.max(__jnp.abs(p.params), axis=0)[..., 0]
+__maxp = float(__jnp.max(__field))
+__step = 1
+while __field.size / (__step * __step) > 40000:
+    __step += 1
+__field_out = __field[::__step, ::__step] if __step > 1 else __field
 print("__ACOU_FIELD_START__")
-print(__json.dumps({"shape": list(__field.shape), "kind": "field", "data": __field.tolist()}))
+print(__json.dumps({"shape": list(__field_out.shape), "kind": "field",
+                    "downsample": __step, "max_pressure": __maxp,
+                    "data": __field_out.tolist()}))
 print("__ACOU_FIELD_END__")
-print(f"最大压力: {float(__jnp.max(__field)):.6f}")
+print(f"最大压力: {__maxp:.6f}")
 """
 
 REVIEW_PROMPT = """你是声学仿真结果审查员。根据分析结果判断这次仿真是否通过。

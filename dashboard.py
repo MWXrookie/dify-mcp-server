@@ -618,6 +618,16 @@ function renderMarkdown(md) {
 var conversation = [];        // {role:'user'|'assistant', content}
 var currentRequirement = '';  // 累计完整需求
 
+// 会话隔离：浏览器 localStorage 持久化 session_id，随请求发给后端（Dify user 按会话区分）
+function getSessionId() {
+  var sid = localStorage.getItem('acouagent_session');
+  if (!sid) {
+    sid = 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+    localStorage.setItem('acouagent_session', sid);
+  }
+  return sid;
+}
+
 function renderChat() {
   var log = document.getElementById('chat-log');
   if (!conversation.length) {
@@ -647,14 +657,14 @@ async function ask() {
   btn.textContent = '⏳ 运行中...';
 
   var loadingIdx = conversation.length;
-  conversation.push({role: 'assistant', content: '🔬 正在调用 Dify 工作流执行仿真...'});
+  conversation.push({role: 'assistant', content: '🔬 正在执行仿真（生成代码 → 沙箱计算 → 物理分析），通常需要 30~90 秒，请耐心等待...'});
   renderChat();
 
   try {
     var resp = await fetch('/chat', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({message: message, requirement: currentRequirement})
+      body: JSON.stringify({message: message, requirement: currentRequirement, session_id: getSessionId()})
     });
     var data = await resp.json();
     var report = data.report || '';
@@ -1106,6 +1116,16 @@ function renderMarkdown(md) {
 var conversation = [];
 var currentRequirement = '';
 
+// 会话隔离：浏览器 localStorage 持久化 session_id，随请求发给后端（Dify user 按会话区分）
+function getSessionId() {
+  var sid = localStorage.getItem('acouagent_session');
+  if (!sid) {
+    sid = 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+    localStorage.setItem('acouagent_session', sid);
+  }
+  return sid;
+}
+
 function renderChat() {
   var log = document.getElementById('chat-log');
   if (!conversation.length) {
@@ -1135,14 +1155,14 @@ async function ask() {
   btn.textContent = '⏳ 运行中...';
 
   var loadingIdx = conversation.length;
-  conversation.push({role: 'assistant', content: '🔬 正在调用 Dify 工作流执行仿真...'});
+  conversation.push({role: 'assistant', content: '🔬 正在执行仿真（生成代码 → 沙箱计算 → 物理分析），通常需要 30~90 秒，请耐心等待...'});
   renderChat();
 
   try {
     var resp = await fetch('/chat', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({message: message, requirement: currentRequirement})
+      body: JSON.stringify({message: message, requirement: currentRequirement, session_id: getSessionId()})
     });
     var data = await resp.json();
     var report = data.report || '';

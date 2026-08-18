@@ -4,6 +4,41 @@
 
 ---
 
+## 2026-08-18 · 会话: 产品清理 + P0 增强（会话隔离 / 进度反馈 / 看板对比）
+
+### 清除多余部分（6 项）
+- 删除 `run_allowlisted_tool` MCP 工具 + `library_tools.py`（白名单仅含无关的 slugify）+ `python-slugify` 依赖（MCP 工具 7→6）
+- 删除 `server_exec.py`（无引用的旧变体）、`requirements.code.txt`（冗余一行）、`dashboard.py` 空占位 `DASHBOARD_HTML`
+- 归档旧测试产物到 `docs/archive/`：`run_50_tests_legacy.py`、`test_report_phase1_new.md`、`test_results_raw*.json`
+- 同步：Dockerfile COPY、`list_installed_libraries` 移除 allowlisted_tools 字段
+
+### P0-1 多轮对话上下文隔离
+- `/chat` 前端生成持久化 `session_id`（localStorage），随请求发送；后端按会话区分 Dify `user`（`portal-<session>`）
+- 为 T-011 多轮记忆（Dify conversation）铺路：不同会话不再共享 Dify 用户上下文
+
+### P0-2 仿真进度反馈
+- 门户 + 多轮对话等待提示增强："正在执行仿真（生成代码 → 沙箱计算 → 物理分析），通常需要 30~90 秒"
+- （真流式 SSE 成本较高，记为后续项，blocking 模式加提示过渡）
+
+### P0-3 看板结果对比
+- `docs/dashboard.html` 新增对比列：勾选两条执行记录 → 对比面板展示 工具/状态/耗时/尝试次数/最大压力/图像
+- 数据复用 executions API（stdout 正则提取最大压力）
+
+### 变更文件
+- `tools.py`、`portal.py`（session 隔离）、`dashboard.py`（getSessionId + 等待提示，两处 JS）、`docs/dashboard.html`（对比）、`Dockerfile`、`requirements.lock.txt`
+- 删除：`library_tools.py` `server_exec.py` `requirements.code.txt`
+- 归档：`docs/archive/*`
+
+### 验证
+- MCP 工具 6 个 ✓；portal/chat/dashboard 200 ✓
+- /chat 带 session_id 正常（requirement 回传正确；failed 为 embedding 网络抖动）
+- 看板对比功能上线（页面含 compare-panel）
+
+### 当前状态
+- 阶段二 ✅ + P2 ✅ + 可视化 ✅ + 清理 ✅ + P0 三项 ✅；待打 `phase-2-complete` tag
+
+---
+
 ## 2026-08-18 · 会话: 仿真热力图可视化落地（每次仿真出图）
 
 ### 背景

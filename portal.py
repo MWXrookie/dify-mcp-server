@@ -138,10 +138,15 @@ def register(mcp) -> None:
 
     @mcp.custom_route("/chat", methods=["POST"])
     async def chat_api(request: Request) -> PlainTextResponse:
-        """多轮对话：合并历史需求 → 调用 Dify 工作流执行仿真。"""
+        """多轮对话：合并历史需求 → 调用 Dify 工作流执行仿真。
+
+        会话隔离：前端每次请求携带 session_id（浏览器 localStorage 持久化），
+        Dify 侧 user 按会话区分（portal-<session>），避免多用户共享 Dify 会话上下文。
+        """
         body = await request.json()
         message = (body.get("message") or "").strip()
         requirement = (body.get("requirement") or "").strip()
+        session_id = (body.get("session_id") or "").strip()[:24]
         if not message:
             return PlainTextResponse(
                 json.dumps({"error": "message is required"}, ensure_ascii=False),
@@ -155,6 +160,9 @@ def register(mcp) -> None:
             full_requirement = message
             merge_used = False
 
+        # 按会话隔离 Dify user（有 session 时用 portal-<session>，否则回退 portal）
+        dify_user = f"portal-{session_id}" if session_id else "portal"
+
         dify_url = "http://nginx/v1/workflows/run"
         try:
             async with httpx.AsyncClient(timeout=180) as client:
@@ -167,7 +175,7 @@ def register(mcp) -> None:
                     json={
                         "inputs": {"query": full_requirement},
                         "response_mode": "blocking",
-                        "user": "portal",
+                        "user": dify_user,
                     },
                 )
             data = resp.json()

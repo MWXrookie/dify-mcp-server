@@ -76,11 +76,12 @@
 </div>
 
 <div class="table-wrap" style="margin-top:16px">
+  <div id="compare-panel" style="display:none;margin-bottom:14px"></div>
   <table>
     <thead><tr>
-      <th>#</th><th>时间</th><th>代码摘要</th><th>状态</th><th class="dur">耗时</th>
+      <th title="勾选两条记录对比">对比</th><th>#</th><th>时间</th><th>代码摘要</th><th>状态</th><th class="dur">耗时</th>
     </tr></thead>
-    <tbody id="rows"><tr><td colspan="5" class="empty"><div class="icon">📭</div>等待 Dify 发送第一条代码...</td></tr></tbody>
+    <tbody id="rows"><tr><td colspan="6" class="empty"><div class="icon">📭</div>等待 Dify 发送第一条代码...</td></tr></tbody>
   </table>
 </div>
 
@@ -139,6 +140,7 @@ function renderRow(r) {
     : '';
 
   return '<tr onclick="toggleDetail(' + r.id + ')" style="cursor:pointer">'
+    + '<td><input type="checkbox" class="cmp-cb" data-id="' + r.id + '" title="选择对比" onclick="event.stopPropagation();onCompareToggle(this)"></td>'
     + '<td style="color:var(--muted);font-size:12px">' + r.id + '</td>'
     + '<td class="time" title="' + r.timestamp + '">' + timeAgo(r.timestamp) + '</td>'
     + '<td class="code-cell">' + esc(summary) + imgDot + '</td>'
@@ -159,6 +161,61 @@ function renderRow(r) {
 
 function toggleDetail(id) { document.getElementById("detail-" + id).classList.toggle("open"); }
 
+// ===== P0-3 结果对比：勾选两条执行记录，对比工具/状态/耗时/尝试/最大压力/图像 =====
+var compareSel = [];
+window.__execs = window.__execs || {};
+
+function onCompareToggle(cb) {
+  var id = parseInt(cb.dataset.id, 10);
+  if (cb.checked) {
+    if (compareSel.length >= 2) {
+      cb.checked = false;
+      alert('最多勾选 2 条记录进行对比');
+      return;
+    }
+    compareSel.push(id);
+  } else {
+    compareSel = compareSel.filter(function(x) { return x !== id; });
+  }
+  renderCompare();
+}
+
+function _cmpStatus(r) { return r.timed_out ? '⏱ 超时' : (r.exit_code === 0 ? '✅ 成功' : '❌ 失败(' + r.exit_code + ')'); }
+function _cmpMaxP(r) {
+  var m = /最大压力[：:]?\s*\**\s*([\d.eE+-]+)/.exec(r.stdout || '');
+  return m ? m[1] : '-';
+}
+function _cmpDur(r) {
+  if (r.duration_ms == null) return '-';
+  return r.duration_ms < 1000 ? r.duration_ms + 'ms' : (r.duration_ms / 1000).toFixed(1) + 's';
+}
+
+function renderCompare() {
+  var box = document.getElementById('compare-panel');
+  if (compareSel.length < 2) { if (box) box.style.display = 'none'; return; }
+  var a = window.__execs[compareSel[0]];
+  var b = window.__execs[compareSel[1]];
+  if (!a || !b) return;
+  var row = function(k, va, vb) {
+    return '<tr><td>' + k + '</td><td>' + (va == null || va === '' ? '-' : va) + '</td><td>' + (vb == null || vb === '' ? '-' : vb) + '</td></tr>';
+  };
+  var hasImg = function(r) { return r.image_base64 && r.image_base64.length > 100 ? '🖼 有' : '无'; };
+  box.innerHTML =
+    '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px">'
+    + '<div style="font-weight:600;margin-bottom:10px;color:var(--blue)">🔀 结果对比 <span style="font-weight:400;color:var(--muted);font-size:12px">（勾选两条记录）</span></div>'
+    + '<table style="width:100%;border-collapse:collapse;font-size:13px">'
+    + '<tr style="background:#1c2129"><th style="padding:6px 12px;text-align:left;border:1px solid var(--border)">指标</th>'
+    + '<th style="padding:6px 12px;text-align:left;border:1px solid var(--border)">#' + a.id + ' · ' + (a.tool_name || '执行') + '</th>'
+    + '<th style="padding:6px 12px;text-align:left;border:1px solid var(--border)">#' + b.id + ' · ' + (b.tool_name || '执行') + '</th></tr>'
+    + row('状态', _cmpStatus(a), _cmpStatus(b))
+    + row('耗时', _cmpDur(a), _cmpDur(b))
+    + row('尝试次数', a.attempt_count != null ? a.attempt_count : 1, b.attempt_count != null ? b.attempt_count : 1)
+    + row('最大压力 (Pa)', _cmpMaxP(a), _cmpMaxP(b))
+    + row('图像', hasImg(a), hasImg(b))
+    + '</table></div>';
+  box.style.display = 'block';
+}
+
 function switchTab(id, tab) {
   ["code","stdout","stderr"].forEach(function(t) { document.getElementById("sec-"+id+"-"+t).classList.toggle("active", t===tab); });
   var tabs = document.querySelectorAll("#detail-"+id+" .detail-tab");
@@ -171,6 +228,7 @@ async function refresh() {
     var data = await resp.json();
     if (data.executions && data.executions.length > 0) {
       var rows = document.getElementById("rows");
+      data.executions.forEach(function(r) { window.__execs[r.id] = r; });  // 缓存供对比
       if (firstLoad) { rows.innerHTML = ""; firstLoad = false; }
       data.executions.slice().reverse().forEach(function(r) {
         if (document.getElementById("detail-"+r.id)) return;

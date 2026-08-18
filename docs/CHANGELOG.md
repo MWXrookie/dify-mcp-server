@@ -4,6 +4,34 @@
 
 ---
 
+## 2026-08-18 · 会话: P2 修复「2D均质初始压力 80%」→ 100%
+
+### 根因（阶段一遗留，50 次测试 2 失败）
+1. **环形初始压力全零**（#16）：LLM 无 p0 正确参考，环形场构造错误/被 PML 吸收
+2. **参数名写错**（#17）：`simulate_wave_propagation() got an unexpected keyword argument 'initi…'`，重试 8 次失败
+3. **关键发现**：工作流代码生成 prompt 中**完全没有 p0 内容**（此前"修复"未进工作流）——LLM 只能瞎猜参数
+
+### 修复（三处）
+1. **`tools.py` validate_simulation_params 新增第 8 项 initial_pressure 校验**：类型白名单（gaussian/ring/circle/ellipse/plane）、peak>0、**环形半径/椭圆半轴 ≥ 域半宽 → 拦截**（几何超域 → 场被 PML 吃掉 → 全零）
+2. **`llm.py` 纠错速查表新增 p0 条目**：参数名只能是 p0（不存在 initial_pressure=）；环形/椭圆 p0 的 meshgrid 正确构造示例
+3. **工作流代码生成 prompt 追加 p0 完整示例**（`_apply_p2_prompt.py` 幂等注入）：高斯/环形/椭圆三种 p0_grid 构造 + "参数名是 p0" 警告
+
+### 验证（真实端到端）
+- P0 初始压力 4 场景（高斯/环形/椭圆/p0）：**4/4 成功（100%）**
+- 环形场景实测 max_pressure=1396 Pa（非全零，含物理解读）
+- 校验工具：环形半径 0.1m 超域（域半宽 0.0512m）→ 正确拦截；合法环形 → 无 p0 错误
+
+### 变更文件
+- `tools.py`（校验规则 8）、`llm.py`（速查表）、`_apply_p2_prompt.py`（prompt 注入脚本，可复现）
+- 工作流 graph（代码生成 prompt，备份见 `docs/dify_workflow_backup/`）
+- 文档：`docs/AGENTS.md`、`docs/DEVELOPMENT_PLAN.md`
+
+### 当前状态
+- 阶段二全部 ✅（VAL-1/T-007/T-008/T-009/多轮对话）+ **P2 遗留 ✅（初始压力 100%）**
+- 待办：打 `phase-2-complete` tag → 阶段三（T-013 知识库扩展等）
+
+---
+
 ## 2026-08-18 · 会话: T-009 迭代循环完成 + 修复 executor 硬编码 python 路径
 
 ### T-009 迭代循环（Dify 工作流 13 → 21 节点，预展开方案）

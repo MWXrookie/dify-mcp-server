@@ -375,6 +375,58 @@ def register(mcp) -> None:
                         ),
                     })
 
+        # -------------------------------------------------------------------
+        # 8. Initial pressure (p0) check —— P2: 环形/椭圆初始压力曾全零
+        # -------------------------------------------------------------------
+        initial_pressure = params.get("initial_pressure")
+        if initial_pressure is not None:
+            if not isinstance(initial_pressure, dict):
+                errors.append({
+                    "field": "initial_pressure",
+                    "message": "initial_pressure 必须是一个 JSON 对象（如 {type: gaussian|ring|ellipse, peak, radius}）",
+                })
+            else:
+                ip_type = initial_pressure.get("type")
+                peak = initial_pressure.get("peak")
+                if ip_type not in (None, "gaussian", "ring", "circle", "ellipse", "plane"):
+                    warnings.append({
+                        "field": "initial_pressure.type",
+                        "message": f"未知初始压力类型 '{ip_type}'，可用: gaussian / ring / circle / ellipse / plane",
+                    })
+                if peak is not None and (not isinstance(peak, (int, float)) or peak <= 0):
+                    errors.append({
+                        "field": "initial_pressure.peak",
+                        "message": f"peak 必须 > 0，当前值: {peak}",
+                    })
+                # 几何超域检查：环形半径/椭圆半轴 >= 域半宽 → 场被 PML 吃掉 → 全零
+                half_w = None
+                if isinstance(domain_dx_list, list) and isinstance(domain_N_list, list):
+                    try:
+                        half_w = min(
+                            float(n) * float(dx)
+                            for n, dx in zip(domain_N_list, domain_dx_list)
+                        ) / 2.0
+                    except Exception:  # noqa: BLE001
+                        half_w = None
+                if half_w is not None:
+                    geom_vals = []
+                    if ip_type in ("ring", "circle"):
+                        geom_vals.append(("radius", initial_pressure.get("radius")))
+                    if ip_type == "ellipse":
+                        geom_vals.append(("radius_x", initial_pressure.get("radius_x")
+                                          or initial_pressure.get("semi_major")))
+                        geom_vals.append(("radius_y", initial_pressure.get("radius_y")
+                                          or initial_pressure.get("semi_minor")))
+                    for fname, val in geom_vals:
+                        if val is not None and isinstance(val, (int, float)) and float(val) >= half_w:
+                            errors.append({
+                                "field": f"initial_pressure.{fname}",
+                                "message": (
+                                    f"{fname}({val}m) 超出计算域半宽 {half_w:.5f}m，"
+                                    f"环形/椭圆压力场可能被 PML 吸收导致全零，请减小或增大网格/区域"
+                                ),
+                            })
+
         return {
             "valid": len(errors) == 0,
             "errors": errors,

@@ -33,7 +33,7 @@
 - [x] **轮换 MCP_AUTH_TOKEN**：新 64 位 hex（`b7ff717f…`）
   - 更新 VM `.env` + Dify `tool_mcp_providers.encrypted_headers`（用 Dify `encrypt_token` 加密，明文格式 `Bearer <token>`）
   - 重建 dify-mcp；验证：新 token 通（7 工具）、**旧 token 401**、工作流端到端 succeeded
-- [x] **轮换 Dify app key**：旧 `***KEY_PREFIX***…` → 新 `app-9d44dd0c79…`（api_tokens 表 + VM `.env` 同步）
+- [x] **轮换 Dify app key**：旧 key → 新 `app-9d44dd0c79…`（api_tokens 表 + VM `.env` 同步）
 - [x] **仓库清理**：`git rm --cached -r .claude`（8 文件、-6406 行）；`.gitignore` 加 `.claude/`；AGENTS.md 删除明文 token（改指向 VM `.env`）
 - [x] 备份：`.env.bak.rotate_20260818_070432` + Dify 表 dump（api_tokens/tool_mcp_providers）
 

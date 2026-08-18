@@ -280,33 +280,37 @@ T11: 返回用户 (聊天消息, 含图片)
 
 ## 3. 组件设计
 
-### 3.1 MCP Gateway (`server_safe.py`)
+### 3.1 MCP Gateway（薄壳 `server_safe.py` + 业务模块，2026-08-18 模块化拆分）
 
 ```
-类/函数层次:
+模块层次 (server_safe.py 为入口薄壳，装配 + 注册):
 
-FastMCP("Dify JWave Tools")
-├── auth: StaticTokenVerifier (Bearer Token)
-│
-├── MCP Tools (通过 @mcp.tool 注册)
+server_safe.py   FastMCP("Dify JWave Tools") + auth + register_tools/portal/analysis + main
+├── config.py        环境配置与校验 (token / deepseek / executor URL)
+├── cache_store.py   纠错经验缓存 SQLite (error_cache.db)
+├── execution.py     代码清理 / 沙箱执行 / Markdown 报告
+├── llm.py           DeepSeek 自动纠错
+├── tools.py         MCP 工具集 (register(mcp))
 │   ├── list_installed_libraries()          → 环境信息
 │   ├── jwave_environment()                 → executor 健康检查
 │   ├── run_jwave_code(code, timeout)        → 直接执行
 │   ├── run_jwave_code_with_retry(code, timeout, max_retries)
-│   │   └── _execute_code() → httpx POST executor
-│   │   └── _llm_fix_code() → httpx POST deepseek
-│   │   └── _clean_code()   → 去 markdown 包裹
+│   │   └── execution._execute_code() → httpx POST executor
+│   │   └── llm._llm_fix_code()      → httpx POST deepseek
+│   │   └── execution._clean_code()  → 去 markdown 包裹
 │   ├── run_allowlisted_tool(tool_name, args_json)  → 白名单
-│   ├── validate_simulation_params(params_json)     → [P1 NEW]
-│   └── analyze_simulation_result(stdout, stderr, ...) → [P1 NEW]
-│
-├── HTTP Routes (通过 @mcp.custom_route 注册)
+│   └── validate_simulation_params(params_json)     → 物理规则校验
+├── portal.py        Web 门户路由 (register(mcp))
 │   ├── GET  /health                         → "ok"
-│   ├── GET  /dashboard                      → HTML 看板
-│   └── GET  /dashboard/api/executions       → JSON API
-│
-└── 启动: mcp.run(transport="http", host="0.0.0.0", port=8001, path="/mcp", stateless_http=True)
+│   ├── GET  /portal /dashboard /report /cache /demo  → HTML 页面
+│   ├── POST /ask /demo/api/run              → Dify 工作流代理
+│   └── GET/DELETE /dashboard/api/*          → 看板/缓存 JSON API
+└── analysis.py      结果分析（T-007 analyze_simulation_result 落点，占位）
 ```
+
+> 说明：新功能按模块落位——仿真执行类工具进 `tools.py`，结果分析进 `analysis.py`，
+> Web 页面进 `portal.py`，缓存进 `cache_store.py`；`server_safe.py` 保持薄壳，
+> 各模块通过 `register(mcp)` 向同一 FastMCP 实例注册，避免循环导入。
 
 ### 3.2 jwave Executor (`executor/executor.py`)
 

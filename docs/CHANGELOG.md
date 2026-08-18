@@ -4,6 +4,33 @@
 
 ---
 
+## 2026-08-18 · 会话: 阶段二收尾 — T-012 多轮测试 + 门禁补全
+
+### T-012 · 20 次多轮仿真集成测试（✅ 通过）
+- 新增 `run_t012_multiturn.py`：20 个多轮场景，每场景 = 初始完整需求 + 增量修改，
+  走 `/chat` 完整链路（DeepSeek 需求合并 → Dify 工作流 → 报告）
+- **结果：上下文正确率 19/20 = 95.0%（门禁 ≥85% ✅）**
+  - 工作流成功 17/20（#15/#16/#17 为瞬时模型/embedding API 抖动，同类 prompt 重跑成功）
+  - 全链路成功 16/20
+  - 真实合并遗漏仅 1 例（#7：DeepSeek 合并时未应用频率修改，1/20 = 5%）
+  - #10 为测试断言假阴性（期望片段带空格 '3 微秒'，实际输出 '3微秒' 合并正确），已修正
+- 报告：`docs/test_report_phase2.md` + `docs/test_results_multiturn_new.json`
+
+### 阶段二门禁补全（T-010/T-011/T-012 全部达成）
+- T-010 前端：门户/多轮对话/看板/Demo/报告/缓存 7 页面全部 200（自研 Web 门户替代 Gradio，功能等价）
+- T-011 多轮记忆：session 隔离（`portal-<session>`）+ DeepSeek 需求合并，实测 95%
+- T-012 多轮测试：95.0% ≥ 85% ✅
+- `phase-2-complete` tag 已确认存在（`ba0adeb`）→ **阶段二正式关闭**
+
+### 变更文件
+- `run_t012_multiturn.py`（新增，T-012 测试脚本）
+- `docs/test_report_phase2.md`、`docs/test_results_multiturn_new.json`（新增，T-012 产物）
+- `docs/DEVELOPMENT_PLAN.md`（门禁清单全部打勾 + 进度追踪表）
+- `docs/AGENTS.md`（T-010/T-011/T-012 标记 DONE）
+- `docs/CHANGELOG.md`（本记录）
+
+---
+
 ## 2026-08-18 · 会话: 执行看板"代码无法显示"修复
 
 ### 问题

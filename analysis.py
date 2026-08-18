@@ -336,9 +336,28 @@ def register(mcp) -> None:
         Returns has_signal, max/rms pressure, field shape, heatmap/waveform PNG
         (base64) and a physical verdict (normal / zero_field / abnormal).
         """
-        return _analyze_impl(
+        r = _analyze_impl(
             stdout_text,
             stderr_text,
             exit_code,
             params_json,
         )
+        # 热力图写入执行看板（每次仿真产出图像可见）
+        if r.get("heatmap_png_base64"):
+            try:
+                from dashboard import record_execution
+
+                record_execution(
+                    tool_name="analyze_simulation_result",
+                    code="",
+                    exit_code=exit_code,
+                    timed_out=False,
+                    duration_ms=None,
+                    stdout=(stdout_text or "")[:500],
+                    stderr=(stderr_text or "")[:200],
+                    attempt_count=1,
+                    image_base64=r["heatmap_png_base64"],
+                )
+            except Exception:  # noqa: BLE001
+                pass
+        return r

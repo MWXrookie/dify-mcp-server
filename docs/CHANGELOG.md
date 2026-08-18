@@ -4,6 +4,31 @@
 
 ---
 
+## 2026-08-18 · 会话: 仿真热力图可视化落地（每次仿真出图）
+
+### 背景
+- 之前 analyze 每次仿真都生成热力图（base64），但只在工作流内部变量里，用户不可见；看板图像又依赖 LLM 画图（多数没有）→ "可视化"承诺未兑现
+
+### 完成
+- [x] **报告嵌入热力图**：工作流合并节点（MERGE1/MERGE2）解析 analyze 输出，把 `heatmap_png_base64` 转成 `![压力场热力图](data:image/png;base64,…)` 追加到报告 → 门户/多轮对话 Markdown 直接显示
+- [x] **看板存图**：`analyze_simulation_result` 工具把热力图写入执行记录（`record_execution`，image_base64）→ 看板每次仿真都有图
+- [x] 修复 MERGE2 重试解读解析 bug（Dify json 变量嵌套 list/data 包裹，`_find_analyze` 健壮解析）
+- [x] 脚本链（可复现）：`_build_graph.py` → `_build_t009.py` → `_apply_p2_prompt.py` → `_apply_heatmap.py`
+
+### 验证（真实端到端）
+- /ask 报告：含热力图 Markdown（PNG base64 魔数 iVBORw0KGgo ✓）+ 物理解读
+- 看板：`analyze_simulation_result | 图: 有 | 25488`（每次仿真必出）
+
+### 变更文件
+- `analysis.py`（analyze 工具写入看板）、`_apply_heatmap.py`（工作流合并节点更新脚本）
+- 工作流 graph（合并节点，备份见 `docs/dify_workflow_backup/live_heatmap_*`）
+- 文档：`docs/CHANGELOG.md`
+
+### 当前状态
+- 阶段二全部 ✅ + P2 ✅ + 可视化 ✅；待打 `phase-2-complete` tag
+
+---
+
 ## 2026-08-18 · 会话: P2 修复「2D均质初始压力 80%」→ 100%
 
 ### 根因（阶段一遗留，50 次测试 2 失败）

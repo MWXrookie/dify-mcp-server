@@ -48,26 +48,57 @@ docker restart docker-api-1 docker-worker-1  # MCP schema 刷新
 
 ## MCP 工具
 
+网关共注册 **6 个 MCP 工具**（FastMCP 3.4.6，入口薄壳 `server_safe.py` + 模块 `tools.py`/`portal.py`/`analysis.py`）：
+
 | 工具 | 说明 |
 |------|------|
 | `run_jwave_code` | 执行 Python 代码（1-30s 超时, 20KB 上限） |
 | `run_jwave_code_with_retry` | 执行 + DeepSeek 自动纠错 + 重试（≤7 次）+ **自动生成 Markdown 报告** |
 | `validate_simulation_params` | 硬编码物理规则校验（Nyquist/CFL/网格/PML） |
+| `run_allowlisted_tool` | 按白名单执行命名适配器（`library_tools.py` 注册） |
 | `jwave_environment` | 执行器环境健康检查 |
 | `list_installed_libraries` | 已安装工具列表 |
 
+## MCP 调用方式
+
+- 端点：`POST http://192.168.30.200:8001/mcp`（`path=/mcp`，stateless HTTP 模式）
+- 认证：`Authorization: Bearer <MCP_AUTH_TOKEN>`
+- **必须带** `Accept: application/json, text/event-stream`，否则返回 **406 Not Acceptable**
+- 示例（initialize）：
+
+```bash
+curl -X POST http://192.168.30.200:8001/mcp \
+  -H "Authorization: Bearer $MCP_AUTH_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"cli","version":"1.0"}}}'
+```
+
+> ⚠️ `:8001` 只绑定到 `192.168.30.200`，**`127.0.0.1` 连不上**（健康检查需用局域网 IP）。
+
 ## 数据存储
 
-- SQLite `/app/data/execution_history.db` — 执行记录（volumes 持久化）
-- SQLite `/app/data/error_cache.db` — 纠错经验缓存（volumes 持久化）
+- SQLite `/app/data/execution_history.db` — 执行记录（数据卷 `dify-mcp-server_dify_mcp_data` 持久化）
+- SQLite `/app/data/error_cache.db` — 纠错经验缓存（同卷持久化）
 - 测试报告 `docs/test_results_raw*.json` — 通过 docs 目录挂载自动同步
+
+## 测试
+
+| 脚本 | 用途 | ⚠️ 注意 |
+|------|------|---------|
+| `run_50_tests.py` / `run_50_tests_new.py` | 50 次端到端回归（真实调用 Dify 工作流 + DeepSeek） | **有模型费用**，运行前先确认 |
+| `retest_p0.py` | P0 重点场景小批量重测 | 费用低 |
+
+- 测试目标：`http://localhost/v1/workflows/run`，需要 `DIFY_API_KEY` 环境变量
+- 语法预检：`python3 -m py_compile server_safe.py tools.py portal.py analysis.py cache_store.py execution.py llm.py config.py dashboard.py executor/executor.py`
+- 现有报告：`docs/test_report_phase1_new.md`（48/50=96%）、`docs/test_report_10.md`（10/10=100%）
 
 ## Dify 工作流配置
 
 - MCP URL: `http://dify-mcp:8001/mcp`
 - Auth: `Authorization: Bearer <MCP_AUTH_TOKEN>`
 - SSRF 白名单: `SSRF_PROXY_ALLOW_PRIVATE_DOMAINS=dify-mcp`
-- 工作流末尾：MCP retry → **代码节点**（提取 report 字段）→ 结束节点输出 Markdown
+- 工作流链路（9 节点）：Start → 需求分析 → 知识检索 → 模板转换 → 参数提取 → **参数校验（validate_simulation_params，T-005 新增）** → 代码生成 → MCP retry → **代码节点**（提取 report 字段）→ 结束节点输出 Markdown
 
 ### 代码节点配置
 
@@ -93,27 +124,34 @@ def main(mcp_json):
 
 输出变量：`result`。结束节点引用：`{{代码节点.result}}`。
 
-## 当前状态（2026-08-09）
+## 当前状态（2026-08-17 实测）
 
 - 所有路由 200 OK
 - Dify 工作流通畅，返回 Markdown 报告
 - 门户问答功能正常
-- T-006 最新测试：**50 次, 48 成功, 96.0%**
+- T-006 最终测试：**50 次, 48 成功, 96.0%**（≥90% 门禁通过）
+- **阶段一已正式关闭**（`phase-1-complete` tag，2026-08-17）
 - 纠错缓存：12 条经验, 27 次命中, 88.9% 成功率
 - 执行看板：31 条记录, 30 成功, 1 失败
 - 看板图像列已修复（每个仿真独立保存图片）
 - 缓存置信度逻辑已修复（正确升降级+退役机制）
 - 执行看板已精简为 5 列（去掉工具列, 代码摘要智能跳过 import）
+- P1 已修复（2026-08-17）：`.env` 中 `MCP_AUTH_TOKEN`/`MCP_EXTRA_MODULES` 重复行已去重并重建容器
+- 遗留：P2「2D均质初始压力」成功率 80%（阶段一测试中 2 次失败，待修）
 
 ## 环境变量
 
 ```bash
-MCP_AUTH_TOKEN=<32+ 字符>
-EXECUTOR_SHARED_TOKEN=<32+ 字符>
-DEEPSEEK_API_KEY=sk-...
+MCP_AUTH_TOKEN=<32+ 字符>          # MCP 网关 Bearer token（必填）
+MCP_EXTRA_MODULES=slugify          # list_installed_libraries 白名单模块（逗号分隔）
+EXECUTOR_SHARED_TOKEN=<32+ 字符>   # 网关↔执行器内部认证（必填）
+DEEPSEEK_API_KEY=sk-...            # 自动纠错用（可选，缺省时 retry 工具报错）
 DEEPSEEK_MODEL=deepseek-chat
-CODE_RETRY_MAX=7
+CODE_RETRY_MAX=7                   # 自动纠错重试上限
+DIFY_API_KEY=app-...               # Dify App API Key（门户 /ask 代理用）
 ```
+
+> 完整变量清单见 `.env.example`。新环境从 `cp .env.example .env` 起步，真实密钥由项目 Owner 私发，**不得提交到 git**。
 
 ## 备份
 
@@ -126,3 +164,13 @@ ls /home/wenxuan/dify-mcp-server/.claude/backups/
 - jwave 0.2.1 正确 API（非 LLM 编造）: `TimeAxis.from_medium()`, `.to_array()`, `FourierSeries(data, domain)`, `Sources(positions, signals, dt, domain)`
 - 代码自动修正: `.max()` → `jnp.max(jnp.abs())`, `.params[0]` → `.params`, `plt.savefig('/tmp/result.png')` → `plt.savefig('result.png')`
 - Executor 沙箱: read_only rootfs, cap_drop ALL, no-new-privileges, pids_limit 256, mem_limit 4g, tmpfs /tmp
+
+## 协作开发
+
+仓库：`github.com/MWXrookie/dify-mcp-server`（公开，分支 `main`）
+
+- **代码真正运行在 VM**（`~/dify-mcp-server`），GitHub 只是代码中转：合并后需在 VM 上 `git pull` → `docker compose up -d --build` 才生效
+- 提交信息/分支/PR 规范见 **《提交规范》**（Owner 桌面 `提交规范.md`，将同步进 `docs/COMMIT_CONVENTION.md`）
+- 红线：`.env` 及 `.env.bak.*` 密钥备份、`*.log`、`jwave-env.tar.gz`（268MB）、`__pycache__/` 一律不提交
+- 环境变量：`cp .env.example .env` 起步，真实密钥由 Owner 私发
+- 项目约束（jwave 0.2.1 锁定、沙箱安全限制不可削弱等）见 `docs/AGENTS.md` 第 4 节

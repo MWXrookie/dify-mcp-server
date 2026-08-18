@@ -2,6 +2,8 @@
 
 > 本文档面向项目中的所有 AI Agent。Agent 在执行任何任务之前，必须先阅读本文档以获取项目上下文、当前状态和可执行任务。
 
+> 👥 **新成员/新 Agent 上手第一步**：先读 `docs/CHANGELOG.md`（按时间倒序的完整工作记录：动机/做法/验证/变更文件），再回来看本文件的任务队列，即可快速接上最新进度；想了解系统设计再看 `docs/ARCHITECTURE.md`。
+
 ---
 
 ## 1. 项目速览
@@ -20,14 +22,25 @@
 
 | 文件 | 行数 | 职责 | 修改频率 |
 |------|------|------|----------|
-| `server_safe.py` | 312 | FastMCP 网关，5 个 MCP 工具定义 | 中（新增工具时） |
+| `server_safe.py` | 薄壳 | FastMCP 网关入口：装配配置 + 注册模块 | 低 |
+| `config.py` | ~30 | 环境配置与校验 | 低 |
+| `cache_store.py` | ~200 | 纠错经验缓存 SQLite | 中 |
+| `execution.py` | ~150 | 代码清理/沙箱执行/报告生成 | 中 |
+| `llm.py` | ~100 | DeepSeek 自动纠错 | 低 |
+| `tools.py` | ~330 | MCP 工具集（6 个） | 中（新增工具时） |
+| `portal.py` | ~170 | Web 门户路由 | 中 |
+| `analysis.py` | 占位 | 结果分析（T-007 落点） | 中（T-007 后） |
 | `executor/executor.py` | 123 | Docker 沙箱，单请求代码执行 | 低（稳定） |
 | `compose.yaml` | ~80 | Docker Compose 双容器编排 | 低 |
 | `dashboard.py` | 347 | SQLite 执行历史 + Web 看板 HTML | 低 |
 | `library_tools.py` | 15 | 白名单工具注册 | 低 |
-| `Dockerfile` | ~20 | dify-mcp 镜像 | 低 |
+| `Dockerfile` | ~22 | dify-mcp 镜像（COPY 全部模块） | 低 |
 | `executor/Dockerfile` | ~25 | jwave-executor 镜像 | 低 |
 | `.env` | 7 | 环境变量（Token/Key） | 低 |
+
+> ⚠️ **模块化约定（2026-08-18）**：新功能按职责落位——仿真执行类工具进 `tools.py`，
+> 结果分析进 `analysis.py`，Web 页面进 `portal.py`，缓存进 `cache_store.py`；
+> `server_safe.py` 只做装配，**不要在薄壳里堆业务代码**。
 
 ### 1.4 怎么启动
 
@@ -117,9 +130,26 @@ DB:           docker exec docker-db_postgres-1 psql -U postgres -d dify
 
 Agent 应**按编号顺序**领取任务。每完成一个任务，在 `docs/CHANGELOG.md` 中追加一条记录，并将本文件中对应任务标记为 `[DONE]`。
 
+> ⚠️ **编号说明（2026-08-17 校准）**：本文件的任务编号（T-001~T-010）与 `docs/DEVELOPMENT_PLAN.md` 的阶段化编号（T-001~T-017）**从 T-004 起错位**。统一以 **DEVELOPMENT_PLAN.md 为准**，映射关系：
+>
+> | AGENTS.md | PLAN.md | 状态 |
+> |-----------|---------|------|
+> | T-001 Sources 排查 | T-001 | ✅ [DONE] |
+> | T-002 Prompt 强化 | T-002 | ✅ [DONE] |
+> | T-003 参数校验工具 | T-003 | ✅ [DONE] |
+> | —（验证基准集） | VAL-1 | ✅ [DONE]（2026-08-18，3/3 PASS，`docs/VALIDATION_BASELINE.md`） |
+> | T-004 结果分析工具 | T-007 | ✅ [DONE]（2026-08-18，`analysis.py`，VM 端到端验证 verdict/热力图） |
+> | —（审查+解释节点） | T-008 | ✅ [DONE]（2026-08-18，工作流 13 节点已发布，真实运行含物理解读） |
+> | T-005 迭代循环 | T-009 | ⬜ TODO |
+> | T-006 Gradio 前端 | T-010 | ⬜ TODO |
+> | T-007 多轮记忆 | T-011 | ⬜ TODO |
+> | T-008 知识库扩展 | T-013 | ⬜ TODO |
+> | T-009 回归测试套件 | （PLAN 无对应，阶段三 T-016 前置） | ⬜ TODO |
+> | T-010 技术文档完善 | T-017 | ⬜ TODO |
+
 ---
 
-### T-001: 修复 Sources 点源压力场全零
+### T-001: [DONE] 修复 Sources 点源压力场全零
 
 | 字段 | 值 |
 |------|-----|
@@ -139,7 +169,7 @@ Agent 应**按编号顺序**领取任务。每完成一个任务，在 `docs/CHA
 
 ---
 
-### T-002: 代码生成 Prompt 强化 + 知识库更新
+### T-002: [DONE] 代码生成 Prompt 强化 + 知识库更新
 
 | 字段 | 值 |
 |------|------|
@@ -165,7 +195,7 @@ Agent 应**按编号顺序**领取任务。每完成一个任务，在 `docs/CHA
 
 ---
 
-### T-003: validate_simulation_params MCP 工具
+### T-003: [DONE] validate_simulation_params MCP 工具
 
 | 字段 | 值 |
 |------|------|

@@ -1,0 +1,380 @@
+"""MCP 工具集：6 个工具（环境/白名单/执行/自动纠错/参数校验/库列表）。
+
+通过 `register(mcp)` 向网关注册；T-007 analyze_simulation_result 将落在
+`analysis.py`（本模块保持聚焦仿真执行类工具）。
+"""
+
+import importlib.util
+import json
+import os
+from typing import Any
+
+import httpx
+
+import config
+import cache_store
+import execution
+import llm
+from dashboard import record_execution
+from library_tools import ALLOWED_TOOLS
+
+
+def register(mcp) -> None:
+    """向 FastMCP 实例注册本模块的全部工具。"""
+
+    @mcp.tool
+    def list_installed_libraries() -> dict[str, Any]:
+        """Report the fixed adapters available in this gateway image."""
+        modules = [item.strip() for item in config.MCP_EXTRA_MODULES.split(",") if item.strip()]
+        return {
+            "fastmcp": "3.4.6",
+            "modules": {module: bool(importlib.util.find_spec(module)) for module in modules},
+            "allowlisted_tools": sorted(ALLOWED_TOOLS),
+            "code_tool": "run_jwave_code",
+            "auto_fix_tool": "run_jwave_code_with_retry",
+            "deepseek_model": config.DEEPSEEK_MODEL if config.DEEPSEEK_API_KEY else None,
+        }
+
+    @mcp.tool
+    def run_allowlisted_tool(tool_name: str, arguments_json: str = "{}") -> Any:
+        """Run one named adapter from the server's explicit allowlist."""
+        if tool_name not in ALLOWED_TOOLS:
+            raise ValueError(f"tool_name is not allowlisted: {tool_name}")
+        try:
+            arguments = json.loads(arguments_json)
+        except json.JSONDecodeError as exc:
+            raise ValueError("arguments_json must be valid JSON") from exc
+        if not isinstance(arguments, dict):
+            raise ValueError("arguments_json must encode a JSON object")
+        return ALLOWED_TOOLS[tool_name](**arguments)
+
+    @mcp.tool
+    def jwave_environment() -> dict[str, Any]:
+        """Report the packaged jwave environment and JAX device status."""
+        response = httpx.get(
+            f"{config.EXECUTOR_URL}/health",
+            headers={"X-Executor-Token": config.EXECUTOR_SHARED_TOKEN},
+            timeout=10,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    @mcp.tool
+    def run_jwave_code(code: str, timeout_seconds: int = 15) -> dict[str, Any]:
+        """Run Dify-generated Python in the packaged jwave environment."""
+        if not isinstance(code, str) or not code.strip():
+            raise ValueError("code must be a non-empty Python string")
+        code = execution._clean_code(code)
+        if len(code) > 20000:
+            raise ValueError("code is limited to 20000 characters")
+        if not 1 <= timeout_seconds <= 30:
+            raise ValueError("timeout_seconds must be between 1 and 30")
+        result = execution._execute_code(code, timeout_seconds)
+        record_execution(
+            tool_name="run_jwave_code",
+            code=code,
+            exit_code=result.get("exit_code"),
+            timed_out=result.get("timed_out", False),
+            duration_ms=result.get("duration_ms"),
+            stdout=result.get("stdout", ""),
+            stderr=result.get("stderr", ""),
+            attempt_count=1,
+            image_base64=result.get("image_base64"),
+        )
+        return result
+
+    @mcp.tool
+    def run_jwave_code_with_retry(
+        code: str,
+        timeout_seconds: int = 15,
+        max_retries: int | None = None,
+    ) -> dict[str, Any]:
+        """Run Python code and auto-fix errors using DeepSeek LLM.
+
+        Executes the code in the sandboxed jwave environment.  If the code fails
+        (non-zero exit code or timeout), the tool sends the error output to DeepSeek
+        and asks it to produce a corrected version, then re-executes.  This loop
+        continues until the code succeeds or *max_retries* is exhausted.
+
+        Returns a dict with ``final_code`` (the last version tried), ``history``
+        (one entry per attempt), and the fields from the final execution.
+        """
+        if max_retries is None:
+            max_retries = config.CODE_RETRY_MAX
+        if not isinstance(code, str) or not code.strip():
+            raise ValueError("code must be a non-empty Python string")
+        code = execution._clean_code(code)
+        if len(code) > 20000:
+            raise ValueError("code is limited to 20000 characters")
+        if not 1 <= timeout_seconds <= 30:
+            raise ValueError("timeout_seconds must be between 1 and 30")
+        if not 0 <= max_retries <= 7:
+            raise ValueError("max_retries must be between 0 and 7")
+
+        if not config.DEEPSEEK_API_KEY:
+            raise RuntimeError(
+                "DEEPSEEK_API_KEY must be set in the server environment "
+                "to use auto-fix. Use run_jwave_code for plain execution."
+            )
+
+        current_code = code
+        history: list[dict[str, Any]] = []
+        last_error_sig: str | None = None
+
+        for attempt in range(max_retries + 1):  # 首次 + N 次重试
+            result = execution._execute_code(current_code, timeout_seconds)
+            step = {
+                "attempt": attempt + 1,
+                "code": current_code,
+                "exit_code": result["exit_code"],
+                "timed_out": result["timed_out"],
+                "duration_ms": result.get("duration_ms"),
+                "stdout_tail": result.get("stdout", "")[-2000:],
+                "stderr_tail": result.get("stderr", "")[-2000:],
+            }
+            history.append(step)
+
+            # 成功 —— 直接返回
+            if result["exit_code"] == 0 and not result["timed_out"]:
+                result["history"] = history
+                result["final_code"] = current_code
+                result["total_attempts"] = attempt + 1
+                result["report"] = execution._build_report(result, code)
+                if last_error_sig:
+                    try:
+                        cache_store._update_cache(last_error_sig, current_code[:500], was_successful=True)
+                    except Exception:
+                        pass
+                record_execution(
+                    tool_name="run_jwave_code_with_retry",
+                    code=code,
+                    exit_code=result["exit_code"],
+                    timed_out=False,
+                    duration_ms=result.get("duration_ms"),
+                    stdout=result.get("stdout", ""),
+                    stderr=result.get("stderr", ""),
+                    attempt_count=attempt + 1,
+                    image_base64=result.get("image_base64"),
+                )
+                return result
+
+            # 已达最大重试次数
+            if attempt >= max_retries:
+                result["history"] = history
+                result["final_code"] = current_code
+                result["total_attempts"] = attempt + 1
+                result["error"] = "max_retries exhausted"
+                result["report"] = execution._build_report(result, code)
+                if last_error_sig:
+                    try:
+                        cache_store._update_cache(last_error_sig, current_code[:500], was_successful=False)
+                    except Exception:
+                        pass
+                record_execution(
+                    tool_name="run_jwave_code_with_retry",
+                    code=code,
+                    exit_code=result["exit_code"],
+                    timed_out=result.get("timed_out", False),
+                    duration_ms=result.get("duration_ms"),
+                    stdout=result.get("stdout", ""),
+                    stderr=result.get("stderr", ""),
+                    attempt_count=attempt + 1,
+                    image_base64=result.get("image_base64"),
+                )
+                return result
+
+            # 调用 LLM 修正
+            error_sig = cache_store._extract_error_signature(
+                result.get("stderr", ""), result.get("exit_code"), result.get("stdout", "")
+            )
+            if error_sig:
+                last_error_sig = error_sig
+            current_code = llm._llm_fix_code(
+                config.DEEPSEEK_API_KEY,
+                config.DEEPSEEK_MODEL,
+                current_code,
+                result,
+            )
+
+        # 不应该走到这里，但保底
+        return {"error": "unreachable", "history": history}
+
+    @mcp.tool
+    def validate_simulation_params(params_json: str) -> dict[str, Any]:
+        """Validate simulation parameters against physical rules before code generation.
+
+        Checks Nyquist condition, CFL stability, grid size, PML layers,
+        frequency-resolution matching, and time-propagation distance matching.
+        All validation rules are hardcoded -- no LLM is called.
+        """
+        # Parse JSON input
+        try:
+            params = json.loads(params_json)
+        except (json.JSONDecodeError, TypeError) as exc:
+            return {
+                "valid": False,
+                "errors": [{"field": "_json", "message": f"JSON 解析失败: {exc}"}],
+                "warnings": [],
+            }
+
+        if not isinstance(params, dict):
+            return {
+                "valid": False,
+                "errors": [{"field": "_json", "message": "params_json 必须编码为一个 JSON 对象"}],
+                "warnings": [],
+            }
+
+        errors: list[dict[str, str]] = []
+        warnings: list[dict[str, str]] = []
+
+        # Extract fields
+        sound_speed = params.get("sound_speed")
+        density = params.get("density")
+        source_frequency = params.get("source_frequency")
+        domain_N = params.get("domain_N")
+        domain_dx = params.get("domain_dx")
+        t_end = params.get("t_end")
+        cfl = params.get("cfl")
+        pml_size = params.get("pml_size")
+
+        # -------------------------------------------------------------------
+        # 1. Required field check
+        # -------------------------------------------------------------------
+        required_fields = {
+            "sound_speed": sound_speed,
+            "density": density,
+            "source_frequency": source_frequency,
+            "domain_N": domain_N,
+            "domain_dx": domain_dx,
+        }
+        required_field_names = set(required_fields.keys())
+
+        for field_name, value in required_fields.items():
+            if value is None:
+                errors.append({"field": field_name, "message": f"缺少必填字段 {field_name}"})
+            elif isinstance(value, list):
+                if len(value) == 0:
+                    errors.append({"field": field_name, "message": f"{field_name} 为空列表"})
+                else:
+                    for idx, elem in enumerate(value):
+                        if not isinstance(elem, (int, float)) or elem <= 0:
+                            errors.append({
+                                "field": field_name,
+                                "message": f"{field_name}[{idx}] = {elem} 必须 > 0",
+                            })
+            elif not isinstance(value, (int, float)) or value <= 0:
+                errors.append({
+                    "field": field_name,
+                    "message": f"{field_name} 必须 > 0，当前值: {value}",
+                })
+
+        # If any required field is broken, stop -- downstream checks need them
+        if any(e["field"] in required_field_names for e in errors):
+            return {"valid": False, "errors": errors, "warnings": warnings}
+
+        # Typecast for clarity -- at this point they are validated
+        sound_speed = float(sound_speed)  # type: ignore[arg-type]
+        source_frequency = float(source_frequency)  # type: ignore[arg-type]
+        domain_N_list = domain_N if isinstance(domain_N, list) else [domain_N]  # type: ignore[union-attr]
+        domain_dx_list = domain_dx if isinstance(domain_dx, list) else [domain_dx]  # type: ignore[union-attr]
+
+        freq_mhz = source_frequency / 1e6
+
+        # -------------------------------------------------------------------
+        # 2. Nyquist condition
+        # -------------------------------------------------------------------
+        wavelength_min = sound_speed / source_frequency
+        dx_max_allowed = wavelength_min / 4.0
+
+        for i, dx in enumerate(domain_dx_list):
+            dx = float(dx)
+            if dx > dx_max_allowed * 1.001:  # floating-point tolerance
+                errors.append({
+                    "field": "domain_dx",
+                    "message": (
+                        f"dx({dx}m) 不满足 Nyquist 条件，"
+                        f"{freq_mhz}MHz 对应的最小波长为 {wavelength_min:.6f}m，"
+                        f"建议 dx ≤ {dx_max_allowed:.6f}m"
+                    ),
+                })
+
+        # -------------------------------------------------------------------
+        # 3. CFL condition
+        # -------------------------------------------------------------------
+        if cfl is not None and isinstance(cfl, (int, float)):
+            cfl = float(cfl)
+            if cfl > 0.3 * 1.001:
+                errors.append({
+                    "field": "cfl",
+                    "message": f"CFL({cfl}) 超过安全值 0.3，可能导致数值不稳定",
+                })
+
+        # -------------------------------------------------------------------
+        # 4. Grid size
+        # -------------------------------------------------------------------
+        for i, n in enumerate(domain_N_list):
+            n = int(n)
+            if n < 32:
+                errors.append({
+                    "field": "domain_N",
+                    "message": f"网格点数 {n} 过小（<32），jwave 0.2.1 可能存在 broadcasting 问题",
+                })
+            elif n > 1024:
+                warnings.append({
+                    "field": "domain_N",
+                    "message": f"网格点数较大({n})，仿真可能耗时较长",
+                })
+
+        # -------------------------------------------------------------------
+        # 5. PML check
+        # -------------------------------------------------------------------
+        if pml_size is not None and isinstance(pml_size, (int, float)):
+            pml_size = int(pml_size)
+            if pml_size < 10:
+                warnings.append({
+                    "field": "pml_size",
+                    "message": f"PML 层数({pml_size})偏少，建议 ≥ 10 以保证吸收效果",
+                })
+
+        # -------------------------------------------------------------------
+        # 6. Frequency-resolution matching (MHz ultrasound)
+        # -------------------------------------------------------------------
+        if source_frequency > 1e6:
+            for i, dx in enumerate(domain_dx_list):
+                dx = float(dx)
+                if dx > 0.0005 * 1.001:
+                    errors.append({
+                        "field": "domain_dx",
+                        "message": (
+                            f"对于 MHz 级超声({freq_mhz}MHz)，"
+                            f"分辨率(dx={dx}m)过粗，建议 dx < 0.5mm"
+                        ),
+                    })
+
+        # -------------------------------------------------------------------
+        # 7. Time-propagation distance matching
+        # -------------------------------------------------------------------
+        if t_end is not None and isinstance(t_end, (int, float)) and float(t_end) > 0:
+            t_end_val = float(t_end)
+            estimated_distance = sound_speed * t_end_val
+            domain_length = max(
+                float(domain_N_list[i]) * float(domain_dx_list[i])
+                for i in range(min(len(domain_N_list), len(domain_dx_list)))
+            )
+            denom = min(estimated_distance, domain_length)
+            if denom > 1e-20:
+                ratio = max(estimated_distance, domain_length) / denom
+                if ratio > 10:
+                    warnings.append({
+                        "field": "t_end",
+                        "message": (
+                            f"仿真时间({t_end_val}s)对应传播距离约{estimated_distance:.4f}m，"
+                            f"与区域大小({domain_length:.4f}m)偏差较大"
+                        ),
+                    })
+
+        return {
+            "valid": len(errors) == 0,
+            "errors": errors,
+            "warnings": warnings,
+        }

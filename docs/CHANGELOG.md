@@ -4,6 +4,42 @@
 
 ---
 
+## 2026-08-18 · 会话: 网关模块化重构（server_safe.py 1074 行 → 薄壳 + 7 模块）
+
+### 动机
+- `server_safe.py` 1074 行混含四类职责（MCP 工具 / Web 门户 / 纠错缓存 / 报告生成），且 T-007/P2 等新功能还要继续往里加，属"上帝文件"苗头。
+
+### 完成
+- [x] 拆分为职责清晰的模块（`register(mcp)` 模式，避免循环导入）：
+  - `config.py` — 环境配置与校验（30 行）
+  - `cache_store.py` — 纠错经验缓存 SQLite + 统计（原 L122-366）
+  - `execution.py` — 代码清理/沙箱执行/Markdown 报告（原 `_clean_code`/`_execute_code`/`_build_report`）
+  - `llm.py` — DeepSeek 自动纠错（原 `_llm_fix_code`）
+  - `tools.py` — 6 个 MCP 工具（原 L624-1069，`register(mcp)` 注册）
+  - `portal.py` — 12 条 Web 路由（原 L473-621，`register(mcp)` 注册）
+  - `analysis.py` — 结果分析占位（**T-007 analyze_simulation_result 落点**）
+  - `server_safe.py` — 薄壳入口（约 60 行）：装配 + 注册 + main，Dockerfile APP_FILE 不变
+- [x] Dockerfile COPY 行纳入全部新模块
+- [x] 清理：`server_safe.py` 中原死代码 `import base64` 已移除
+
+### 验证（VM 实测，全部通过）
+- 本机 + VM 双端 `py_compile` 通过
+- 镜像重建 + 容器重启成功；日志无 error/traceback
+- `/health` 200；门户 6 路由（/ /portal /dashboard /report /cache /demo）全部 200
+- MCP `tools/list` → 6 个工具齐全；`jwave_environment` 真实调用 OK
+- `run_jwave_code` 端到端执行 OK（exit 0，63ms）；看板 executions API 记录已持久化
+
+### 变更文件
+- 新建：`config.py` `cache_store.py` `execution.py` `llm.py` `tools.py` `portal.py` `analysis.py`
+- 重写：`server_safe.py`（薄壳化）、`Dockerfile`（COPY 行）
+- 文档：`docs/ARCHITECTURE.md`（3.1 节）、`README.md`（工具/语法预检行）、`docs/AGENTS.md`（文件清单 + 模块化约定）
+
+### 当前状态
+- 阶段二 VAL-1 ✅；网关已模块化，T-007 落点 `analysis.py` 就绪
+- 下个任务: T-007（analyze_simulation_result）
+
+---
+
 ## 2026-08-18 · 会话: 阶段二 VAL-1 验证基准集完成（3/3 PASS）
 
 ### 完成

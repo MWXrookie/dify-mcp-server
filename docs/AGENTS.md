@@ -20,14 +20,25 @@
 
 | 文件 | 行数 | 职责 | 修改频率 |
 |------|------|------|----------|
-| `server_safe.py` | 312 | FastMCP 网关，5 个 MCP 工具定义 | 中（新增工具时） |
+| `server_safe.py` | 薄壳 | FastMCP 网关入口：装配配置 + 注册模块 | 低 |
+| `config.py` | ~30 | 环境配置与校验 | 低 |
+| `cache_store.py` | ~200 | 纠错经验缓存 SQLite | 中 |
+| `execution.py` | ~150 | 代码清理/沙箱执行/报告生成 | 中 |
+| `llm.py` | ~100 | DeepSeek 自动纠错 | 低 |
+| `tools.py` | ~330 | MCP 工具集（6 个） | 中（新增工具时） |
+| `portal.py` | ~170 | Web 门户路由 | 中 |
+| `analysis.py` | 占位 | 结果分析（T-007 落点） | 中（T-007 后） |
 | `executor/executor.py` | 123 | Docker 沙箱，单请求代码执行 | 低（稳定） |
 | `compose.yaml` | ~80 | Docker Compose 双容器编排 | 低 |
 | `dashboard.py` | 347 | SQLite 执行历史 + Web 看板 HTML | 低 |
 | `library_tools.py` | 15 | 白名单工具注册 | 低 |
-| `Dockerfile` | ~20 | dify-mcp 镜像 | 低 |
+| `Dockerfile` | ~22 | dify-mcp 镜像（COPY 全部模块） | 低 |
 | `executor/Dockerfile` | ~25 | jwave-executor 镜像 | 低 |
 | `.env` | 7 | 环境变量（Token/Key） | 低 |
+
+> ⚠️ **模块化约定（2026-08-18）**：新功能按职责落位——仿真执行类工具进 `tools.py`，
+> 结果分析进 `analysis.py`，Web 页面进 `portal.py`，缓存进 `cache_store.py`；
+> `server_safe.py` 只做装配，**不要在薄壳里堆业务代码**。
 
 ### 1.4 怎么启动
 

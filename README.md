@@ -46,7 +46,7 @@ docker restart docker-api-1 docker-worker-1  # MCP schema 刷新
 
 ## MCP 工具
 
-网关共注册 **6 个 MCP 工具**（FastMCP 3.4.6，`server_safe.py`）：
+网关共注册 **6 个 MCP 工具**（FastMCP 3.4.6，入口薄壳 `server_safe.py` + 模块 `tools.py`/`portal.py`/`analysis.py`）：
 
 | 工具 | 说明 |
 |------|------|
@@ -88,7 +88,7 @@ curl -X POST http://192.168.30.200:8001/mcp \
 | `retest_p0.py` | P0 重点场景小批量重测 | 费用低 |
 
 - 测试目标：`http://localhost/v1/workflows/run`，需要 `DIFY_API_KEY` 环境变量
-- 语法预检：`python3 -m py_compile server_safe.py dashboard.py executor/executor.py`
+- 语法预检：`python3 -m py_compile server_safe.py tools.py portal.py analysis.py cache_store.py execution.py llm.py config.py dashboard.py executor/executor.py`
 - 现有报告：`docs/test_report_phase1_new.md`（48/50=96%）、`docs/test_report_10.md`（10/10=100%）
 
 ## Dify 工作流配置

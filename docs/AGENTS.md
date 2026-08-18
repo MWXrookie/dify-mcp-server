@@ -138,7 +138,7 @@ Agent 应**按编号顺序**领取任务。每完成一个任务，在 `docs/CHA
 > | T-002 Prompt 强化 | T-002 | ✅ [DONE] |
 > | T-003 参数校验工具 | T-003 | ✅ [DONE] |
 > | —（验证基准集） | VAL-1 | ✅ [DONE]（2026-08-18，3/3 PASS，`docs/VALIDATION_BASELINE.md`） |
-> | T-004 结果分析工具 | T-007 | ⬜ TODO |
+> | T-004 结果分析工具 | T-007 | ✅ [DONE]（2026-08-18，`analysis.py`，VM 端到端验证 verdict/热力图） |
 > | T-005 迭代循环 | T-009 | ⬜ TODO |
 > | T-006 Gradio 前端 | T-010 | ⬜ TODO |
 > | T-007 多轮记忆 | T-011 | ⬜ TODO |

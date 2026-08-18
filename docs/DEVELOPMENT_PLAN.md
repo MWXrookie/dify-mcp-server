@@ -443,7 +443,7 @@ async def chat(message, history):
 ### 4.3 阶段二门禁
 
 - [x] **VAL-1 验证基准集完成：≥3 个用例（解析解/论文）误差 <1%**（2026-08-18：3/3 PASS，用例1 0.0002%、用例2 0.80%、用例3 R/T 0.003%/0.002%，见 `docs/VALIDATION_BASELINE.md`）
-- [ ] T-007 结果分析工具上线，每次仿真出热力图，**verdict 可对标 VAL-1 基准**
+- [x] T-007 结果分析工具上线，每次仿真出热力图，**verdict 可对标 VAL-1 基准**（2026-08-18：`analysis.py` 已实现并 VM 端到端验证 verdict/热力图；工作流内接入随 T-008）
 - [ ] T-008 审查节点能判断 pass/retry/fail
 - [ ] T-009 迭代循环 ≤3 次正确终止
 - [ ] T-010 Gradio 前端可访问，对话+图片正常
@@ -653,10 +653,11 @@ git add -A && git commit -m "合并 Agent A 的修改"
 | 阶段二任务 | 状态 | 完成日期 | 交付物 |
 |------|------|----------|--------|
 | VAL-1 验证基准集 | ✅ 完成 (3/3 PASS) | 2026-08-18 | `executor/validation_baseline.py` + `docs/VALIDATION_BASELINE.md` |
-| T-007 结果分析工具 | ⬜ TODO | - | - |
+| T-007 结果分析工具 | ✅ 完成（工具已上线，工作流接入随 T-008） | 2026-08-18 | `analysis.py`（analyze_simulation_result） |
+| T-008 审查+解释节点 | ⬜ TODO | - | - |
 
 > **阶段一已关闭**（2026-08-17 补打 `phase-1-complete` tag）。剩余质量遗留：P2「2D均质初始压力」成功率 80%（50 次测试中 2 失败），建议在阶段二开发前或并行修复。
-> **阶段二进行中：VAL-1 ✅（2026-08-18）→ 下个任务 T-007（analyze_simulation_result）**
+> **阶段二进行中：VAL-1 ✅、T-007 ✅（2026-08-18）→ 下个任务 T-008（工作流审查+解释节点，需同步发布新版工作流——线上 published 仍为 8 节点旧版）**
 
 ### 图例
 

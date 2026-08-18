@@ -4,6 +4,34 @@
 
 ---
 
+## 2026-08-18 · 会话: 阶段二 VAL-1 验证基准集完成（3/3 PASS）
+
+### 完成
+- [x] **VAL-1 验证基准集**：新建 `executor/validation_baseline.py` + `docs/VALIDATION_BASELINE.md`
+- [x] 三用例全部误差 < 1%（门禁通过，4/4 项，3 项 < 0.01%）：
+  - 用例1 平面波振幅守恒：比值 1.0000016（误差 **0.0002%**）
+  - 用例2 圆柱波远场 1/√r 衰减：0.74990 vs 理论 0.75593（误差 **0.80%**）
+  - 用例3 平界面反射/透射：R=0.538479（**0.003%**）、T_p=1.538432（**0.002%**）
+- [x] 在 executor 容器内实测通过（VM `~/dify-mcp-server/executor/validation_baseline.py` 已同步，可一键重跑，零模型费用）
+
+### 关键实测发现（已写入 VALIDATION_BASELINE.md，供 T-007 直接复用）
+- jwave 2D 求解器对应圆柱波 **1/√r** 衰减（规划文档"1/r"为 3D 球面波，需修正）
+- PML y 向软孔径横向泄漏：Ny=64 时振幅衰减 0.5→0.34，Ny≥256 时守恒到 0.1% 内
+- jwave 自带 `analytic_signal` 有缺陷（清零正频率+去 DC），且 Hilbert 包络有 1/t 尾部；
+  峰值测量改用 **cfl=0.1 细采样 + 窄时间窗 + 原始信号最大值**（4 组对比度扫描验证 R/T <0.2%）
+- `Sources` 的 signals 必须补齐到 Nt 长度；`Sensors` 位置约定有歧义，改用全场索引 `p[n,x,y,0]`
+
+### 变更文件
+- `executor/validation_baseline.py` — 新建（基准脚本，3 用例可一键重跑）
+- `docs/VALIDATION_BASELINE.md` — 新建（场景/理论/实测/误差/收敛性/复用指引）
+- `docs/DEVELOPMENT_PLAN.md`、`docs/AGENTS.md` — VAL-1 状态更新
+
+### 当前状态
+- 阶段一 ✅ 已关闭；**阶段二 VAL-1 ✅ 完成（P0 地基就绪）**
+- 下个任务: 阶段二 T-007（analyze_simulation_result，matplotlib 3.11.1 已就绪）
+
+---
+
 ## 2026-08-17 · 会话: 阶段一收尾 + 开发规划校准（文档类低风险变更）
 
 ### 完成

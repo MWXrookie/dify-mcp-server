@@ -38,7 +38,8 @@ services:
       CODE_RETRY_MAX: ${CODE_RETRY_MAX:-7}
       DIFY_API_KEY: ${DIFY_API_KEY:-}
     ports:
-      - "192.168.30.200:8001:8001"
+      # 绑定 IP 可配：DIFY_MCP_BIND_IP 环境变量，默认内网 192.168.30.200
+      - "${DIFY_MCP_BIND_IP:-192.168.30.200}:8001:8001"
     networks:
       - dify_default
       - executor_internal

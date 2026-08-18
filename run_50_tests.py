@@ -7,7 +7,7 @@ import urllib.request, urllib.error
 API = "http://localhost/v1/workflows/run"
 import os
 TOKEN = os.environ.get("DIFY_API_KEY", "")
-OUTPUT = "/home/wenxuan/dify-mcp-server/docs/test_report_phase1.md"
+OUTPUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "docs", "test_report_phase1.md")
 
 # ============================================================
 # 5 类场景，每类 10 个自然语言 prompt
@@ -87,7 +87,7 @@ def run_one(idx: int, category: str, prompt: str):
         body = json.dumps({
             "inputs": {"query": prompt},
             "response_mode": "blocking",
-            "user": "wenxuan"
+            "user": "t006-regression",
         }).encode()
         req = urllib.request.Request(API, data=body, headers={
             "Authorization": f"Bearer {TOKEN}",
@@ -191,7 +191,7 @@ def main():
     generate_report(results, success, failed, rate)
 
     # Save raw JSON
-    json_path = "/home/wenxuan/dify-mcp-server/docs/test_results_raw.json"
+    json_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "docs", "test_results_raw.json")
     with open(json_path, "w") as f:
         json.dump(results, f, indent=2, ensure_ascii=False, default=str)
     print(f"\n原始数据已保存: {json_path}")

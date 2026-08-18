@@ -4,11 +4,13 @@
 结果写入 test_multiturn_result.json（UTF-8）。
 """
 import json
+import os
 import sys
 import time
 import urllib.request
 
-BASE = "http://192.168.30.200:8001"
+# 网关地址可配：默认本机；远程跑设 GW_BASE_URL=http://<网关IP>:8001
+BASE = os.environ.get("GW_BASE_URL", "http://localhost:8001")
 
 # (本轮输入, 是否预期触发合并)
 TURNS = [

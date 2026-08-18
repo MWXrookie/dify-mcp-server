@@ -579,7 +579,7 @@ idle → planning → clarifying（需求模糊时）→ awaiting_params
 
 | 项 | 值 |
 |----|-----|
-| 代码仓库 | `/home/wenxuan/dify-mcp-server/` |
+| 代码仓库 | `<项目目录>/`（部署环境自定） |
 | Dify App ID | `0592503e-2eba-458f-bf19-128229441427` |
 | 知识库 ID | `bc9aeb94-de93-4210-8e7d-5b932a731252` |
 | MCP 地址 | `192.168.30.200:8001` |

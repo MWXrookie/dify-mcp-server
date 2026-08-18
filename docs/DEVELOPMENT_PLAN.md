@@ -553,7 +553,7 @@ T-017 [P2] 文档 + 开源准备 ────── T-016 ───────�
 
 ```bash
 # 1. 先合第一个
-cp worktree-1/server_safe.py /home/wenxuan/dify-mcp-server/
+cp worktree-1/server_safe.py <项目目录>/
 git add -A && git commit -m "合并 Agent A 的修改"
 
 # 2. 手动合第二个（不能用 cp，会覆盖）

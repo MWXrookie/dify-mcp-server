@@ -15,7 +15,7 @@
 ### 1.2 项目路径
 
 ```
-/home/wenxuan/dify-mcp-server/
+<项目目录>/        （按部署环境，例如 VM: ~/dify-mcp-server）
 ```
 
 ### 1.3 关键文件清单
@@ -45,7 +45,7 @@
 ### 1.4 怎么启动
 
 ```bash
-cd /home/wenxuan/dify-mcp-server
+cd <项目目录>
 docker compose up -d
 ```
 
@@ -120,7 +120,7 @@ Dify App ID:  0592503e-2eba-458f-bf19-128229441427
 Dataset ID:   bc9aeb94-de93-4210-8e7d-5b932a731252
 Document ID:  1280a56c-2da8-44e0-ba18-01e5d2b21197
 Upload File:  c6d0dd10-b1d8-4252-84af-6ff0799003b2
-MCP Bearer:   ***MCP_TOKEN_REMOVED***
+MCP Bearer:   见 VM `~/dify-mcp-server/.env` 的 `MCP_AUTH_TOKEN`（2026-08-18 轮换，仓库不再存放明文 token）
 DB:           docker exec docker-db_postgres-1 psql -U postgres -d dify
 ```
 
@@ -320,9 +320,7 @@ gr.ChatInterface(
 
 ---
 
-### T-007: 多轮对话上下文记忆 [DONE]
-
-> 2026-08-17 已完成，实现方式改为「网页端自管状态 + DeepSeek 合并」（详见 `docs/CHANGELOG.md`），未采用下方原方案的 Dify conversation 变量。
+### T-007: 多轮对话上下文记忆
 
 | 字段 | 值 |
 |------|------|
@@ -435,7 +433,7 @@ tests/
 | PRD (人类版) | `docs/PRD.md` |
 | 技术方案与架构 | `docs/ARCHITECTURE.md` |
 | 变更日志 | `docs/CHANGELOG.md` |
-| 项目记忆 | `~/.claude/projects/-home-wenxuan/memory/` |
+| 项目记忆 | `~/.claude/projects/<项目路径>/memory/`（Owner 本地，新成员按自己的路径） |
 | Dify 知识库编辑流程 | 记忆: [[kb-edit-process]] |
 | jwave API 正确用法 | 记忆: [[jwave-api-gotchas]] |
 | 测试结果 (34 次) | 记忆: [[test-results-2025-08-07]] |

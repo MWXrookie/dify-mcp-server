@@ -2,6 +2,9 @@
 
 声学仿真 MCP 服务平台。Dify 工作流 → MCP 网关 → 沙箱执行器 → Markdown 报告。
 
+> ℹ️ 文档中的 IP/路径均为**部署环境示例**（默认内网 `192.168.30.200`），按你的环境替换；
+> 测试脚本的网关地址可用环境变量 `GW_BASE_URL` 覆盖。
+
 ## 部署架构
 
 ```
@@ -16,7 +19,7 @@ dify-mcp :8001 (FastMCP 网关 + Web 门户)
 ## 快速命令
 
 ```bash
-cd /home/wenxuan/dify-mcp-server
+cd <项目目录>                             # 按你的部署路径
 docker compose up -d --build          # 构建并启动
 docker compose ps                      # 查看状态
 docker restart docker-api-1 docker-worker-1  # MCP schema 刷新
@@ -27,7 +30,6 @@ docker restart docker-api-1 docker-worker-1  # MCP schema 刷新
 | 路由 | 页面 | 功能 |
 |------|------|------|
 | `/` `/portal` | 门户首页 | 导航卡片 + **声学仿真问答**（自然语言输入→Markdown 报告） |
-| `/chat` | 多轮对话 | 全屏多轮对话：连续增量修改参数，自动合并需求并重新仿真 |
 | `/dashboard` | 执行看板 | 实时执行记录、代码展开、图像预览、清空历史 |
 | `/report` | 测试报告 | T-006 成功率、场景分类、失败分析、时间线 |
 | `/cache` | 纠错缓存 | 经验条目、命中率、置信度分布、高频经验 |
@@ -39,7 +41,6 @@ docker restart docker-api-1 docker-worker-1  # MCP schema 刷新
 | 端点 | 方法 | 说明 |
 |------|------|------|
 | `/ask` | POST | 门户问答代理 → Dify 工作流（返回 Markdown 报告） |
-| `/chat` | POST | 多轮对话代理：合并历史需求 → Dify 工作流（返回报告 + 完整需求） |
 | `/dashboard/api/executions` | GET | 执行历史（分页） |
 | `/dashboard/api/executions` | DELETE | 清空执行历史 |
 | `/dashboard/api/test_report` | GET | 最新测试报告 JSON |
@@ -156,7 +157,7 @@ DIFY_API_KEY=app-...               # Dify App API Key（门户 /ask 代理用）
 ## 备份
 
 ```bash
-ls /home/wenxuan/dify-mcp-server/.claude/backups/
+# 备份目录在 Owner 本地/VM（.claude 为本地工具目录，不入仓库）
 ```
 
 ## 关键技术细节

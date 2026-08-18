@@ -22,7 +22,7 @@ PROMPTS = [
 def run_one(idx, prompt):
     start = time.time()
     try:
-        body = json.dumps({"inputs": {"query": prompt}, "response_mode": "blocking", "user": "wenxuan"}).encode()
+        body = json.dumps({"inputs": {"query": prompt}, "response_mode": "blocking", "user": "p0-retest"}).encode()
         req = urllib.request.Request(API, data=body, headers={
             "Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json"
         })

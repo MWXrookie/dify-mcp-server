@@ -616,7 +616,7 @@ CREATE TABLE executions (
 ### 7.1 当前部署
 
 ```bash
-cd /home/wenxuan/dify-mcp-server
+cd <项目目录>
 docker compose up -d
 
 # 验证:

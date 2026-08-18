@@ -14,9 +14,10 @@ from pathlib import Path
 API = "http://localhost/v1/workflows/run"
 import os
 TOKEN = os.environ.get("DIFY_API_KEY", "")
-CACHE_API = "http://192.168.30.200:8001/dashboard/api/cache_stats"
-OUTPUT = Path("/home/wenxuan/dify-mcp-server/docs/test_report_phase1_new.md")
-RAW_OUTPUT = Path("/home/wenxuan/dify-mcp-server/docs/test_results_raw_new.json")
+GW_BASE = os.environ.get("GW_BASE_URL", "http://localhost:8001")  # 网关地址可配
+CACHE_API = f"{GW_BASE}/dashboard/api/cache_stats"
+OUTPUT = Path(__file__).resolve().parent / "docs" / "test_report_phase1_new.md"
+RAW_OUTPUT = Path(__file__).resolve().parent / "docs" / "test_results_raw_new.json"
 
 PROMPTS = {
     "2D均质点源": [
@@ -103,7 +104,7 @@ def run_one(idx: int, category: str, prompt: str) -> dict:
     body = json.dumps({
         "inputs": {"query": prompt},
         "response_mode": "blocking",
-        "user": "wenxuan-t006-new",
+        "user": "t006-new",
     }).encode()
     req = urllib.request.Request(API, data=body, headers=HEADERS)
     try:

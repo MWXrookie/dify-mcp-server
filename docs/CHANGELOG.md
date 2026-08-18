@@ -4,6 +4,43 @@
 
 ---
 
+## 2026-08-18 · 会话: T-008 工作流改造完成并发布（审查+解释节点上线）
+
+### 完成
+- [x] **T-008 结果审查 + 解释节点**（Dify 工作流 9 → 13 节点，改造脚本 `_build_graph.py` 可复现）：
+  - 代码生成 prompt 注入**场数据输出模板**（LLM 生成的代码自动输出 `__ACOU_FIELD_START__/END__` 压力场 JSON）
+  - 新增节点链：MCP retry → **解包代码节点**（拆 stdout/stderr/exit_code）→ **analyze_simulation_result 工具节点** → **结果审查 LLM 节点**（pass/retry/fail）→ **结果解释 LLM 节点**（≥3 句物理解读）→ 代码执行（合并 report+审查+解读）→ end
+- [x] **发布新版工作流**：解决历史遗留——线上 published 一直跑旧版（app.workflow_id 指向 3d05c047，8 节点旧版）；本次将新 graph 写入 app 实际引用的行 + draft + published 三处一致
+- [x] 更新 **tool_mcp_providers.tools 缓存**：新增 analyze_simulation_result 工具定义（否则 Dify 报 Tool not found）
+
+### 验证（VM 真实端到端）
+- `/v1/workflows/run` 真实仿真（200kHz 水中传播，96×96）→ status=succeeded，输出含：
+  仿真结果报告 ✓ 场数据标记 ✓ **物理解读 ✓**（含数值/物理直觉/几何衰减判断，verdict 正确判 normal）
+- 审查 verdict=pass 时不输出警告（符合设计）；`<think>` 推理块已剥离
+
+### 踩坑记录（供后续）
+1. **Dify 发布机制**：运行用的是 `apps.workflow_id` 指向的版本行（version=时间戳），不是 version='published' 的行——改工作流必须写 app 指向的行
+2. **Dify MCP 工具节点只暴露 `json` 输出变量**（整个返回），取子字段需插入代码节点拆包
+3. **代码节点 outputs 声明必须覆盖返回键**（返回 3 键但声明只有 result → 节点失败）
+4. **exit_code 不能用 `or 1`**（0 是 falsy，会把成功变失败）→ 用 None 检查
+5. **MCP 工具新增后要同步 tool_mcp_providers.tools 缓存**（DB 字段，工具定义实时从网关拉但缓存校验）
+
+### 遗留（T-009 处理）
+- 审查 retry/fail 尚未接回参数提取（迭代循环 ≤3 次，属 T-009）
+- 校验节点（validate_simulation_params）从未进入任何工作流版本（README 描述与实际不符，建议 T-009 补）
+- 审查节点输出建议收紧为严格 JSON（当前 pass/retry/fail 文本）
+
+### 变更文件
+- `_build_graph.py` — 工作流改造构造脚本（可复现，保留进仓库）
+- `docs/dify_workflow_backup/` — 改造前后 graph 备份（draft/published/live）
+- 文档：`docs/AGENTS.md`、`docs/DEVELOPMENT_PLAN.md`、`docs/ARCHITECTURE.md`
+
+### 当前状态
+- 阶段二：VAL-1 ✅、T-007 ✅、**T-008 ✅（已发布上线）**
+- 下个任务: T-009（迭代循环：审查 retry 回参数提取 ≤3 次）
+
+---
+
 ## 2026-08-18 · 会话: T-007 analyze_simulation_result 完成（含 VM 端到端验证）
 
 ### 完成

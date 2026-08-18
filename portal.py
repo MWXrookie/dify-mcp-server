@@ -13,6 +13,7 @@ from starlette.responses import HTMLResponse, PlainTextResponse
 import cache_store
 import config
 from dashboard import (
+    CHAT_HTML,
     DEMO_HTML,
     PORTAL_HTML,
     clear_executions,
@@ -25,6 +26,56 @@ from dashboard import (
 def _serve_html(filename: str) -> HTMLResponse:
     html = (_Path(__file__).parent / "docs" / filename).read_text(encoding="utf-8")
     return HTMLResponse(html)
+
+
+def _extract_report(output) -> str:
+    """从 Dify 工作流 outputs.text 中提取 Markdown 报告字符串。"""
+    if isinstance(output, str):
+        return output
+    if isinstance(output, list) and output:
+        first = output[0]
+        if isinstance(first, str):
+            return first
+        if isinstance(first, dict):
+            return first.get("result", "") or first.get("report", "") or json.dumps(first, ensure_ascii=False)
+    if isinstance(output, dict):
+        return output.get("result", "") or output.get("report", "") or json.dumps(output, ensure_ascii=False)
+    return ""
+
+
+async def _merge_requirement(requirement: str, message: str) -> str:
+    """用 DeepSeek 把「历史需求 + 本轮增量修改」合并成完整需求。"""
+    if not config.DEEPSEEK_API_KEY:
+        return f"{requirement}；{message}"
+    prompt = (
+        "你是声学仿真需求整理助手。请根据「当前完整需求」和「用户新修改」，输出更新后的完整需求。\n"
+        "要求：输出一段完整的中文需求描述，包含所有当前有效的仿真参数"
+        "（如声源频率、网格大小、仿真区域、声速、介质/异质结构、传感器位置、仿真时长等）；"
+        "用户的新修改要覆盖旧值；只输出需求本身，不要任何解释或前缀。\n\n"
+        f"当前完整需求：\n{requirement}\n\n"
+        f"用户新修改：\n{message}\n\n"
+        "更新后的完整需求："
+    )
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.post(
+                "https://api.deepseek.com/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {config.DEEPSEEK_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": config.DEEPSEEK_MODEL,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.1,
+                    "max_tokens": 1200,
+                },
+            )
+        resp.raise_for_status()
+        merged = resp.json()["choices"][0]["message"]["content"].strip()
+        return merged or f"{requirement}；{message}"
+    except Exception:
+        return f"{requirement}；{message}"
 
 
 def register(mcp) -> None:
@@ -85,6 +136,67 @@ def register(mcp) -> None:
             media_type="application/json",
         )
 
+    @mcp.custom_route("/chat", methods=["POST"])
+    async def chat_api(request: Request) -> PlainTextResponse:
+        """多轮对话：合并历史需求 → 调用 Dify 工作流执行仿真。"""
+        body = await request.json()
+        message = (body.get("message") or "").strip()
+        requirement = (body.get("requirement") or "").strip()
+        if not message:
+            return PlainTextResponse(
+                json.dumps({"error": "message is required"}, ensure_ascii=False),
+                status_code=400, media_type="application/json",
+            )
+
+        if requirement:
+            full_requirement = await _merge_requirement(requirement, message)
+            merge_used = True
+        else:
+            full_requirement = message
+            merge_used = False
+
+        dify_url = "http://nginx/v1/workflows/run"
+        try:
+            async with httpx.AsyncClient(timeout=180) as client:
+                resp = await client.post(
+                    dify_url,
+                    headers={
+                        "Authorization": f"Bearer {config.DIFY_API_KEY}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "inputs": {"query": full_requirement},
+                        "response_mode": "blocking",
+                        "user": "portal",
+                    },
+                )
+            data = resp.json()
+        except Exception as exc:
+            return PlainTextResponse(
+                json.dumps({
+                    "report": f"_(调用 Dify 工作流失败：{exc})_",
+                    "requirement": full_requirement,
+                    "merge_used": merge_used,
+                    "workflow_status": "error",
+                }, ensure_ascii=False),
+                media_type="application/json",
+            )
+
+        wf = data.get("data", {})
+        report = _extract_report(wf.get("outputs", {}).get("text"))
+        if not report or not report.strip():
+            report = f"_(工作流返回空结果, status={wf.get('status')}, error={wf.get('error')})_"
+
+        return PlainTextResponse(
+            json.dumps({
+                "report": report,
+                "requirement": full_requirement,
+                "merge_used": merge_used,
+                "workflow_status": wf.get("status"),
+            }, ensure_ascii=False),
+            media_type="application/json",
+        )
+
     @mcp.custom_route("/", methods=["GET"])
     async def portal(_: Request) -> PlainTextResponse:
         return HTMLResponse(PORTAL_HTML)
@@ -92,6 +204,10 @@ def register(mcp) -> None:
     @mcp.custom_route("/portal", methods=["GET"])
     async def portal_page(_: Request) -> PlainTextResponse:
         return HTMLResponse(PORTAL_HTML)
+
+    @mcp.custom_route("/chat", methods=["GET"])
+    async def chat_page(_: Request) -> PlainTextResponse:
+        return HTMLResponse(CHAT_HTML)
 
     @mcp.custom_route("/dashboard", methods=["GET"])
     async def dashboard(_: Request) -> PlainTextResponse:

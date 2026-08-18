@@ -7,6 +7,7 @@ import os
 import resource
 import signal
 import subprocess
+import sys
 import tempfile
 import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -56,7 +57,7 @@ def execute(payload: dict) -> dict:
         timed_out = False
         with stdout_path.open("wb") as stdout, stderr_path.open("wb") as stderr:
             process = subprocess.Popen(
-                ["/opt/jwave/bin/python", "-I", str(script)],
+                [sys.executable, "-I", str(script)],
                 cwd=workdir,
                 env=env,
                 stdin=subprocess.DEVNULL,
@@ -91,7 +92,7 @@ def execute(payload: dict) -> dict:
         "duration_ms": round((time.monotonic() - started) * 1000, 1),
         "stdout": stdout_text,
         "stderr": stderr_text,
-        "python": "/opt/jwave/bin/python",
+        "python": sys.executable,
         "image_base64": image_base64,
     }
 

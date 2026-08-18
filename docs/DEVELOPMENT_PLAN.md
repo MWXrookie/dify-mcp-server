@@ -445,7 +445,7 @@ async def chat(message, history):
 - [x] **VAL-1 验证基准集完成：≥3 个用例（解析解/论文）误差 <1%**（2026-08-18：3/3 PASS，用例1 0.0002%、用例2 0.80%、用例3 R/T 0.003%/0.002%，见 `docs/VALIDATION_BASELINE.md`）
 - [x] T-007 结果分析工具上线，每次仿真出热力图，**verdict 可对标 VAL-1 基准**（2026-08-18：`analysis.py` 已实现并 VM 端到端验证 verdict/热力图；工作流内接入随 T-008）
 - [x] T-008 审查节点能判断 pass/retry/fail（2026-08-18：工作流 13 节点已发布，审查+解释节点上线，真实运行输出含物理解读；retry 循环属 T-009）
-- [ ] T-009 迭代循环 ≤3 次正确终止
+- [x] T-009 迭代循环 ≤3 次正确终止（2026-08-18：if-else 分支 + 预展开 2 次尝试；异常结果（max_pressure≈0）自动触发重试链并正确终止；注：Dify 3.x 不支持工作流回边（实测执行被破坏），采用静态预展开实现）
 - [ ] T-010 Gradio 前端可访问，对话+图片正常
 - [ ] T-011 增量修改参数上下文正确率 ≥ 85%
 - [ ] T-012 20 次多轮测试通过
@@ -655,10 +655,11 @@ git add -A && git commit -m "合并 Agent A 的修改"
 | VAL-1 验证基准集 | ✅ 完成 (3/3 PASS) | 2026-08-18 | `executor/validation_baseline.py` + `docs/VALIDATION_BASELINE.md` |
 | T-007 结果分析工具 | ✅ 完成（工具已上线，工作流接入随 T-008） | 2026-08-18 | `analysis.py`（analyze_simulation_result） |
 | T-008 审查+解释节点 | ✅ 完成（工作流 13 节点已发布上线） | 2026-08-18 | `_build_graph.py` + 工作流 graph（备份在 `docs/dify_workflow_backup/`） |
-| T-009 迭代循环 | ⬜ TODO | - | - |
+| T-009 迭代循环 | ✅ 完成（if-else 分支 + 预展开重试，21 节点） | 2026-08-18 | `_build_t009.py` + 工作流 graph |
+| 多轮对话（组员） | ✅ 完成（/chat + 需求合并，实测 93%） | 2026-08-18 | `portal.py` / `test_multiturn_stability.py` |
 
 > **阶段一已关闭**（2026-08-17 补打 `phase-1-complete` tag）。剩余质量遗留：P2「2D均质初始压力」成功率 80%（50 次测试中 2 失败），建议在阶段二开发前或并行修复。
-> **阶段二进行中：VAL-1 ✅、T-007 ✅、T-008 ✅（2026-08-18）→ 下个任务 T-009（迭代循环，审查 retry 回参数提取 ≤3 次）**
+> **阶段二门禁全部达成（2026-08-18）：VAL-1 ✅、T-007 ✅、T-008 ✅、T-009 ✅、多轮对话 ✅ → 待 Owner 确认后打 `phase-2-complete` tag**
 
 ### 图例
 

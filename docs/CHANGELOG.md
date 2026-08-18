@@ -4,6 +4,36 @@
 
 ---
 
+## 2026-08-18 · 会话: T-009 迭代循环完成 + 修复 executor 硬编码 python 路径
+
+### T-009 迭代循环（Dify 工作流 13 → 21 节点，预展开方案）
+- 从 Dify 3.x 源码（graphon 包）确认 if-else 新版 schema：`cases[].case_id` + `"false"` ELSE 分支（非网传老结构）
+- **回边实验否决**：审查→参数提取回边虽被 graph 校验接受，但执行被破坏（后续节点全不执行、run 误报 succeeded）→ 采用**静态预展开**（2 次尝试：首次 + 1 次参数级重试，天然保证终止）
+- 新增：if-else 分支 + 参数提取2（prompt 注入审查建议）+ 代码生成2 + MCP retry2 + 解包2 + analyze2 + 合并2 + end2
+- 审查节点 prompt 增强：max_pressure 极小（<0.001 Pa）即使 verdict=normal 也应 retry
+
+### 验证（真实端到端）
+- ✅ 正常场景（96×96）：if-else 选 `pass` 分支，完整报告 + 物理解读
+- ✅ 异常场景（10MHz @ dx 0.5mm 欠采样，max_pressure≈0.0001）：审查判 retry → if-else 选 `false` → **重试链 5 节点全部执行** → 输出"已自动重试一次" → 2 次尝试后正确终止
+
+### 重要修复：executor.py 硬编码 python 路径（环境切换遗留 bug）
+- 症状：executor 对所有请求 400，`No such file or directory: '/opt/jwave/bin/python'`
+- 根因：纯 pip 环境 python 在 `/usr/local/bin/python`，executor.py 仍硬编码旧 conda 路径 `/opt/jwave/bin/python`（7fb0251 环境切换时漏改）
+- 修复：改用 `sys.executable`（环境无关，conda/pip 均兼容）；**此 bug 曾导致所有工作流仿真静默失败**
+- 验证：executor 直接执行 200 + python 路径正确
+
+### 变更文件
+- `executor/executor.py`（python 路径修复）
+- `_build_t009.py`（T-009 工作流构造脚本，可复现）
+- `docs/dify_workflow_backup/live_t009_before_review_enhance_*.json`（改造前备份）
+- 文档：`docs/AGENTS.md`、`docs/DEVELOPMENT_PLAN.md`
+
+### 当前状态
+- 阶段二：VAL-1 ✅ T-007 ✅ T-008 ✅ **T-009 ✅（迭代循环，2 次尝试正确终止）**；多轮对话 ✅（组员，93%）
+- 阶段二门禁全部达成 → 待 Owner 确认后打 `phase-2-complete` tag
+
+---
+
 ## 2026-08-18 · 会话: git 历史重写——彻底清除泄露内容（⚠️ 所有 commit hash 已变更）
 
 ### 背景

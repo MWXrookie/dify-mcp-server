@@ -592,6 +592,9 @@ function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").re
 // Simple markdown-to-HTML renderer
 function renderMarkdown(md) {
   var html = md;
+  // Images (data URI / URL) —— 必须最先处理，避免 base64 内容被后续语法替换破坏
+  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g,
+    '<img src="$2" alt="$1" style="max-width:100%;border-radius:8px;margin:8px 0;box-shadow:0 2px 8px rgba(0,0,0,.2)" onerror="this.outerHTML=\'<i style=color:#888>[图片加载失败]</i>\'">');
   // Headers
   html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
   html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
@@ -1083,6 +1086,9 @@ function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").re
 
 function renderMarkdown(md) {
   var html = md;
+  // Images (data URI / URL) —— 必须最先处理，避免 base64 内容被后续语法替换破坏
+  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g,
+    '<img src="$2" alt="$1" style="max-width:100%;border-radius:8px;margin:8px 0;box-shadow:0 2px 8px rgba(0,0,0,.2)" onerror="this.outerHTML=\'<i style=color:#888>[图片加载失败]</i>\'">');
   html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
   html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');

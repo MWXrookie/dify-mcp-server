@@ -149,6 +149,14 @@ def _build_report(result: dict[str, Any], original_code: str) -> str:
     total_attempts = result.get("total_attempts", 1)
     image_base64 = result.get("image_base64")
 
+    # 剔除场数据 JSON 块（__ACOU_FIELD_START__/END__ 仅供 analyze 分析，不展示给用户）
+    stdout = re.sub(
+        re.escape("__ACOU_FIELD_START__") + r".*?" + re.escape("__ACOU_FIELD_END__"),
+        "[场数据已用于物理分析，此处省略]",
+        stdout,
+        flags=re.DOTALL,
+    )
+
     # Status
     if timed_out:
         status = "⏱ **超时** — 计算量超过资源限制"

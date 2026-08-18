@@ -4,6 +4,37 @@
 
 ---
 
+## 2026-08-18 · 会话: executor 环境切换（纯 pip 方案，验证后采纳）
+
+### 背景
+- 组员 07fcdc2 将 executor 改为 Miniconda 从零构建（jax 0.4.35）；用户担心影响，走"验证后采纳"路径
+- 实测发现**纯 pip 方案可行且更优**（组员"PyPI 不匹配"说法未复现），无需 Miniconda
+
+### 验证过程（全程不碰运行中的旧容器）
+1. 临时容器实测纯 pip：jax[cpu]==0.4.35 + numpy 1.26.4 + scipy + matplotlib + jwave 0.2.1（--no-deps）+ jaxdf/equinox/jaxtyping/plum 等 → 装通、import 正常
+   - 修正：jaxdf 等**不能 --no-deps**（会缺 typing_extensions 等传递依赖），仅 jwave 用 --no-deps
+2. 构建验证镜像 `local/dify-mcp:jwave-pip-verify`：**30s**、1.65GB（旧 tarball 镜像 4.22GB）
+3. **VAL-1 基准在新镜像 3/3 PASS，误差与旧环境逐项一致**（用例1 0.0002% / 用例2 0.80% / 用例3 0.003%+0.002%）→ 物理等价
+
+### 决策与执行
+- `executor/Dockerfile` 正式切换为纯 pip 版（v1 tarball → v2 miniconda → **v3 纯 pip**，沿革写入 Dockerfile 注释）
+- `docker compose up -d --build jwave-executor` 切换运行容器
+- 验证：容器健康（jax 0.4.38 / numpy 1.26.4 / jwave import OK）；真实工作流 succeeded 含物理解读
+- 旧环境可回滚：git 旧 Dockerfile + VM `executor/jwave-env.tar.gz` 仍在
+
+### 收益
+- 构建 10-30min（miniconda）→ **30s**；镜像 4.22GB → **1.65GB**；版本透明可复现；物理结果不变
+- 顺带修掉旧环境潜在隐患（jax 0.4.30 + numpy 2.5.1 属未适配组合 → 现为官方匹配的 jax 0.4.35 + numpy 1.26）
+
+### 变更文件
+- `executor/Dockerfile`（纯 pip 版，含 v1/v2/v3 沿革注释）
+
+### 当前状态
+- 阶段二：VAL-1 ✅ T-007 ✅ T-008 ✅ 多轮对话 ✅（93%）；**executor 环境 ✅ 已切纯 pip**
+- 待办：T-009（迭代循环）；embedding API 抖动需关注（今日已 4 次，知识检索节点随缘失败，建议排查 tongyi key/网络）
+
+---
+
 ## 2026-08-18 · 会话: 消化组员多轮对话提交（07fcdc2）+ 修复场数据超限
 
 ### 组员提交内容（已消化上线）

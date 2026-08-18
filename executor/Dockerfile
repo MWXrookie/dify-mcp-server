@@ -1,48 +1,46 @@
-FROM ubuntu:24.04
+# jwave-executor 镜像 · 纯 pip 构建（2026-08-18 采纳）
+#
+# 历史沿革：
+# - v1（旧）：268MB 私有打包文件 jwave-env.tar.gz 解压（不可复现，文件不在 git）
+# - v2（组员 07fcdc2）：Miniconda 从零构建（版本透明，但镜像大、构建 10-30min）
+# - v3（本版，2026-08-18 验证后采纳）：python:3.11-slim + 纯 pip
+#   实测：构建 30s、镜像 1.65GB、VAL-1 基准 3/3 PASS 且误差与旧环境逐项一致（物理等价）
+#   版本：jax 0.4.35(cpu) / numpy 1.26.4 / scipy 1.14.1 / matplotlib 3.9.4 / jwave 0.2.1
+FROM python:3.11-slim
 
-ENV DEBIAN_FRONTEND=noninteractive \
-    PYTHONDONTWRITEBYTECODE=1 \
+ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
     HOME=/tmp \
     MPLCONFIGDIR=/tmp/mpl \
-    LD_LIBRARY_PATH=/opt/jwave/lib \
-    PATH=/opt/jwave/bin:/usr/bin:/bin:/usr/sbin:/sbin
+    LD_LIBRARY_PATH=/usr/local/lib \
+    JAX_PLATFORMS=cpu \
+    XLA_PYTHON_CLIENT_PREALLOCATE=false
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        ca-certificates \
-        libgomp1 \
-        wget \
-        libstdc++6 \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get install -y --no-install-recommends ca-certificates libgomp1 \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --create-home --uid 10001 appuser
 
-RUN wget -q https://repo.anaconda.com/miniconda/Miniconda3-py311_24.9.2-0-Linux-x86_64.sh -O /tmp/miniconda.sh \
-    && bash /tmp/miniconda.sh -b -p /opt/jwave \
-    && rm /tmp/miniconda.sh
+# 核心科学栈（pip，预编译 wheel）
+RUN pip install --no-cache-dir --timeout 120 --retries 10 \
+        "jax[cpu]==0.4.35" \
+        numpy==1.26.4 \
+        scipy==1.14.1 \
+        matplotlib==3.9.4
 
-# JAX via conda-forge (has matching jax+jaxlib, unlike PyPI)
-RUN /opt/jwave/bin/conda install -y -c conda-forge \
-        jax=0.4.35 \
-        numpy=1.26 \
-        scipy=1.14 \
-        matplotlib=3.9 \
-    && /opt/jwave/bin/conda clean -afy
+# jwave 0.2.1 及其运行时依赖（jwave 用 --no-deps 避免干扰 jax 解析）
+RUN pip install --no-cache-dir \
+        jaxdf==0.2.8 \
+        equinox==0.11.11 \
+        jaxtyping==0.2.37 \
+        plum-dispatch==2.9.0 \
+        beartype \
+        wadler-lindig \
+        rich \
+    && pip install --no-cache-dir --no-deps jwave==0.2.1
 
-# jwave via pip --no-deps (JAX already provided by conda above)
-RUN /opt/jwave/bin/pip install --no-cache-dir --no-deps jwave==0.2.1
-
-# Remaining pure-Python deps
-RUN /opt/jwave/bin/pip install --no-cache-dir \
-    jaxdf==0.2.8 \
-    equinox==0.11.11 \
-    jaxtyping==0.2.37 \
-    plum-dispatch==2.9.0 \
-    beartype \
-    wadler-lindig \
-    rich
-
-RUN useradd --create-home --uid 10001 appuser
 WORKDIR /app
 COPY executor.py /app/executor.py
 USER 10001:10001
-CMD ["/opt/jwave/bin/python", "/app/executor.py"]
+CMD ["python", "/app/executor.py"]

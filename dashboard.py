@@ -412,9 +412,6 @@ def load_test_results() -> dict:
 
 
 
-DASHBOARD_HTML = ""  # served from docs/dashboard.html
-
-
 
 PORTAL_HTML = r"""<!DOCTYPE html>
 <html lang="zh-CN">

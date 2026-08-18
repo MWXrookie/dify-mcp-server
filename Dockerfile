@@ -13,7 +13,7 @@ COPY requirements.lock.txt /app/requirements.lock.txt
 RUN pip install --no-cache-dir --timeout 120 --retries 10 \
     -r /app/requirements.lock.txt
 
-COPY config.py cache_store.py execution.py llm.py tools.py portal.py analysis.py library_tools.py server_safe.py dashboard.py /app/
+COPY config.py cache_store.py execution.py llm.py tools.py portal.py analysis.py server_safe.py dashboard.py /app/
 COPY docs/test_results_raw*.json /app/docs/
 USER 10001:10001
 

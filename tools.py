@@ -16,7 +16,6 @@ import cache_store
 import execution
 import llm
 from dashboard import record_execution
-from library_tools import ALLOWED_TOOLS
 
 
 def register(mcp) -> None:
@@ -24,29 +23,16 @@ def register(mcp) -> None:
 
     @mcp.tool
     def list_installed_libraries() -> dict[str, Any]:
-        """Report the fixed adapters available in this gateway image."""
+        """Report the packaged environment available in this gateway image."""
         modules = [item.strip() for item in config.MCP_EXTRA_MODULES.split(",") if item.strip()]
         return {
             "fastmcp": "3.4.6",
             "modules": {module: bool(importlib.util.find_spec(module)) for module in modules},
-            "allowlisted_tools": sorted(ALLOWED_TOOLS),
             "code_tool": "run_jwave_code",
             "auto_fix_tool": "run_jwave_code_with_retry",
+            "analysis_tool": "analyze_simulation_result",
             "deepseek_model": config.DEEPSEEK_MODEL if config.DEEPSEEK_API_KEY else None,
         }
-
-    @mcp.tool
-    def run_allowlisted_tool(tool_name: str, arguments_json: str = "{}") -> Any:
-        """Run one named adapter from the server's explicit allowlist."""
-        if tool_name not in ALLOWED_TOOLS:
-            raise ValueError(f"tool_name is not allowlisted: {tool_name}")
-        try:
-            arguments = json.loads(arguments_json)
-        except json.JSONDecodeError as exc:
-            raise ValueError("arguments_json must be valid JSON") from exc
-        if not isinstance(arguments, dict):
-            raise ValueError("arguments_json must encode a JSON object")
-        return ALLOWED_TOOLS[tool_name](**arguments)
 
     @mcp.tool
     def jwave_environment() -> dict[str, Any]:

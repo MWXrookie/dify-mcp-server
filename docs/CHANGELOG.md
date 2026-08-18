@@ -4,6 +4,47 @@
 
 ---
 
+## 2026-08-18 · 会话: T-007 analyze_simulation_result 完成（含 VM 端到端验证）
+
+### 完成
+- [x] **T-007 结果分析工具**：`analysis.py` 实现 `analyze_simulation_result`（模块化落点）
+  - 解析 stdout 场数据 JSON（`__ACOU_FIELD_START__/__ACOU_FIELD_END__` 标记）
+  - 物理量摘要：max_pressure / rms_pressure / field_shape / has_signal
+  - 热力图 + 波形图 PNG → base64（matplotlib 3.9.4，Agg 无头模式）
+  - verdict 判定（对标 VAL-1 基准）：`normal` / `zero_field` / `abnormal`
+    （abnormal=执行失败/无场数据/NaN/Inf/数值发散>1e12 Pa；zero_field=全零场）
+  - 降级路径：无 matplotlib → ASCII 热力图；无 numpy → 纯 Python 计算
+  - `FIELD_OUTPUT_SNIPPET` 常量：可注入仿真代码的场输出模板（T-008 接入工作流时复制即用）
+- [x] 网关依赖：`requirements.lock.txt` 增加 `numpy==2.1.3` + `matplotlib==3.9.4`（python 3.11 兼容）
+- [x] 修复 MPLCONFIGDIR：容器只读 HOME 下 matplotlib 强制使用 /tmp 缓存
+
+### 验证（VM 实测）
+- 单元分支：normal / zero_field / no-field / exit-1 / NaN / Inf / 发散 / 1D 波形 全部符合预期
+- 真实仿真端到端（MCP 协议）：run_jwave_code 跑 64×64 点源仿真 → analyze_simulation_result
+  返回 verdict=normal、max=0.35094（与仿真一致）、热力图 PNG 25KB（magic 校验通过）、波形图 17.8KB
+- MCP tools/list → 7 个工具（新增 analyze_simulation_result）
+- /health 200；容器日志无错误
+
+### 重要发现（遗留问题）
+- ⚠️ **线上 published 工作流仍是 08-07 的 8 节点旧版**（`e0a92c7a`，updated 08-07 15:08）；
+  校验节点 + 代码执行节点只存在于 draft（`641c4530`，9 节点）**从未发布**。
+  因此线上 `/v1/workflows/run` 跑的是旧链路——T-008 改造工作流时必须一并**发布新版**
+  （含代码节点、校验节点、analyze 节点），否则新功能不生效。
+- 顺带排掉一个 jwave 坑：`tone_burst()` 实际返回 152 采样（非标称 150），
+  Nt < 152 时 `zeros(Nt-len)` 会得到负维度导致 `broadcast_in_dim got (-2,)`；
+  信号补齐需先裁剪 `sig[:Nt]`。建议后续补进纠错速查表。
+
+### 变更文件
+- `analysis.py` — analyze_simulation_result 工具 + FIELD_OUTPUT_SNIPPET + 降级路径
+- `requirements.lock.txt` — +numpy/matplotlib
+- 文档：`docs/AGENTS.md`（任务状态）、`docs/DEVELOPMENT_PLAN.md`（门禁/进度）、`docs/ARCHITECTURE.md`（3.1 标注）
+
+### 当前状态
+- 阶段二：VAL-1 ✅、**T-007 ✅（工具层面）**；工作流联动属 T-008
+- 下个任务: T-008（工作流审查+解释节点，需同时发布新版工作流）
+
+---
+
 ## 2026-08-18 · 会话: 网关模块化重构（server_safe.py 1074 行 → 薄壳 + 7 模块）
 
 ### 动机

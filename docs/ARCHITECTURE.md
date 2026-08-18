@@ -305,7 +305,10 @@ server_safe.py   FastMCP("Dify JWave Tools") + auth + register_tools/portal/anal
 │   ├── GET  /portal /dashboard /report /cache /demo  → HTML 页面
 │   ├── POST /ask /demo/api/run              → Dify 工作流代理
 │   └── GET/DELETE /dashboard/api/*          → 看板/缓存 JSON API
-└── analysis.py      结果分析（T-007 analyze_simulation_result 落点，占位）
+└── analysis.py      结果分析（T-007 ✅ 已实现）：analyze_simulation_result
+    ├── 解析 stdout 场 JSON → max/rms/shape/has_signal
+    ├── matplotlib 热力图/波形图 PNG → base64（无 matplotlib 降级 ASCII）
+    └── verdict: normal / zero_field / abnormal（对标 VAL-1 基准）
 ```
 
 > 说明：新功能按模块落位——仿真执行类工具进 `tools.py`，结果分析进 `analysis.py`，

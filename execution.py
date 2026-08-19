@@ -90,8 +90,9 @@ def _shrink_field_in_stdout(stdout: str, max_chars: int = 350000) -> str:
     """强制压缩 stdout 中的场数据 JSON（Dify 变量上限 40 万字符）。
 
     无论 LLM 生成代码是否按模板降采样，网关层都保证场 JSON 大小不超限：
-    解析 __ACOU_FIELD_START__/END__ 标记块，超限时对 data 做网格降采样，
-    并把全场 max_pressure 写入 payload（降采样不丢失峰值量级）。
+    解析 __ACOU_FIELD_START__/END__ 标记块，超限时对 data 做 N 维网格降采样
+    （每维按比例切），并把全场 max_pressure 写入 payload（降采样不丢失峰值量级）。
+    支持 2D/3D 场（data 为 2D/3D/4D list，末尾可能带 1 维通道）。
     """
     if not stdout or len(stdout) <= max_chars:
         return stdout
@@ -112,22 +113,40 @@ def _shrink_field_in_stdout(stdout: str, max_chars: int = 350000) -> str:
     if not isinstance(data, list) or not data:
         return stdout
 
-    def _shrink(data: list, step: int) -> list:
-        rows = data[::step]
-        return [row[::step] if isinstance(row, list) else row for row in rows]
+    def _ndims(x):
+        """返回嵌套 list 的维度数（含 1 维通道）。"""
+        n = 0
+        cur = x
+        while isinstance(cur, list) and cur:
+            n += 1
+            cur = cur[0]
+        return n
+
+    def _shrink_recursive(x, step):
+        """对每维按 step 步长递归降采样。"""
+        if not isinstance(x, list):
+            return x
+        # 不降采样末尾的 1 维通道（如 [Nt][Nx][Ny][1] 的最后一维）
+        if len(x) <= 1 and all(not isinstance(e, list) for e in x):
+            return x
+        return [_shrink_recursive(e, step) for e in x[::step]]
+
+    def _json_len(x) -> int:
+        return len(json.dumps(x, ensure_ascii=False))
 
     step = 1
     new_data = data
+    base_ndims = _ndims(data)
     while True:
-        candidate = _shrink(data, step)
+        candidate = _shrink_recursive(data, step)
         test_payload = dict(payload)
         test_payload["data"] = candidate
         test_payload["downsample"] = step
-        if len(json.dumps(test_payload, ensure_ascii=False)) <= max_chars - 2000:
+        if _json_len(test_payload) <= max_chars - 2000:
             new_data = candidate
             break
         step += 1
-        if step > 32:
+        if step > 64 or _ndims(candidate) != base_ndims:
             break
 
     new_payload = dict(payload)

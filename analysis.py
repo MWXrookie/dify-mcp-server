@@ -54,7 +54,10 @@ _FIELD_END = "__ACOU_FIELD_END__"
 FIELD_OUTPUT_SNIPPET = '''\
 import json as __json
 import jax.numpy as __jnp
-__field = __jnp.max(__jnp.abs(p.params), axis=0)[..., 0]  # 全时最大 |p| 场 (Nx, Ny)
+__field = __jnp.max(__jnp.abs(p.params), axis=0)[..., 0]  # 全时最大 |p| 场 (Nx, Ny[, Nz])
+# 3D 场取中心 z 切片 → 2D 字段（体积小、热力图/分析兼容）；2D 场原样
+if __field.ndim > 2:
+    __field = __field[..., __field.shape[-1] // 2]
 __maxp = float(__jnp.max(__field))
 __step = 1
 while __field.size / (__step * __step) > 40000:  # 保底 400KB 内（Dify 变量上限）
@@ -166,13 +169,30 @@ def _verdict(
 
 
 def _heatmap_base64(rows: list, title: str = "Pressure field") -> str | None:
-    """生成热力图 PNG → base64；无 matplotlib 时降级 ASCII 热力图。"""
+    """生成热力图 PNG → base64；无 matplotlib 时降级 ASCII 热力图。
+
+    支持 2D/3D 场：
+    - 2D 场 (Nx, Ny[, 1])：直接画
+    - 3D 场 (Nt, Nx, Ny) / (Nt, Nx, Ny, Nz[, 1])：取 |p| 最大时间步的中心 2D 切片
+      （z=中间平面），保证热力图始终是 2D。
+    """
     if _plt is None:
         return _ascii_heatmap(rows)
     try:
-        arr = _np.asarray(rows, dtype=_np.float64) if _np is not None else _np  # type: ignore[assignment]
-        if _np is None:
+        arr = _np.asarray(rows, dtype=_np.float64) if _np is not None else None  # type: ignore[assignment]
+        if _np is None or arr is None:
             return _ascii_heatmap(rows)
+        arr = arr.squeeze()
+        # N 维 → 取中心 2D 切片：优先保留空间最大的两维
+        if arr.ndim > 2:
+            # 若形如 (Nt, Nx, Ny)：取 |p| 最大的时间步
+            if arr.ndim == 3:
+                idx = int(_np.argmax(_np.max(_np.abs(arr), axis=(1, 2))))
+                arr = arr[idx, :, :]
+            else:
+                # 更高维：逐维取中间索引直至 2D
+                while arr.ndim > 2:
+                    arr = arr[arr.shape[0] // 2]
         vmax = float(_np.max(_np.abs(arr))) or 1.0
         fig, ax = _plt.subplots(figsize=(6, 5), dpi=80)
         im = ax.imshow(arr, cmap="RdBu_r", vmin=-vmax, vmax=vmax, aspect="auto")

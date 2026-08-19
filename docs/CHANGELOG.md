@@ -4,6 +4,37 @@
 
 ---
 
+## 2026-08-19 · 会话: 修复 3D 场数据超限 Bug + A/B 验证提示词骨架
+
+### Bug：3D 仿真场数据超 Dify 40 万字符限制（A/B 难题 #16 暴露）
+- 症状：3D 仿真（如 3D 高斯球 p0）stdout 超 400k 字符 → 工作流报
+  `stdout must be less than 400000 characters` → 3D 场景失败
+- 根因（三处协同缺陷）：
+  1. `execution._shrink_field_in_stdout`：旧降采样只处理 2D 场，4D/5D 只切 2 维，超限兜不住
+  2. `analysis._heatmap_base64`：4D/5D 场 `imshow` 失败 → 降级 ASCII
+  3. **代码生成 prompt 内嵌场输出模板**：`[..., 0]` 对 3D 场输出 3D 字段（不切中心平面）
+- 修复（三处）：
+  - `execution.py`：`_shrink` 改 N 维递归降采样（每维按比例切，保留通道维）
+  - `analysis.py`：`_heatmap_base64` 支持 3D 中心切片（|p| 最大时间步 + 中心 z 平面）；
+    `FIELD_OUTPUT_SNIPPET` 加 `if __field.ndim > 2: 取中心 z 切片`
+  - `_apply_templates_prompt.py`：同步修复 prompt 内嵌旧场输出模板（幂等，含 3D 切片 + 骨架）
+- 验证：3D 模板输出 22-23KB（原可能 >400k）；工作流 3D 高斯球两次 succeeded，
+  max_p 0.6687（与基线一致）；analyze 解析 [32,32]、热力图 PNG 正常
+
+### A/B 提示词优化验证（代码骨架 section）
+- 20 题简单集：基线 100% vs 优化后 100%（无提升无退化，验证提示词无冗余副作用）
+- 20 题难题集（传感器/异质/环形/3D/组合）：基线 85% vs 优化后 **90%**
+  - 骨架修复 3 个基线失败（传感器近场、双囊肿+传感器、环形贴边界）
+  - 净提升 +1 题；无退化证据（另 2 个新失败为 LLM 随机波动/3D 超限，均非骨架）
+- 产物：`docs/test_report_ab20_*.md` + `docs/test_report_ab20hard_*.md`
+
+### 变更文件
+- `execution.py`、`analysis.py`、`_apply_templates_prompt.py`
+- `run_ab_20.py`、`run_ab_20_hard.py`、`_remove_templates_prompt.py`（A/B 脚本）
+- `docs/CHANGELOG.md`（本记录）
+
+---
+
 ## 2026-08-18 · 会话: 阶段二收尾 — T-012 多轮测试 + 门禁补全
 
 ### T-012 · 20 次多轮仿真集成测试（✅ 通过）

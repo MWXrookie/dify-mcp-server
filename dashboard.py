@@ -59,6 +59,18 @@ def init_db() -> None:
         db.execute("ALTER TABLE executions ADD COLUMN image_base64 TEXT")
     except sqlite3.OperationalError:
         pass
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS llm_usage (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT NOT NULL,
+            model TEXT NOT NULL,
+            prompt_tokens INTEGER DEFAULT 0,
+            completion_tokens INTEGER DEFAULT 0,
+            prompt_cache_hit_tokens INTEGER DEFAULT 0,
+            prompt_cache_miss_tokens INTEGER DEFAULT 0,
+            cost_rmb REAL DEFAULT 0
+        )
+    """)
     db.commit()
     db.close()
 
@@ -127,6 +139,56 @@ def get_stats() -> dict:
     timeout = db.execute("SELECT COUNT(*) FROM executions WHERE timed_out = 1").fetchone()[0]
     db.close()
     return {"total": total, "success": success, "failed": failed, "timeout": timeout}
+
+
+def record_llm_usage(model: str, usage: dict | None, cost_rmb: float) -> None:
+    """记录一次 LLM 调用的 token 用量与估算成本。usage 为 DeepSeek 返回的 usage 字段。"""
+    usage = usage or {}
+    with _write_lock:
+        db = _get_db()
+        db.execute(
+            "INSERT INTO llm_usage (timestamp, model, prompt_tokens, completion_tokens, prompt_cache_hit_tokens, prompt_cache_miss_tokens, cost_rmb) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                datetime.now(timezone.utc).isoformat(),
+                model,
+                usage.get("prompt_tokens") or 0,
+                usage.get("completion_tokens") or 0,
+                usage.get("prompt_cache_hit_tokens") or 0,
+                usage.get("prompt_cache_miss_tokens") or usage.get("prompt_tokens") or 0,
+                cost_rmb,
+            ),
+        )
+        db.commit()
+        db.close()
+
+
+def get_llm_usage_stats() -> dict:
+    """返回 LLM 调用的累计统计：调用次数、总 token、总成本。"""
+    db = _get_db()
+    row = db.execute(
+        "SELECT COUNT(*) AS calls, "
+        "COALESCE(SUM(prompt_tokens),0) AS prompt, "
+        "COALESCE(SUM(completion_tokens),0) AS completion, "
+        "COALESCE(SUM(cost_rmb),0) AS cost "
+        "FROM llm_usage"
+    ).fetchone()
+    db.close()
+    return {
+        "calls": row["calls"],
+        "prompt_tokens": row["prompt"],
+        "completion_tokens": row["completion"],
+        "total_tokens": row["prompt"] + row["completion"],
+        "cost_rmb": round(row["cost"], 6),
+    }
+
+
+def get_llm_usage(limit: int = 50) -> list[dict]:
+    """返回最近的 LLM 调用明细。"""
+    db = _get_db()
+    rows = db.execute("SELECT * FROM llm_usage ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
+    db.close()
+    return [dict(r) for r in rows]
 
 
 def _find_test_results() -> str | None:

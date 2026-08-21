@@ -95,6 +95,12 @@
   <div class="stat timeout"><div class="num" id="stat-to">-</div><div class="label">超时</div></div>
 </div>
 
+<div class="stats" id="llm-stats" style="margin-top:8px">
+  <div class="stat" style="border-color:rgba(163,113,247,0.35)"><div class="num" id="llm-cost" style="color:var(--purple)">-</div><div class="label">LLM 累计成本</div></div>
+  <div class="stat" style="border-color:rgba(88,166,255,0.35)"><div class="num" id="llm-calls" style="color:var(--blue)">-</div><div class="label">LLM 调用次数</div></div>
+  <div class="stat"><div class="num" id="llm-tokens">-</div><div class="label">LLM 总 token</div></div>
+</div>
+
 <div class="fail-analysis" id="fail-analysis" style="display:none">
   <div class="fa-header">🔍 失败分析 <span>最近失败记录按类型归类，点击展开详情</span></div>
   <div class="fa-groups">
@@ -335,6 +341,21 @@ function renderFailAnalysis() {
   document.getElementById('fail-analysis').style.display = any ? 'block' : 'none';
 }
 
+// ===== P1 费用看板：LLM 用量统计 =====
+function fmtCost(v) { return v == null ? '-' : '¥' + (v < 0.01 ? v.toFixed(4) : v.toFixed(2)); }
+function fmtTokens(v) { return v == null ? '-' : (v >= 10000 ? (v/1000).toFixed(1)+'k' : v); }
+
+async function refreshLlmUsage() {
+  try {
+    var resp = await fetch("/dashboard/api/llm_usage?limit=1");
+    var data = await resp.json();
+    var s = data.stats || {};
+    document.getElementById('llm-cost').textContent = fmtCost(s.cost_rmb);
+    document.getElementById('llm-calls').textContent = s.calls != null ? s.calls : '-';
+    document.getElementById('llm-tokens').textContent = fmtTokens(s.total_tokens);
+  } catch(e) {}
+}
+
 async function refresh() {
   try {
     var resp = await fetch("/dashboard/api/executions?since=" + lastId + "&limit=100");
@@ -356,6 +377,7 @@ async function refresh() {
       document.getElementById("stat-to").textContent = data.stats.timeout;
     }
     renderFailAnalysis();
+    refreshLlmUsage();
     document.getElementById("live-dot").style.background = "var(--green)";
     document.getElementById("refresh-text").textContent = "自动刷新中";
   } catch(e) {

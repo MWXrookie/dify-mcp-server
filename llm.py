@@ -6,6 +6,7 @@ import httpx
 
 import config
 import cache_store
+import dashboard
 
 
 def _llm_fix_code(api_key: str, model: str, code: str, result: dict[str, Any]) -> str:
@@ -102,6 +103,13 @@ def _llm_fix_code(api_key: str, model: str, code: str, result: dict[str, Any]) -
     llm_response.raise_for_status()
     data = llm_response.json()
     fixed = data["choices"][0]["message"]["content"].strip()
+
+    # 记录 token 用量与成本（费用看板）
+    try:
+        usage = data.get("usage")
+        dashboard.record_llm_usage(model, usage, config.calc_llm_cost(usage))
+    except Exception:
+        pass
 
     # 去掉可能的 markdown 代码块标记
     for prefix in ("```python\n", "```python", "```\n", "```"):

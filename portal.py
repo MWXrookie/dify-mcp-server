@@ -18,8 +18,11 @@ from dashboard import (
     PORTAL_HTML,
     clear_executions,
     get_executions,
+    get_llm_usage,
+    get_llm_usage_stats,
     get_stats,
     load_test_results,
+    record_llm_usage,
 )
 
 
@@ -72,7 +75,14 @@ async def _merge_requirement(requirement: str, message: str) -> str:
                 },
             )
         resp.raise_for_status()
-        merged = resp.json()["choices"][0]["message"]["content"].strip()
+        data = resp.json()
+        merged = data["choices"][0]["message"]["content"].strip()
+        # 记录 token 用量与成本（费用看板）
+        try:
+            usage = data.get("usage")
+            record_llm_usage(config.DEEPSEEK_MODEL, usage, config.calc_llm_cost(usage))
+        except Exception:
+            pass
         return merged or f"{requirement}；{message}"
     except Exception:
         return f"{requirement}；{message}"
@@ -260,6 +270,17 @@ def register(mcp) -> None:
         count = clear_executions()
         return PlainTextResponse(
             json.dumps({"deleted": count, "ok": True}, ensure_ascii=False),
+            media_type="application/json",
+        )
+
+    @mcp.custom_route("/dashboard/api/llm_usage", methods=["GET"])
+    async def llm_usage_api(request: Request) -> PlainTextResponse:
+        limit = min(int(request.query_params.get("limit", "50")), 500)
+        return PlainTextResponse(
+            json.dumps({
+                "stats": get_llm_usage_stats(),
+                "usage": get_llm_usage(limit=limit),
+            }, ensure_ascii=False),
             media_type="application/json",
         )
 

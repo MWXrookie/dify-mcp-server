@@ -4,6 +4,24 @@
 
 ---
 
+## 2026-08-21 · 会话: P1 模型费用看板（乙）
+
+### 完成
+- [x] 后端：`config.py` 加 DeepSeek 定价常量（输入 ¥2 / 缓存命中 ¥0.5 / 输出 ¥8 每百万 token，可 env 覆盖）+ `calc_llm_cost` 函数
+- [x] 后端：`dashboard.py` 新增 `llm_usage` 表 + `record_llm_usage`/`get_llm_usage_stats`/`get_llm_usage`
+- [x] 接入：`llm.py` `_llm_fix_code`（纠错）和 `portal.py` `_merge_requirement`（需求合并）提取 DeepSeek 响应 `usage` 字段并记录
+- [x] 前端：`docs/dashboard.html` 顶部新增「LLM 累计成本 / 调用次数 / 总 token」三卡片
+- [x] 接口：`portal.py` 新增 `/dashboard/api/llm_usage`（返回费用统计 + 明细）
+
+### 验证
+- `calc_llm_cost(1000输入+500输出)` = ¥0.006，记录 → 查询 → 接口全链路通
+- 本机 `/dashboard` 200，费用卡片正常渲染；测试数据已清理
+
+### 变更文件
+- `config.py`、`dashboard.py`、`llm.py`、`portal.py`、`docs/dashboard.html`
+
+---
+
 ## 2026-08-19 · 会话: 修复 3D 场数据超限 Bug + A/B 验证提示词骨架
 
 ### Bug：3D 仿真场数据超 Dify 40 万字符限制（A/B 难题 #16 暴露）

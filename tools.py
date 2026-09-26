@@ -4,7 +4,6 @@
 `analysis.py`（本模块保持聚焦仿真执行类工具）。
 """
 
-import importlib.util
 import json
 import os
 from typing import Any
@@ -24,13 +23,12 @@ def register(mcp) -> None:
     @mcp.tool
     def list_installed_libraries() -> dict[str, Any]:
         """Report the packaged environment available in this gateway image."""
-        modules = [item.strip() for item in config.MCP_EXTRA_MODULES.split(",") if item.strip()]
         return {
             "fastmcp": "3.4.6",
-            "modules": {module: bool(importlib.util.find_spec(module)) for module in modules},
             "code_tool": "run_jwave_code",
             "auto_fix_tool": "run_jwave_code_with_retry",
             "analysis_tool": "analyze_simulation_result",
+            "validator_tool": "validate_simulation_params",
             "deepseek_model": config.DEEPSEEK_MODEL if config.DEEPSEEK_API_KEY else None,
         }
 

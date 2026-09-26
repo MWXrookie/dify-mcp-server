@@ -16,6 +16,21 @@ dify-mcp :8001 (FastMCP 网关 + Web 门户)
 
 两个容器：`dify-mcp` (Python 3.11-slim) + `jwave-executor` (Ubuntu 24.04, Conda jwave 0.2.1)。
 
+## 项目结构
+
+```text
+.
+├── server_safe.py          # FastMCP 入口
+├── tools.py                # MCP 仿真执行/纠错/校验工具
+├── analysis.py             # 结果分析与物理语义门
+├── portal.py               # Web 路由
+├── executor/               # Docker jwave 沙箱
+├── docs/                   # 文档、Web 页面、测试报告
+├── scripts/workflow/       # 历史 Dify 工作流生成/修补脚本
+├── scripts/tests/          # 本地回归与稳定性测试
+└── reference/              # 队友项目参考实现
+```
+
 ## 快速命令
 
 ```bash
@@ -54,9 +69,8 @@ docker restart docker-api-1 docker-worker-1  # MCP schema 刷新
 | 工具 | 说明 |
 |------|------|
 | `run_jwave_code` | 执行 Python 代码（1-30s 超时, 20KB 上限） |
-| `run_jwave_code_with_retry` | 执行 + DeepSeek 自动纠错 + 重试（≤7 次）+ **自动生成 Markdown 报告** |
+| `run_jwave_code_with_retry` | 执行 + DeepSeek 自动纠错 + 物理语义门（`verdict=normal` 才成功）+ 重试（≤7 次）+ **自动生成 Markdown 报告** |
 | `validate_simulation_params` | 硬编码物理规则校验（Nyquist/CFL/网格/PML） |
-| `run_allowlisted_tool` | 按白名单执行命名适配器（`library_tools.py` 注册） |
 | `jwave_environment` | 执行器环境健康检查 |
 | `list_installed_libraries` | 已安装工具列表 |
 
@@ -87,8 +101,8 @@ curl -X POST http://192.168.30.200:8001/mcp \
 
 | 脚本 | 用途 | ⚠️ 注意 |
 |------|------|---------|
-| `run_50_tests.py` / `run_50_tests_new.py` | 50 次端到端回归（真实调用 Dify 工作流 + DeepSeek） | **有模型费用**，运行前先确认 |
-| `retest_p0.py` | P0 重点场景小批量重测 | 费用低 |
+| `scripts/tests/run_50_tests_new.py` | 50 次端到端回归（真实调用 Dify 工作流 + DeepSeek） | **有模型费用**，运行前先确认 |
+| `scripts/tests/retest_p0.py` | P0 重点场景小批量重测 | 费用低 |
 
 - 测试目标：`http://localhost/v1/workflows/run`，需要 `DIFY_API_KEY` 环境变量
 - 语法预检：`python3 -m py_compile server_safe.py tools.py portal.py analysis.py cache_store.py execution.py llm.py config.py dashboard.py executor/executor.py`
@@ -144,7 +158,6 @@ def main(mcp_json):
 
 ```bash
 MCP_AUTH_TOKEN=<32+ 字符>          # MCP 网关 Bearer token（必填）
-MCP_EXTRA_MODULES=slugify          # list_installed_libraries 白名单模块（逗号分隔）
 EXECUTOR_SHARED_TOKEN=<32+ 字符>   # 网关↔执行器内部认证（必填）
 DEEPSEEK_API_KEY=sk-...            # 自动纠错用（可选，缺省时 retry 工具报错）
 DEEPSEEK_MODEL=deepseek-chat

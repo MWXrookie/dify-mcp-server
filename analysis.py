@@ -362,22 +362,23 @@ def register(mcp) -> None:
             exit_code,
             params_json,
         )
-        # 热力图写入执行看板（每次仿真产出图像可见）
-        if r.get("heatmap_png_base64"):
-            try:
-                from dashboard import record_execution
+        # 结果分析写入独立 analysis_events，不再污染执行历史。
+        try:
+            from dashboard import record_analysis_event
 
-                record_execution(
-                    tool_name="analyze_simulation_result",
-                    code="",
-                    exit_code=exit_code,
-                    timed_out=False,
-                    duration_ms=None,
-                    stdout=(stdout_text or "")[:500],
-                    stderr=(stderr_text or "")[:200],
-                    attempt_count=1,
-                    image_base64=r["heatmap_png_base64"],
-                )
-            except Exception:  # noqa: BLE001
-                pass
+            record_analysis_event(
+                exit_code=exit_code,
+                verdict=r.get("verdict", "unknown"),
+                max_pressure=r.get("max_pressure"),
+                rms_pressure=r.get("rms_pressure"),
+                field_shape=r.get("field_shape"),
+                has_signal=bool(r.get("has_signal")),
+                summary=r.get("summary", ""),
+                heatmap_base64=r.get("heatmap_png_base64"),
+                waveform_base64=r.get("waveform_png_base64"),
+                stdout_excerpt=(stdout_text or "")[:500],
+                stderr_excerpt=(stderr_text or "")[:200],
+            )
+        except Exception:  # noqa: BLE001
+            pass
         return r

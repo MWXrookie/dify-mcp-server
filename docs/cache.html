@@ -72,20 +72,36 @@
   @media (max-width: 768px) { body { padding: 12px; } .summary-row { grid-template-columns: repeat(2,1fr); } }
 </style>
 </head>
+<style>
+:root{--bg:#eef1f5;--surface:#fff;--surface-2:#edf1f5;--border:#d5dae2;--border-strong:#aab5c2;--text:#111827;--muted:#6b7280;--accent:#2563eb;--accent-soft:#eff6ff;--green:#047857;--green-soft:#ecfdf5;--red:#b91c1c;--red-soft:#fef2f2;--yellow:#b45309;--yellow-soft:#fffbeb}
+body{background:var(--bg)!important;color:var(--text)!important}
+.tile,.section,.entry{background:var(--surface)!important;border-color:var(--border-strong)!important;color:var(--text)!important;box-shadow:0 1px 2px rgba(17,24,39,.08)!important}
+.entry{background:#fff!important;border-left-color:var(--border-strong)!important}
+.entry.good{border-left-color:var(--green)!important}
+.entry.warn{border-left-color:var(--yellow)!important}
+.entry.retiring{border-left-color:var(--red)!important;background:var(--red-soft)!important}
+.filter-btn{color:var(--muted)!important;border-color:var(--border-strong)!important;background:var(--surface)!important}
+.filter-btn.active{background:var(--accent)!important;color:#fff!important;border-color:var(--accent)!important}
+.bar-row .track{background:var(--surface-2)!important}
+.fix-code{background:#f4f7fa!important;border-color:var(--border-strong)!important;color:#1f2937!important}
+.pill.green{background:var(--green-soft)!important;color:var(--green)!important}
+.pill.yellow{background:var(--yellow-soft)!important;color:var(--yellow)!important}
+.pill.red{background:var(--red-soft)!important;color:var(--red)!important}
+</style>
 <body>
 <div class="back"><a href="/">← 返回门户</a></div>
-<h1>🧠 纠错经验缓存</h1>
+<h1>纠错经验缓存</h1>
 <p class="subtitle">每次仿真失败后，DeepSeek 自动分析错误并生成修复代码。修复成功的经验沉淀在这里，同类错误再次出现时可以直接复用。</p>
 <div class="summary-row" id="summary"></div>
 <div class="section" id="bands-section"></div>
 <div class="section">
-  <h3>📋 经验条目 <span class="filter-count" id="entry-count"></span></h3>
+  <h3>经验条目 <span class="filter-count" id="entry-count"></span></h3>
   <div class="filter-bar">
     <span class="filter-label">筛选：</span>
     <button class="filter-btn active" onclick="setFilter('all')">全部</button>
     <button class="filter-btn" onclick="setFilter('high')">高置信</button>
     <button class="filter-btn" onclick="setFilter('medium')">中等置信</button>
-    <button class="filter-btn" onclick="setFilter('at-risk')">⚠ 有风险</button>
+    <button class="filter-btn" onclick="setFilter('at-risk')">有风险</button>
     <button class="filter-btn" onclick="setFilter('type-error')">TypeError</button>
     <button class="filter-btn" onclick="setFilter('attr-error')">AttributeError</button>
   </div>

@@ -16,6 +16,10 @@ _FIELD_END = "__ACOU_FIELD_END__"
 def _clean_code(code: str) -> str:
     """去掉 LLM 输出中可能包裹的 markdown 代码块标记，并注入图片保存."""
     code = code.strip()
+    # DeepSeek responses may prepend a <think>...</think> reasoning block.
+    # Strip it before sandbox validation so short programs are not rejected
+    # only because internal reasoning pushed them past the code-size limit.
+    code = re.sub(r"<think>.*?</think>", "", code, flags=re.DOTALL).strip()
     for prefix in ("```python\n", "```python", "```\n", "```"):
         if code.startswith(prefix):
             code = code[len(prefix):]

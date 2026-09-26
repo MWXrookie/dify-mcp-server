@@ -4,6 +4,30 @@
 
 ---
 
+## 2026-09-26 · 会话: 控制台整理、分析记录拆分与知识库扩展
+
+### 完成
+- [x] 控制台统一以多轮声学仿真为首页，增加侧边导航、模型接口设置和执行记录重跑入口
+- [x] 结果分析事件写入独立 `analysis_events` 表，避免无代码的分析记录污染执行历史
+- [x] 清理旧报告、Demo、单轮问答及对应接口，统一看板与缓存页面样式
+- [x] 清理 DeepSeek 响应中的 `<think>` 推理块，避免内部推理挤占沙箱代码长度
+- [x] 简化网关环境信息，移除废弃的 `MCP_EXTRA_MODULES` 配置
+- [x] 扩展 jwave 参数、物理规则、仿真模板和故障排查知识文档，同步项目规划与入口文档
+
+### 验证
+- 改动 Python 文件均通过 `python3 -m py_compile`
+- `git diff --check` 通过
+- VM 现有容器均为运行状态，`/health` 返回 `ok`，`/dashboard` 与 `/cache` 返回 200
+- VM 系统 Python 未安装 pytest，本次未执行 pytest 套件
+
+### 变更文件
+- `analysis.py`、`dashboard.py`、`portal.py`、`execution.py`、`config.py`、`tools.py`
+- `docs/dashboard.html`、`docs/cache.html`、`docs/report.html`
+- `README.md`、`AGENTS.md`、`ARCHITECTURE.md`、`PRD.md`、`docs/DEVELOPMENT_PLAN.md`
+- `docs/kb_jwave_reference.md`、`docs/kb_parameter_guide.md`、`docs/kb_physics_rules.md`、`docs/kb_simulation_templates.md`、`docs/kb_troubleshooting.md`
+
+---
+
 ## 2026-08-21 · 会话: P1 模型费用看板（乙）
 
 ### 完成

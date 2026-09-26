@@ -5,100 +5,138 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dify MCP - 执行看板</title>
 <style>
-  :root { --bg: #0d1117; --surface: #161b22; --border: #30363d; --text: #c9d1d9; --muted: #8b949e; --green: #3fb950; --red: #f85149; --yellow: #d2991d; --blue: #58a6ff; --accent: #1f6feb; --purple: #a371f7; }
+  :root {
+    --bg: #eef1f5;
+    --surface: #ffffff;
+    --surface-2: #edf1f5;
+    --border: #d5dae2;
+    --border-strong: #aab5c2;
+    --text: #111827;
+    --muted: #6b7280;
+    --accent: #2563eb;
+    --accent-soft: #eff6ff;
+    --green: #047857;
+    --green-soft: #ecfdf5;
+    --red: #b91c1c;
+    --red-soft: #fef2f2;
+    --yellow: #b45309;
+    --yellow-soft: #fffbeb;
+    --purple: #6d28d9;
+    --purple-soft: #f5f3ff;
+  }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 24px; }
-  .top-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
-  .top-bar h1 { font-size: 22px; font-weight: 600; }
-  .top-bar h1 span { color: var(--muted); font-weight: 400; }
-  .top-bar .nav-links { display: flex; gap: 10px; flex-wrap: wrap; }
-  .top-bar .nav-links a { color: var(--muted); text-decoration: none; font-size: 13px; padding: 4px 10px; border: 1px solid var(--border); border-radius: 6px; }
-  .top-bar .nav-links a:hover { border-color: var(--accent); color: var(--blue); }
-  .stats { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
-  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 16px; min-width: 80px; text-align: center; }
-  .stat .num { font-size: 22px; font-weight: 700; }
-  .stat .label { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 24px; line-height: 1.5; }
+  .top-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; padding: 12px 16px; background: var(--surface); border: 1px solid var(--border-strong); border-radius: 8px; box-shadow: 0 1px 2px rgba(17,24,39,.08); flex-wrap: wrap; gap: 12px; }
+  .top-bar h1 { font-size: 20px; font-weight: 650; letter-spacing: 0; }
+  .top-bar h1 span { color: var(--muted); font-weight: 450; }
+  .top-bar .nav-links { display: flex; gap: 8px; flex-wrap: wrap; }
+  .top-bar .nav-links a { color: var(--muted); text-decoration: none; font-size: 13px; padding: 6px 10px; border: 1px solid var(--border-strong); border-radius: 7px; background: var(--surface); }
+  .top-bar .nav-links a:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .stat { background: var(--surface); border: 1px solid var(--border-strong); border-radius: 8px; padding: 12px 16px; min-width: 0; text-align: left; box-shadow: 0 1px 2px rgba(17,24,39,.08); }
+  .stat .num { font-size: 24px; font-weight: 700; line-height: 1.2; }
+  .stat .label { font-size: 12px; color: var(--muted); margin-top: 3px; }
   .stat.success .num { color: var(--green); }
   .stat.fail .num { color: var(--red); }
   .stat.timeout .num { color: var(--yellow); }
-  .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
-  table { width: 100%; border-collapse: collapse; font-size: 14px; }
-  th { text-align: left; padding: 10px 14px; background: #1c2129; color: var(--muted); font-weight: 500; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; position: sticky; top: 0; z-index: 1; }
-  td { padding: 8px 14px; border-top: 1px solid var(--border); vertical-align: middle; }
-  tr:hover { background: #1c2129; }
-  .code-cell { max-width: 460px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: "SF Mono","Fira Code",monospace; font-size: 12px; color: var(--blue); cursor: pointer; }
-  .code-cell:hover { color: #79c0ff; text-decoration: underline; }
+  .table-wrap { background: var(--surface); border: 1px solid var(--border-strong); border-radius: 8px; overflow: hidden; box-shadow: 0 2px 6px rgba(17,24,39,.08); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 10px 14px; background: #dfe5ec; color: #374151; font-weight: 650; font-size: 12px; position: sticky; top: 0; z-index: 1; border-bottom: 1px solid var(--border-strong); }
+  td { padding: 10px 14px; border-top: 1px solid #cdd5df; vertical-align: middle; }
+  tr:nth-child(even) { background: #f7f9fb; }
+  tr:hover { background: var(--accent-soft); }
+  .code-cell { max-width: 460px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: "SF Mono","Fira Code",monospace; font-size: 12px; color: #334155; cursor: pointer; }
+  .code-cell:hover { color: var(--accent); }
   .code-cell .img-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--green); margin-left:6px; vertical-align:middle; }
-  .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }
-  .badge-ok { background: rgba(63,185,80,0.15); color: var(--green); }
-  .badge-err { background: rgba(248,81,73,0.15); color: var(--red); }
-  .badge-to { background: rgba(210,153,29,0.15); color: var(--yellow); }
-  .badge-warn { background: rgba(163,113,247,0.15); color: var(--purple); }
-  .time { color: var(--muted); font-size: 13px; white-space: nowrap; }
-  .dur { font-size: 13px; text-align: right; }
-  .empty { text-align: center; padding: 48px; color: var(--muted); }
-  .empty .icon { font-size: 40px; margin-bottom: 8px; }
+  .badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; border: 1px solid transparent; }
+  .badge-ok { background: var(--green-soft); color: var(--green); border-color: #a7f3d0; }
+  .badge-err { background: var(--red-soft); color: var(--red); border-color: #fecaca; }
+  .badge-to { background: var(--yellow-soft); color: var(--yellow); border-color: #fde68a; }
+  .badge-warn { background: var(--purple-soft); color: var(--purple); border-color: #ddd6fe; }
+  .time { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .dur { font-size: 12px; text-align: right; white-space: nowrap; }
+  .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 0 0 12px 0; }
+  .toolbar input, .toolbar select { padding: 7px 10px; border-radius: 6px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); font-size: 12px; }
+  .toolbar input { min-width: 220px; }
+  .toolbar select { min-width: 120px; }
+  .action-btn { padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--muted); cursor: pointer; font-size: 11px; }
+  .action-btn:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+  .result-img { width: 48px; height: 36px; object-fit: cover; border-radius: 5px; border: 1px solid var(--border-strong); background: var(--surface-2); cursor: zoom-in; }
+  .metric-cell { white-space: nowrap; font-family: "SF Mono","Fira Code",monospace; font-size: 12px; color: #374151; }
+  .empty { text-align: center; padding: 56px; color: var(--muted); }
+  .empty .icon { font-size: 32px; margin-bottom: 8px; opacity: .65; }
   .detail-row { display: none; }
   .detail-row.open { display: table-row; }
-  .detail-row td { padding: 0 14px 14px 14px; border-top: none; }
-  .detail-box { background: #0d1117; border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-size: 12px; font-family: "SF Mono","Fira Code",monospace; white-space: pre-wrap; word-break: break-all; max-height: 240px; overflow-y: auto; }
-  .detail-box.code { color: var(--blue); }
+  .detail-row td { padding: 0 14px 14px 14px; border-top: 1px solid #cdd5df; background: #f3f6f9; }
+  .detail-box { background: #f4f7fa; border: 1px solid var(--border-strong); border-radius: 6px; padding: 12px; font-size: 12px; font-family: "SF Mono","Fira Code",monospace; white-space: pre-wrap; word-break: break-all; max-height: 240px; overflow-y: auto; color: #1f2937; }
+  .detail-box.code { color: #1e3a8a; }
   .detail-box.code.expanded { max-height: none; }
   .detail-box .code-empty { color: var(--muted); font-style: italic; }
-  .expand-btn { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; padding: 3px 10px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; }
-  .expand-btn:hover { color: var(--text); border-color: var(--accent); }
+  .expand-btn { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--muted); cursor: pointer; font-size: 11px; }
+  .expand-btn:hover { color: var(--text); border-color: var(--accent); background: var(--accent-soft); }
   .detail-tabs { display: flex; gap: 4px; margin-bottom: 8px; align-items: center; }
-  .detail-tab { padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; border: 1px solid var(--border); background: transparent; color: var(--muted); }
+  .detail-tab { padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--muted); }
   .detail-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
   .detail-section { display: none; }
   .detail-section.active { display: block; }
   .refresh { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; margin-bottom: 12px; }
-  .refresh .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
-  .fail-analysis { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin-top: 16px; overflow: hidden; }
-  .fa-header { padding: 12px 16px; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+  .refresh .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+  .fail-analysis { background: var(--surface); border: 1px solid var(--border-strong); border-radius: 8px; margin-top: 16px; overflow: hidden; box-shadow: 0 2px 6px rgba(17,24,39,.08); }
+  .fa-header { padding: 12px 16px; border-bottom: 1px solid var(--border-strong); font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px; background: #f7f9fb; }
   .fa-header span { color: var(--muted); font-weight: 400; font-size: 12px; }
   .fa-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; padding: 14px 16px; }
-  .fa-group { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .fa-group { border: 1px solid var(--border-strong); border-radius: 8px; overflow: hidden; background: #fff; }
   .fa-group-head { padding: 8px 12px; font-size: 13px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
-  .fa-group.timeout .fa-group-head { color: var(--yellow); background: rgba(210,153,29,0.08); }
-  .fa-group.exit .fa-group-head { color: var(--red); background: rgba(248,81,73,0.08); }
-  .fa-group.zero .fa-group-head { color: var(--purple); background: rgba(163,113,247,0.08); }
-  .fa-count { background: rgba(255,255,255,0.08); border-radius: 10px; padding: 0 8px; font-size: 12px; }
+  .fa-group.timeout .fa-group-head { color: var(--yellow); background: var(--yellow-soft); }
+  .fa-group.exit .fa-group-head { color: var(--red); background: var(--red-soft); }
+  .fa-group.zero .fa-group-head { color: var(--purple); background: var(--purple-soft); }
+  .fa-count { background: rgba(17,24,39,.06); border-radius: 10px; padding: 0 8px; font-size: 12px; }
   .fa-items { max-height: 240px; overflow-y: auto; }
-  .fa-item { padding: 7px 12px; font-size: 12px; border-top: 1px solid var(--border); cursor: pointer; color: var(--muted); display: flex; gap: 8px; align-items: center; }
-  .fa-item:hover { background: #1c2129; color: var(--text); }
+  .fa-item { padding: 7px 12px; font-size: 12px; border-top: 1px solid #cdd5df; cursor: pointer; color: var(--muted); display: flex; gap: 8px; align-items: center; }
+  .fa-item:hover { background: var(--accent-soft); color: var(--text); }
   .fa-item .fa-id { color: var(--muted); flex-shrink: 0; }
   .fa-item .fa-summary { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .fa-item .fa-time { flex-shrink: 0; color: var(--muted); font-size: 11px; }
   .fa-empty { padding: 14px; font-size: 12px; color: var(--muted); text-align: center; }
-  @media (max-width: 768px) { body { padding: 12px; } .code-cell { max-width: 180px; } th:nth-child(1), td:nth-child(1) { display: none; } .dur { display: none; } }
+  @media (max-width: 768px) {
+    body { padding: 12px; }
+    .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .code-cell { max-width: 180px; }
+    th:nth-child(1), td:nth-child(1) { display: none; }
+    .dur, .metric-cell { display: none; }
+    .toolbar input { min-width: 100%; }
+  }
 </style>
 </head>
 <body>
 
 <div class="top-bar">
-  <h1>⚡ Dify MCP <span>- 执行看板</span></h1>
+  <h1>AcouAgent <span>执行看板</span></h1>
   <div class="nav-links">
-    <a href="/">🏠 门户</a>
-    <a href="/report">🧾 测试报告</a>
-    <a href="/cache">🧠 纠错缓存</a>
-    <a href="/demo">🎯 Demo</a>
+    <a href="/">门户</a>
+    <a href="/cache">纠错缓存</a>
   </div>
 </div>
 
-<div class="refresh"><span class="dot" id="live-dot"></span><span id="refresh-text">自动刷新中</span><span style="margin-left:16px;color:var(--red);cursor:pointer;font-size:12px" onclick="clearHistory()" title="清空所有执行历史">🗑 清空历史</span></div>
+<div class="refresh"><span class="dot" id="live-dot"></span><span id="refresh-text">自动刷新中</span><span style="margin-left:16px;color:var(--red);cursor:pointer;font-size:12px" onclick="clearHistory()" title="清空所有执行历史">清空历史</span></div>
+
+<div class="toolbar">
+  <input id="search-input" type="search" placeholder="搜索代码、错误或结果..." oninput="applyFilters()">
+  <select id="status-filter" onchange="applyFilters()">
+    <option value="all">全部状态</option>
+    <option value="success">成功</option>
+    <option value="failed">失败</option>
+    <option value="timeout">超时</option>
+    <option value="zero">全零</option>
+  </select>
+  <span style="color:var(--muted);font-size:12px" id="filter-count">0 条</span>
+</div>
 
 <div class="stats" id="stats">
   <div class="stat"><div class="num" id="stat-total">-</div><div class="label">总执行</div></div>
   <div class="stat success"><div class="num" id="stat-ok">-</div><div class="label">成功</div></div>
   <div class="stat fail"><div class="num" id="stat-fail">-</div><div class="label">失败</div></div>
   <div class="stat timeout"><div class="num" id="stat-to">-</div><div class="label">超时</div></div>
-</div>
-
-<div class="stats" id="llm-stats" style="margin-top:8px">
-  <div class="stat" style="border-color:rgba(163,113,247,0.35)"><div class="num" id="llm-cost" style="color:var(--purple)">-</div><div class="label">LLM 累计成本</div></div>
-  <div class="stat" style="border-color:rgba(88,166,255,0.35)"><div class="num" id="llm-calls" style="color:var(--blue)">-</div><div class="label">LLM 调用次数</div></div>
-  <div class="stat"><div class="num" id="llm-tokens">-</div><div class="label">LLM 总 token</div></div>
 </div>
 
 <div class="fail-analysis" id="fail-analysis" style="display:none">
@@ -123,9 +161,9 @@
   <div id="compare-panel" style="display:none;margin-bottom:14px"></div>
   <table>
     <thead><tr>
-      <th title="勾选两条记录对比">对比</th><th>#</th><th>时间</th><th>代码摘要</th><th>状态</th><th class="dur">耗时</th>
+      <th title="勾选两条记录对比">对比</th><th>#</th><th>时间</th><th>状态</th><th class="metric-cell">关键结果</th><th class="dur">耗时</th><th>操作</th>
     </tr></thead>
-    <tbody id="rows"><tr><td colspan="6" class="empty"><div class="icon">📭</div>等待 Dify 发送第一条代码...</td></tr></tbody>
+    <tbody id="rows"><tr><td colspan="7" class="empty"><div class="icon">暂无记录</div>等待 Dify 发送第一条代码...</td></tr></tbody>
   </table>
 </div>
 
@@ -179,6 +217,70 @@ function badge(r) {
   return '<span class="badge badge-ok">成功</span>';
 }
 
+function copyCode(id) {
+  var r = window.__execs[id];
+  if (!r || !r.code) return;
+  navigator.clipboard.writeText(r.code).then(function() {
+    showToast('代码已复制');
+  }).catch(function() {
+    window.prompt('复制代码', r.code);
+  });
+}
+
+function downloadRecord(id) {
+  var r = window.__execs[id];
+  if (!r) return;
+  var blob = new Blob([JSON.stringify(r, null, 2)], {type: 'application/json'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'execution-' + id + '.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+async function rerunExecution(id) {
+  var btn = event.currentTarget || event.srcElement;
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '运行中';
+  }
+  try {
+    var resp = await fetch('/dashboard/api/rerun', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({id: id})
+    });
+    var data = await resp.json();
+    if (!data.ok) {
+      alert(data.error || '重跑失败');
+      return;
+    }
+    var r = data.result || {};
+    alert('重跑完成\n耗时: ' + (r.duration_ms != null ? r.duration_ms + 'ms' : '-') + '\n退出码: ' + (r.exit_code != null ? r.exit_code : '-'));
+    refresh();
+  } catch(e) {
+    alert('重跑失败：' + e);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '重跑';
+    }
+  }
+}
+
+function showToast(msg) {
+  var el = document.getElementById('toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'toast';
+    el.style.cssText = 'position:fixed;right:16px;bottom:16px;background:#111827;color:#fff;padding:8px 12px;border-radius:6px;font-size:12px;z-index:9999';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  clearTimeout(window.__toastTimer);
+  window.__toastTimer = setTimeout(function(){ el.remove(); }, 1800);
+}
+
 function renderRow(r) {
   var dur = r.duration_ms != null ? (r.duration_ms < 1000 ? r.duration_ms+"ms" : (r.duration_ms/1000).toFixed(1)+"s") : "-";
   var hasImg = r.image_base64 && r.image_base64.length > 100;
@@ -186,6 +288,14 @@ function renderRow(r) {
   var imgDot = hasImg
     ? '<span class="img-dot" title="有图像" onclick="event.stopPropagation();showLightbox(\'data:image/png;base64,' + r.image_base64 + '\')"></span>'
     : '';
+  var maxPressure = '';
+  var mp = /最大压力[：:]?\s*\**\s*([\d.eE+-]+)/.exec(r.stdout || '');
+  if (mp) maxPressure = Number(mp[1]).toFixed(4);
+  var metric = maxPressure ? maxPressure + ' Pa' : '-';
+  var imgHtml = hasImg ? '<img class="result-img" src="data:image/png;base64,' + r.image_base64 + '" onclick="event.stopPropagation();showLightbox(this.src)" title="查看图像">' : '<span style="color:var(--muted)">无图</span>';
+  var actions = '<button class="action-btn" onclick="event.stopPropagation();copyCode(' + r.id + ')" title="复制代码">复制</button>' +
+    '<button class="action-btn" onclick="event.stopPropagation();downloadRecord(' + r.id + ')" title="导出 JSON">导出</button>' +
+    '<button class="action-btn" onclick="event.stopPropagation();rerunExecution(' + r.id + ')" title="重新运行">重跑</button>';
   // 无代码工具（analyze_simulation_result 等）显示占位说明，不再空白
   var codeSummary = r.code ? esc(summary) : '<span class="code-empty">（结果分析 · 无代码）</span>';
   var codeDetail = r.code
@@ -199,11 +309,12 @@ function renderRow(r) {
     + '<td><input type="checkbox" class="cmp-cb" data-id="' + r.id + '" title="选择对比" onclick="event.stopPropagation();onCompareToggle(this)"></td>'
     + '<td style="color:var(--muted);font-size:12px">' + r.id + '</td>'
     + '<td class="time" title="' + r.timestamp + '">' + timeAgo(r.timestamp) + '</td>'
-    + '<td class="code-cell">' + codeSummary + imgDot + '</td>'
     + '<td>' + badge(r) + '</td>'
+    + '<td class="metric-cell">' + metric + '</td>'
     + '<td class="dur">' + dur + '</td>'
+    + '<td>' + imgHtml + ' ' + actions + '</td>'
     + '</tr>'
-    + '<tr class="detail-row" id="detail-' + r.id + '"><td colspan="6">'
+    + '<tr class="detail-row" id="detail-' + r.id + '"><td colspan="7">'
     + '<div class="detail-tabs">'
     + '<span class="detail-tab active" onclick="event.stopPropagation();switchTab(' + r.id + ',\'code\')">📝 代码</span>'
     + '<span class="detail-tab" onclick="event.stopPropagation();switchTab(' + r.id + ',\'stdout\')">📤 stdout</span>'
@@ -341,19 +452,32 @@ function renderFailAnalysis() {
   document.getElementById('fail-analysis').style.display = any ? 'block' : 'none';
 }
 
-// ===== P1 费用看板：LLM 用量统计 =====
-function fmtCost(v) { return v == null ? '-' : '¥' + (v < 0.01 ? v.toFixed(4) : v.toFixed(2)); }
-function fmtTokens(v) { return v == null ? '-' : (v >= 10000 ? (v/1000).toFixed(1)+'k' : v); }
+function _statusKey(r) {
+  if (r.timed_out) return 'timeout';
+  if (r.exit_code !== 0) return 'failed';
+  var m = /最大压力[：:]?\s*\**\s*([\d.eE+-]+)/.exec(r.stdout || '');
+  if (m && parseFloat(m[1]) === 0) return 'zero';
+  return 'success';
+}
 
-async function refreshLlmUsage() {
-  try {
-    var resp = await fetch("/dashboard/api/llm_usage?limit=1");
-    var data = await resp.json();
-    var s = data.stats || {};
-    document.getElementById('llm-cost').textContent = fmtCost(s.cost_rmb);
-    document.getElementById('llm-calls').textContent = s.calls != null ? s.calls : '-';
-    document.getElementById('llm-tokens').textContent = fmtTokens(s.total_tokens);
-  } catch(e) {}
+function applyFilters() {
+  var q = (document.getElementById('search-input').value || '').toLowerCase();
+  var status = document.getElementById('status-filter').value;
+  var ids = Object.keys(window.__execs || {}).map(Number).sort(function(a, b) { return b - a; });
+  var rowsBox = document.getElementById('rows');
+  var filtered = ids.filter(function(id) {
+    var r = window.__execs[id];
+    if (status !== 'all' && _statusKey(r) !== status) return false;
+    if (!q) return true;
+    var hay = [r.code, r.stdout, r.stderr, r.tool_name, String(r.id)].join(' ').toLowerCase();
+    return hay.indexOf(q) !== -1;
+  });
+  document.getElementById('filter-count').textContent = filtered.length + ' 条';
+  if (!filtered.length) {
+    rowsBox.innerHTML = '<tr><td colspan="8" class="empty"><div class="icon">无匹配记录</div>没有符合当前筛选条件的记录。</td></tr>';
+    return;
+  }
+  rowsBox.innerHTML = filtered.map(function(id) { return renderRow(window.__execs[id]); }).join('');
 }
 
 async function refresh() {
@@ -361,14 +485,8 @@ async function refresh() {
     var resp = await fetch("/dashboard/api/executions?since=" + lastId + "&limit=100");
     var data = await resp.json();
     if (data.executions && data.executions.length > 0) {
-      var rows = document.getElementById("rows");
       data.executions.forEach(function(r) { window.__execs[r.id] = r; });  // 缓存供对比
-      if (firstLoad) { rows.innerHTML = ""; firstLoad = false; }
-      data.executions.slice().reverse().forEach(function(r) {
-        if (document.getElementById("detail-"+r.id)) return;
-        rows.insertAdjacentHTML("afterbegin", renderRow(r));
-        lastId = Math.max(lastId, r.id);
-      });
+      lastId = Math.max(lastId, Math.max.apply(null, data.executions.map(function(r) { return r.id; })));
     }
     if (data.stats) {
       document.getElementById("stat-total").textContent = data.stats.total;
@@ -377,7 +495,7 @@ async function refresh() {
       document.getElementById("stat-to").textContent = data.stats.timeout;
     }
     renderFailAnalysis();
-    refreshLlmUsage();
+    applyFilters();
     document.getElementById("live-dot").style.background = "var(--green)";
     document.getElementById("refresh-text").textContent = "自动刷新中";
   } catch(e) {

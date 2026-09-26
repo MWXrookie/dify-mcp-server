@@ -71,6 +71,23 @@ def init_db() -> None:
             cost_rmb REAL DEFAULT 0
         )
     """)
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS analysis_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT NOT NULL,
+            exit_code INTEGER,
+            verdict TEXT,
+            max_pressure REAL,
+            rms_pressure REAL,
+            field_shape TEXT,
+            has_signal INTEGER,
+            summary TEXT,
+            heatmap_base64 TEXT,
+            waveform_base64 TEXT,
+            stdout_excerpt TEXT,
+            stderr_excerpt TEXT
+        )
+    """)
     db.commit()
     db.close()
 
@@ -108,6 +125,60 @@ def record_execution(
         db.close()
 
 
+def record_analysis_event(
+    exit_code: int | None,
+    verdict: str,
+    max_pressure: float | None,
+    rms_pressure: float | None,
+    field_shape: list[int] | None,
+    has_signal: bool,
+    summary: str,
+    heatmap_base64: str | None,
+    waveform_base64: str | None,
+    stdout_excerpt: str,
+    stderr_excerpt: str,
+) -> None:
+    """Write result-analysis data to its own event table, not executions."""
+    with _write_lock:
+        db = _get_db()
+        db.execute(
+            """
+            INSERT INTO analysis_events (
+                timestamp, exit_code, verdict, max_pressure, rms_pressure,
+                field_shape, has_signal, summary, heatmap_base64,
+                waveform_base64, stdout_excerpt, stderr_excerpt
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                datetime.now(timezone.utc).isoformat(),
+                exit_code,
+                verdict,
+                max_pressure,
+                rms_pressure,
+                json.dumps(field_shape or [], ensure_ascii=False),
+                int(has_signal),
+                summary,
+                heatmap_base64,
+                waveform_base64,
+                stdout_excerpt,
+                stderr_excerpt,
+            ),
+        )
+        db.commit()
+        db.close()
+
+
+def get_analysis_events(limit: int = 100, since_id: int = 0) -> list[dict]:
+    """Return recent result-analysis events."""
+    db = _get_db()
+    rows = db.execute(
+        "SELECT * FROM analysis_events WHERE id > ? ORDER BY id DESC LIMIT ?",
+        (since_id, limit),
+    ).fetchall()
+    db.close()
+    return [dict(r) for r in rows]
+
+
 def get_executions(limit: int = 100, since_id: int = 0) -> list[dict]:
     db = _get_db()
     rows = db.execute(
@@ -118,6 +189,21 @@ def get_executions(limit: int = 100, since_id: int = 0) -> list[dict]:
     result = [dict(r) for r in rows]  # 最新在前，不再 reversed
     for r in result:
         r["timed_out"] = bool(r["timed_out"])
+    return result
+
+
+def get_execution(execution_id: int) -> dict | None:
+    """Return a single execution record by id."""
+    db = _get_db()
+    row = db.execute(
+        "SELECT * FROM executions WHERE id = ?",
+        (execution_id,),
+    ).fetchone()
+    db.close()
+    if not row:
+        return None
+    result = dict(row)
+    result["timed_out"] = bool(result["timed_out"])
     return result
 
 
@@ -588,52 +674,48 @@ PORTAL_HTML = r"""<!DOCTYPE html>
 </head>
 <body>
 <div class="wrap">
+<style>
+:root{--bg:#eef1f5;--surface:#fff;--surface-2:#edf1f5;--border:#d5dae2;--border-strong:#aab5c2;--text:#111827;--muted:#6b7280;--accent:#2563eb;--accent-soft:#eff6ff;--green:#047857;--green-soft:#ecfdf5;--red:#b91c1c;--red-soft:#fef2f2;--yellow:#b45309;--yellow-soft:#fffbeb;--purple:#6d28d9;--purple-soft:#f5f3ff}
+body{background:var(--bg)!important;color:var(--text)!important}
+.hero,.card,.ask-section,.stat,.section,.tile,.kpi,.source-box,.entry,.fail-analysis,.fa-group,.table-wrap{background:var(--surface)!important;border-color:var(--border-strong)!important;color:var(--text)!important}
+.hero{background:var(--surface)!important;box-shadow:0 2px 6px rgba(17,24,39,.08)!important}
+.card,.ask-section{box-shadow:0 1px 2px rgba(17,24,39,.08)!important}
+.nav-links a,.filter-btn,.detail-tab,.expand-btn{color:var(--muted)!important;border-color:var(--border-strong)!important;background:var(--surface)!important}
+.nav-links a:hover,.filter-btn:hover,.detail-tab:hover,.expand-btn:hover{color:var(--accent)!important;background:var(--accent-soft)!important}
+.badge-ok{background:var(--green-soft)!important;color:var(--green)!important;border-color:#a7f3d0!important}
+.badge-err{background:var(--red-soft)!important;color:var(--red)!important;border-color:#fecaca!important}
+.badge-to{background:var(--yellow-soft)!important;color:var(--yellow)!important;border-color:#fde68a!important}
+.badge-warn{background:var(--purple-soft)!important;color:var(--purple)!important;border-color:#ddd6fe!important}
+.msg.user{background:var(--accent-soft)!important;border-color:var(--accent)!important;color:var(--text)!important}
+.msg.assistant{background:var(--surface)!important;border-color:var(--border-strong)!important;color:var(--text)!important}
+.detail-box,.fix-code,.result{background:#f4f7fa!important;border-color:var(--border-strong)!important;color:#1f2937!important}
+th{background:#dfe5ec!important;color:#374151!important;border-color:var(--border-strong)!important}
+td,tr{border-color:#cdd5df!important}
+.fa-group-head,.fa-header{background:var(--surface-2)!important}
+</style>
   <div class="hero">
-    <h1>⚡ Dify MCP 门户</h1>
-    <p>这里是你的统一入口。通过下面的卡片进入执行看板、测试报告、Demo 演示、纠错缓存和健康检查。</p>
-  </div>
-
-  <div class="ask-section">
-    <div class="ask-head">
-      <h2>🔬 声学仿真问答</h2>
-      <button id="reset-btn" onclick="resetChat()">🆕 新对话</button>
-    </div>
-    <div class="chat-log" id="chat-log"></div>
-    <div class="ask-row">
-      <input type="text" id="query-input" placeholder="描述声学仿真需求，或输入修改（如：改成 5 MHz）" onkeydown="if(event.key==='Enter')ask()">
-      <button id="ask-btn" onclick="ask()">🚀 发送</button>
-    </div>
-    <div class="merge-hint" id="merge-hint"></div>
+    <h1>AcouAgent 控制台</h1>
+    <p>自然语言声学仿真、执行看板、测试报告和调试工具的统一入口。</p>
   </div>
 
   <div class="grid">
     <a class="card" href="/chat">
-      <h2>💬 多轮对话</h2>
+      <h2>多轮对话</h2>
       <p>连续对话式仿真：先给完整需求，再逐步修改参数，自动合并并重新执行。</p>
       <div class="go">开始对话 →</div>
     </a>
     <a class="card" href="/dashboard">
-      <h2>📊 执行看板</h2>
+      <h2>执行看板</h2>
       <p>查看实时执行记录、代码详情、图像缩略图和失败状态。</p>
       <div class="go">进入看板 →</div>
     </a>
-    <a class="card" href="/report">
-      <h2>📈 测试报告</h2>
-      <p>查看最新测试结果：成功率、场景分类、失败原因和时间线。</p>
-      <div class="go">查看报告 →</div>
-    </a>
-    <a class="card" href="/demo">
-      <h2>🎯 Demo 演示</h2>
-      <p>一键演示声学场景，适合展示给老师或做现场说明。</p>
-      <div class="go">打开演示 →</div>
-    </a>
     <a class="card" href="/health">
-      <h2>🩺 健康检查</h2>
+      <h2>服务状态</h2>
       <p>快速确认 MCP 网关是否在线，适合部署后检查。</p>
       <div class="go">检查状态 →</div>
     </a>
     <a class="card" href="/cache">
-      <h2>🧠 纠错缓存</h2>
+      <h2>纠错缓存</h2>
       <p>查看纠错经验缓存的运行状态、命中率和经验条目。</p>
       <div class="go">查看缓存 →</div>
     </a>
@@ -642,7 +724,6 @@ PORTAL_HTML = r"""<!DOCTYPE html>
   <div class="footer">
     <span>入口地址：/ 或 /portal</span>
     <span>看板地址：/dashboard</span>
-    <span>演示地址：/demo</span>
   </div>
 </div>
 <script>
@@ -751,7 +832,7 @@ function resetChat() {
   document.getElementById('query-input').focus();
 }
 
-renderChat();
+// Portal no longer embeds an inline chat; /chat is the single entry point.
 </script>
 </body>
 </html>"""
@@ -841,7 +922,7 @@ DEMO_HTML = r"""<!DOCTYPE html>
 <body>
 <div style="margin-bottom:20px"><a href="/" style="color:var(--blue);text-decoration:none;font-size:14px">← 返回门户</a></div>
 <div class="header">
-  <h1>&#127919; Dify MCP <span>· Demo 演示</span></h1>
+  <h1>AcouAgent <span>· Demo 演示</span></h1>
   <p>6 个预设场景，一键运行，实时展示结果</p>
 </div>
 
@@ -1079,7 +1160,21 @@ CHAT_HTML = r"""<!DOCTYPE html>
     background: var(--bg); color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
     display: flex; flex-direction: column;
+    padding-left: 220px;
   }
+  .app-sidebar {
+    position: fixed; left: 0; top: 0; bottom: 0; width: 220px;
+    background: var(--surface); border-right: 1px solid var(--border-strong);
+    padding: 18px 14px; display: flex; flex-direction: column; gap: 6px; z-index: 30;
+  }
+  .app-sidebar .brand { font-size: 16px; font-weight: 700; padding: 0 8px 16px; }
+  .app-sidebar .side-link {
+    display: flex; align-items: center; gap: 8px; padding: 9px 10px;
+    border-radius: 7px; color: var(--muted); text-decoration: none;
+    font-size: 14px; border: 1px solid transparent;
+  }
+  .app-sidebar .side-link:hover { background: var(--accent-soft); color: var(--accent); border-color: var(--border-strong); }
+  .app-sidebar .side-link.active { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
   .header {
     display: flex; align-items: center; gap: 14px;
     padding: 14px 24px; border-bottom: 1px solid var(--border);
@@ -1095,6 +1190,17 @@ CHAT_HTML = r"""<!DOCTYPE html>
     color: var(--muted); cursor: pointer; font-size: 13px;
   }
   .header .reset-btn:hover { color: var(--text); border-color: var(--accent); }
+  .header .model-btn { margin-left: 8px; padding: 6px 14px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; font-size: 13px; }
+  .header .model-btn:hover { color: var(--text); border-color: var(--accent); }
+  .modal { position: fixed; inset: 0; background: rgba(17,24,39,.55); display: none; align-items: center; justify-content: center; z-index: 20; padding: 20px; }
+  .modal.open { display: flex; }
+  .modal-box { width: min(520px, 100%); background: var(--surface); border: 1px solid var(--border-strong); border-radius: 8px; padding: 18px; box-shadow: 0 12px 28px rgba(17,24,39,.16); }
+  .modal-box h2 { margin: 0 0 12px; font-size: 17px; }
+  .modal-box label { display: block; color: var(--muted); font-size: 12px; margin: 10px 0 5px; }
+  .modal-box input { width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); font-size: 13px; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+  .modal-actions button { padding: 7px 14px; border-radius: 6px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); cursor: pointer; font-size: 13px; }
+  .modal-actions button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
 
   .chat-log {
     flex: 1; overflow-y: auto; padding: 24px;
@@ -1131,13 +1237,63 @@ CHAT_HTML = r"""<!DOCTYPE html>
   }
   .input-wrap button:disabled { opacity: 0.5; cursor: not-allowed; }
   .merge-hint { max-width: 900px; margin: 8px auto 0; color: var(--muted); font-size: 12px; min-height: 16px; }
+  @media (max-width: 768px) {
+    body { padding-left: 0; padding-top: 64px; }
+    .app-sidebar { width: 100%; height: 64px; flex-direction: row; overflow-x: auto; border-right: none; border-bottom: 1px solid var(--border-strong); padding: 8px 12px; align-items: center; }
+    .app-sidebar .brand { padding: 0 10px 0 0; white-space: nowrap; }
+    .app-sidebar .side-link { white-space: nowrap; }
+  }
 </style>
 </head>
 <body>
+<aside class="app-sidebar">
+  <div class="brand">AcouAgent</div>
+  <a class="side-link active" href="/">声学仿真</a>
+  <a class="side-link" href="/dashboard">执行看板</a>
+  <a class="side-link" href="/cache">纠错缓存</a>
+</aside>
 <div class="header">
-  <a href="/">← 返回门户</a>
-  <h1>💬 多轮对话<span>声学仿真 · 支持连续修改</span></h1>
-  <button class="reset-btn" onclick="resetChat()">🆕 新对话</button>
+<style>
+:root{--bg:#eef1f5;--surface:#fff;--surface-2:#edf1f5;--border:#d5dae2;--border-strong:#aab5c2;--text:#111827;--muted:#6b7280;--accent:#2563eb;--accent-soft:#eff6ff;--green:#047857;--green-soft:#ecfdf5;--red:#b91c1c;--red-soft:#fef2f2;--yellow:#b45309;--yellow-soft:#fffbeb;--purple:#6d28d9;--purple-soft:#f5f3ff}
+body{background:var(--bg)!important;color:var(--text)!important}
+.header{background:var(--surface)!important;border-color:var(--border-strong)!important;color:var(--text)!important}
+.header a{color:var(--muted)!important}
+.header .reset-btn{background:var(--surface)!important;color:var(--muted)!important;border-color:var(--border-strong)!important}
+.msg.user{background:var(--accent-soft)!important;border-color:var(--accent)!important;color:var(--text)!important}
+.msg.assistant{background:var(--surface)!important;border-color:var(--border-strong)!important;color:var(--text)!important}
+.input-bar{background:var(--surface)!important;border-color:var(--border-strong)!important}
+.input-wrap input{background:var(--surface)!important;color:var(--text)!important;border-color:var(--border-strong)!important}
+.input-wrap button{background:var(--accent)!important}
+</style>
+<style>
+:root{--bg:#eef1f5;--surface:#fff;--surface-2:#edf1f5;--border:#d5dae2;--border-strong:#aab5c2;--text:#111827;--muted:#6b7280;--accent:#2563eb;--accent-soft:#eff6ff;--green:#047857;--green-soft:#ecfdf5;--red:#b91c1c;--red-soft:#fef2f2;--yellow:#b45309;--yellow-soft:#fffbeb;--purple:#6d28d9;--purple-soft:#f5f3ff}
+body{background:var(--bg)!important;color:var(--text)!important}
+.card,.result{background:var(--surface)!important;border-color:var(--border-strong)!important;color:var(--text)!important;box-shadow:0 1px 2px rgba(17,24,39,.08)!important}
+.btn-run{background:var(--accent)!important}
+.status-line .ok{background:var(--green-soft)!important;color:var(--green)!important}
+.status-line .err{background:var(--red-soft)!important;color:var(--red)!important}
+.status-line .info{color:var(--muted)!important}
+</style>
+  <h1>声学仿真<span>自然语言多轮对话</span></h1>
+  <button class="reset-btn" onclick="resetChat()">新对话</button>
+  <button class="model-btn" onclick="openModelSettings()">模型设置</button>
+</div>
+
+<div class="modal" id="model-modal">
+  <div class="modal-box">
+    <h2>模型接口设置</h2>
+    <label>API Base URL</label>
+    <input id="model-base" type="text" placeholder="https://api.deepseek.com">
+    <label>API Key</label>
+    <input id="model-key" type="password" placeholder="sk-...">
+    <label>Model</label>
+    <input id="model-name" type="text" placeholder="deepseek-chat">
+    <p style="color:var(--muted);font-size:12px;line-height:1.6;margin-top:10px">配置保存在当前浏览器，并在发起请求时发送到本服务。留空时使用服务端默认模型。</p>
+    <div class="modal-actions">
+      <button onclick="closeModelSettings()">取消</button>
+      <button class="primary" onclick="saveModelSettings()">保存</button>
+    </div>
+  </div>
 </div>
 
 <div class="chat-log" id="chat-log"></div>
@@ -1145,7 +1301,7 @@ CHAT_HTML = r"""<!DOCTYPE html>
 <div class="input-bar">
   <div class="input-wrap">
     <input type="text" id="query-input" placeholder="描述声学仿真需求，或输入修改（如：改成 5 MHz）" onkeydown="if(event.key==='Enter')ask()">
-    <button id="ask-btn" onclick="ask()">🚀 发送</button>
+    <button id="ask-btn" onclick="ask()">发送</button>
   </div>
   <div class="merge-hint" id="merge-hint"></div>
 </div>
@@ -1177,6 +1333,50 @@ function renderMarkdown(md) {
 
 var conversation = [];
 var currentRequirement = '';
+
+function loadModelConfig() {
+  try {
+    return JSON.parse(localStorage.getItem('acouagent_model_config') || 'null');
+  } catch(e) {
+    return null;
+  }
+}
+
+function getModelConfig() {
+  var cfg = loadModelConfig();
+  if (!cfg || !cfg.api_key || !cfg.model) return null;
+  return {
+    base_url: cfg.base_url || 'https://api.deepseek.com',
+    api_key: cfg.api_key,
+    model: cfg.model
+  };
+}
+
+function openModelSettings() {
+  var cfg = loadModelConfig() || {};
+  document.getElementById('model-base').value = cfg.base_url || 'https://api.deepseek.com';
+  document.getElementById('model-key').value = cfg.api_key || '';
+  document.getElementById('model-name').value = cfg.model || '';
+  document.getElementById('model-modal').classList.add('open');
+}
+
+function closeModelSettings() {
+  document.getElementById('model-modal').classList.remove('open');
+}
+
+function saveModelSettings() {
+  var cfg = {
+    base_url: document.getElementById('model-base').value.trim(),
+    api_key: document.getElementById('model-key').value.trim(),
+    model: document.getElementById('model-name').value.trim()
+  };
+  if (cfg.api_key && cfg.model) {
+    localStorage.setItem('acouagent_model_config', JSON.stringify(cfg));
+  } else {
+    localStorage.removeItem('acouagent_model_config');
+  }
+  closeModelSettings();
+}
 
 // 会话隔离：浏览器 localStorage 持久化 session_id，随请求发给后端（Dify user 按会话区分）
 function getSessionId() {
@@ -1224,7 +1424,7 @@ async function ask() {
     var resp = await fetch('/chat', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({message: message, requirement: currentRequirement, session_id: getSessionId()})
+      body: JSON.stringify({message: message, requirement: currentRequirement, session_id: getSessionId(), model_config: getModelConfig()})
     });
     var data = await resp.json();
     var report = data.report || '';
@@ -1238,7 +1438,7 @@ async function ask() {
   }
   renderChat();
   btn.disabled = false;
-  btn.textContent = '🚀 发送';
+  btn.textContent = '发送';
 }
 
 function resetChat() {

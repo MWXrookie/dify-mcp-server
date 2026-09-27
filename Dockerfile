@@ -13,10 +13,10 @@ COPY requirements.lock.txt /app/requirements.lock.txt
 RUN pip install --no-cache-dir --timeout 120 --retries 10 \
     -r /app/requirements.lock.txt
 
-COPY config.py cache_store.py execution.py llm.py tools.py portal.py analysis.py server_safe.py dashboard.py /app/
-COPY docs/test_results_raw*.json /app/docs/
+COPY app/ /app/app/
+COPY docs/ /app/docs/
 USER 10001:10001
 
-ARG APP_FILE=server_safe.py
-ENV APP_FILE=${APP_FILE}
-CMD ["/bin/sh", "-c", "exec python /app/${APP_FILE}"]
+ARG APP_MODULE=app.server_safe
+ENV APP_MODULE=${APP_MODULE}
+CMD ["/bin/sh", "-c", "exec python -m ${APP_MODULE}"]

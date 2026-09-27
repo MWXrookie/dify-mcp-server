@@ -4,6 +4,30 @@
 
 ---
 
+## 2026-09-27 · 会话: Windows 本地副本与 VM 主工作区差异迁移
+
+### 完成
+- [x] 以 VM `main` 最新代码为行为基线，将网关模块迁入 `app/` 包，入口改为 `python -m app.server_safe`
+- [x] 将工作流与回归脚本归档到 `scripts/workflow/`、`scripts/tests/`，修正报告输出路径
+- [x] 将看板页面迁入 `app/web/`，保留 `docs/` 为文档与历史报告目录
+- [x] 加入 `pyproject.toml`、静态规则单元测试、健康检查测试、架构图和隔离的 LangGraph 参考实现
+- [x] 保留 VM 最新的 `<think>` 清理、LLM 费用统计和模型设置说明，避免被较早的本地副本覆盖
+- [x] 排除 `auxiliary/work/` 插件试验和视觉验收临时产物；未削弱 executor 沙箱限制
+
+### 验证
+- `git diff --check`、改动 Python 文件 `py_compile`、`docker compose config --quiet` 均通过
+- 独立镜像 `local/dify-mcp:migration-20260927` 构建成功
+- 隔离容器测试：4 passed，1 skipped（未配置外部网关地址）
+- 隔离容器 `/health` 返回 200 `ok`
+- VM 网关实部署：`/health`、`/dashboard`、`/cache` 均返回 200；迁移前后 `jwave-executor` 持续运行且未重建
+- 敏感信息与本机绝对路径扫描通过
+
+### 变更文件
+- `app/`、`scripts/`、`tests/`、`pyproject.toml`
+- `Dockerfile`、`compose.yaml`、`.dockerignore`、`.gitignore`
+- `README.md`、`docs/`、`auxiliary/reference/`
+
+---
 ## 2026-09-27 · 会话: 技术优化与可信演进规划 v2.0
 
 ### 完成

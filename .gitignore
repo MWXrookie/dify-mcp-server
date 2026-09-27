@@ -8,3 +8,9 @@ __pycache__/
 .claude/
 .session-dump.tmp.jsonl
 test_multiturn_result.json
+auxiliary/work/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/

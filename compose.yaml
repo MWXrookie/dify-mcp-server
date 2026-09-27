@@ -25,7 +25,7 @@ services:
     build:
       context: .
       args:
-        APP_FILE: server_safe.py
+        APP_MODULE: app.server_safe
     image: local/dify-mcp:fastmcp-3.4.6-safe
     container_name: dify-mcp
     restart: unless-stopped

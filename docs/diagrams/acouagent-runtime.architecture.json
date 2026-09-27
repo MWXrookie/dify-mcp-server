@@ -1,0 +1,225 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "AcouAgent 声学仿真运行时架构",
+    "locale": "zh-CN",
+    "output": "docs/diagrams/acouagent-runtime.architecture.html",
+    "quality_profile": "showcase",
+    "viewBox": [1380, 660],
+    "views": [
+      {
+        "id": "main-request",
+        "label": "主请求链路",
+        "focus": ["users", "web_portal", "dify_workflow", "mcp_gateway", "simulation_pipeline"],
+        "note": "自然语言请求从 Web 门户进入 Dify，再由 MCP 工具触发仿真执行闭环。"
+      },
+      {
+        "id": "quality-loop",
+        "label": "执行与质量闭环",
+        "focus": ["mcp_gateway", "simulation_pipeline", "jwave_sandbox", "deepseek_api", "state_store"],
+        "note": "参数校验、静态检查、沙箱执行、自动纠错、物理 verdict 与经验缓存形成闭环。"
+      },
+      {
+        "id": "knowledge-path",
+        "label": "知识检索",
+        "focus": ["dify_workflow", "dify_kb", "simulation_pipeline"],
+        "note": "Dify 知识库提供 jwave API、物理规则和仿真模板上下文。"
+      },
+      {
+        "id": "isolation-boundary",
+        "label": "隔离边界",
+        "focus": ["mcp_gateway", "simulation_pipeline", "jwave_sandbox"],
+        "note": "执行器仅连接内部网络，代码在只读、降权和资源受限的沙箱内运行。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "users",
+      "type": "external",
+      "label": "用户 / Dify Chat",
+      "sublabel": "自然语言声学需求",
+      "pos": [40, 280],
+      "size": [120, 64]
+    },
+    {
+      "id": "web_portal",
+      "type": "frontend",
+      "label": "Web 门户",
+      "sublabel": "问答 / 看板 / Demo",
+      "pos": [200, 280],
+      "size": [140, 64],
+      "tag": "FastMCP Web"
+    },
+    {
+      "id": "dify_workflow",
+      "type": "cloud",
+      "label": "Dify 工作流",
+      "sublabel": "需求分析 / 参数提取 / 代码生成",
+      "pos": [480, 280],
+      "size": [180, 76],
+      "tag": "编排层"
+    },
+    {
+      "id": "dify_kb",
+      "type": "database",
+      "label": "Dify 知识库",
+      "sublabel": "API / 物理规则 / 模板",
+      "pos": [480, 80],
+      "size": [180, 64],
+      "tag": "向量检索"
+    },
+    {
+      "id": "mcp_gateway",
+      "type": "security",
+      "label": "FastMCP 网关",
+      "sublabel": "鉴权 / 工具注册 / 报告",
+      "pos": [740, 280],
+      "size": [170, 76],
+      "tag": "6 个 MCP 工具"
+    },
+    {
+      "id": "simulation_pipeline",
+      "type": "backend",
+      "label": "仿真执行闭环",
+      "sublabel": "校验 / 执行 / 纠错 / 分析",
+      "pos": [950, 280],
+      "size": [170, 76],
+      "tag": "≤ 7 次重试"
+    },
+    {
+      "id": "state_store",
+      "type": "database",
+      "label": "本地数据卷",
+      "sublabel": "执行历史 / 纠错缓存",
+      "pos": [950, 520],
+      "size": [170, 64],
+      "tag": "SQLite"
+    },
+    {
+      "id": "jwave_sandbox",
+      "type": "security",
+      "label": "jwave 沙箱",
+      "sublabel": "Python / jwave 0.2.1 / CPU",
+      "pos": [1160, 520],
+      "size": [170, 76],
+      "tag": "无外网 + 资源限额"
+    },
+    {
+      "id": "deepseek_api",
+      "type": "cloud",
+      "label": "DeepSeek API",
+      "sublabel": "错误诊断 / 代码修复",
+      "pos": [950, 80],
+      "size": [170, 64],
+      "tag": "自动纠错"
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Dify 编排层",
+      "wraps": ["dify_workflow", "dify_kb"]
+    },
+    {
+      "kind": "region",
+      "label": "dify-mcp 服务",
+      "wraps": ["mcp_gateway", "simulation_pipeline", "state_store"]
+    },
+    {
+      "kind": "security-group",
+      "label": "隔离执行边界",
+      "wraps": ["jwave_sandbox"]
+    }
+  ],
+  "connections": [
+    {
+      "id": "users-to-portal",
+      "from": "users",
+      "to": "web_portal",
+      "label": "HTTP",
+      "labelDy": 68,
+      "variant": "emphasis"
+    },
+    {
+      "id": "portal-to-dify",
+      "from": "web_portal",
+      "to": "dify_workflow",
+      "label": "Dify Chat API"
+    },
+    {
+      "id": "kb-to-dify",
+      "from": "dify_kb",
+      "to": "dify_workflow",
+      "label": "top-k 上下文",
+      "labelDy": 24
+    },
+    {
+      "id": "dify-to-mcp",
+      "from": "dify_workflow",
+      "to": "mcp_gateway",
+      "label": "MCP tool call",
+      "variant": "emphasis"
+    },
+    {
+      "id": "mcp-to-pipeline",
+      "from": "mcp_gateway",
+      "to": "simulation_pipeline",
+      "label": "执行",
+      "labelDy": 62
+    },
+    {
+      "id": "pipeline-to-sandbox",
+      "from": "simulation_pipeline",
+      "to": "jwave_sandbox",
+      "label": "POST /execute",
+      "labelDy": 62,
+      "variant": "emphasis"
+    },
+    {
+      "id": "pipeline-to-deepseek",
+      "from": "simulation_pipeline",
+      "to": "deepseek_api",
+      "label": "失败纠错",
+      "variant": "security"
+    },
+    {
+      "id": "pipeline-to-state",
+      "from": "simulation_pipeline",
+      "to": "state_store",
+      "label": "历史 + 经验",
+      "labelDy": 24
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "入口与编排",
+      "items": [
+        "Web 门户提供问答、执行看板、报告、缓存和 Demo",
+        "Dify 负责需求分析、参数提取、知识检索和代码生成",
+        "工作流通过 MCP 工具调用执行仿真"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "MCP 与质量门",
+      "items": [
+        "网关注册 6 个 MCP 工具并校验 Bearer Token",
+        "执行前做 AST 静态检查和物理参数校验",
+        "VAL-1 verdict、热力图和波形图组成物理质量门",
+        "执行记录与纠错经验写入 SQLite 数据卷"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "隔离执行与演进",
+      "items": [
+        "沙箱仅连 executor_internal，代码上限 20KB、执行 1-30s",
+        "read_only、cap_drop ALL、pids 256、内存 4GB、CPU 2 核",
+        "规划中的 skill_store 尚未上线，不能把成功退出码直接当作技能入库"
+      ]
+    }
+  ]
+}

@@ -87,7 +87,6 @@
 │  │  │ │ • jwave_environment       │   │         │     │    │   │   │
 │  │  │ │ • run_jwave_code          │───┘         │     │    │   │   │
 │  │  │ │ • run_jwave_code_with_retry│            │     │    │   │   │
-│  │  │ │ • run_allowlisted_tool    │             │     │    │   │   │
 │  │  │ └────────────────────────────┼─────────────┼─────┘    │   │   │
 │  │  │                               │             │          │   │   │
 │  │  │ ┌─────────────────────────────┼─────────────┼─────┐   │   │   │
@@ -280,12 +279,13 @@ T11: 返回用户 (聊天消息, 含图片)
 
 ## 3. 组件设计
 
-### 3.1 MCP Gateway（薄壳 `server_safe.py` + 业务模块，2026-08-18 模块化拆分）
+### 3.1 MCP Gateway（薄壳 `app/server_safe.py` + 业务模块，2026-08-18 模块化拆分）
 
 ```
-模块层次 (server_safe.py 为入口薄壳，装配 + 注册):
+模块层次 (`app/server_safe.py` 为入口薄壳，装配 + 注册):
 
-server_safe.py   FastMCP("Dify JWave Tools") + auth + register_tools/portal/analysis + main
+app/
+├── server_safe.py   FastMCP("Dify JWave Tools") + auth + register_tools/portal/analysis + main
 ├── config.py        环境配置与校验 (token / deepseek / executor URL)
 ├── cache_store.py   纠错经验缓存 SQLite (error_cache.db)
 ├── execution.py     代码清理 / 沙箱执行 / Markdown 报告
@@ -298,7 +298,6 @@ server_safe.py   FastMCP("Dify JWave Tools") + auth + register_tools/portal/anal
 │   │   └── execution._execute_code() → httpx POST executor
 │   │   └── llm._llm_fix_code()      → httpx POST deepseek
 │   │   └── execution._clean_code()  → 去 markdown 包裹
-│   ├── run_allowlisted_tool(tool_name, args_json)  → 白名单
 │   └── validate_simulation_params(params_json)     → 物理规则校验
 ├── portal.py        Web 门户路由 (register(mcp))
 │   ├── GET  /health                         → "ok"
@@ -311,8 +310,8 @@ server_safe.py   FastMCP("Dify JWave Tools") + auth + register_tools/portal/anal
     └── verdict: normal / zero_field / abnormal（对标 VAL-1 基准）
 ```
 
-> 说明：新功能按模块落位——仿真执行类工具进 `tools.py`，结果分析进 `analysis.py`，
-> Web 页面进 `portal.py`，缓存进 `cache_store.py`；`server_safe.py` 保持薄壳，
+> 说明：新功能按模块落位——仿真执行类工具进 `app/tools.py`，结果分析进 `app/analysis.py`，
+> Web 页面进 `app/portal.py`，缓存进 `app/cache_store.py`；`app/server_safe.py` 保持薄壳，
 > 各模块通过 `register(mcp)` 向同一 FastMCP 实例注册，避免循环导入。
 
 ### 3.2 jwave Executor (`executor/executor.py`)
@@ -336,7 +335,7 @@ HTTPServer (BaseHTTPRequestHandler)
 │   └── _send(status, payload)
 ```
 
-### 3.3 Dashboard (`dashboard.py`)
+### 3.3 Dashboard (`app/dashboard.py`)
 
 ```
 函数层级:

@@ -428,7 +428,6 @@ idle → planning → clarifying（需求模糊时）→ awaiting_params
 | `jwave_environment` | 已有 | 执行器健康检查 |
 | `run_jwave_code` | 已有 | 直接执行 (1-30s) |
 | `run_jwave_code_with_retry` | 已有，增强 | 执行 + LLM 纠错 (≤7次) |
-| `run_allowlisted_tool` | 已有 | 白名单工具 |
 | `validate_simulation_params` | P1 新增 | 物理参数硬编码校验 |
 | `analyze_simulation_result` | P1 新增 | 数据提取 + PNG + 合理性检查 |
 

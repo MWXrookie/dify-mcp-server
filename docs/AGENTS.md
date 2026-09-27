@@ -8,6 +8,81 @@
 
 ---
 
+## 0. 项目记忆
+
+### 0.1 项目记忆 store
+
+本项目的 `global_memory` 项目专用 store 固定为：
+
+```text
+project:dify-mcp-server
+```
+
+不要把本项目记忆混入其他项目 store，也不要复用到 `MMG_VisualizeMM` 等其他项目。
+
+### 0.2 会话启动读取步骤
+
+1. 先读本项目根目录或 `docs/AGENTS.md`。
+2. 再使用 `global_memory.memory_search`，以当前任务为 query，并传入：
+
+```text
+store="project:dify-mcp-server"
+```
+
+3. 需要完整历史时使用 `global_memory.memory_list`，同样指定本项目 store。
+
+### 0.3 重要信息回写
+
+以下内容应使用 `global_memory.memory_store` 写回 `project:dify-mcp-server`：
+
+- 重要架构决策；
+- 错误修复和固定错误模式；
+- 用户纠正；
+- 已验证的技术约束；
+- 阶段完成总结；
+- 本轮确认的优化方向。
+
+每条记忆至少带两个有意义的标签，例如：
+
+```text
+acouagent,dify-mcp-server,architecture,optimization
+```
+
+### 0.4 架构变更前置检查
+
+任何涉及架构内容的新增、删除、重命名或行为变动，包括 Dify 工作流、FastMCP 网关与 MCP 工具、jwave executor/沙箱、执行与纠错闭环、结果分析、SQLite 数据模型、网络与信任边界、部署拓扑等，必须遵守以下顺序：
+
+1. 修改代码或架构文档前，先阅读 `docs/diagrams/acouagent-runtime.architecture.json`，以它作为当前架构事实基线进行检查。
+2. 变更实施后，同步更新该 JSON，不能只改代码而让架构资产漂移。
+3. 重新生成 `docs/diagrams/acouagent-runtime.architecture.html`。
+4. 依次运行 `archify validate --quality showcase`、`deliver` 和 `visual-check`，保留最新回执。
+5. 若真实代码与 JSON 冲突，以真实代码为准，但必须同步修正 JSON，并说明冲突原因。
+
+用户级 Codex `PostToolUse` hook 位于 `~/.codex/hooks.json`，由 `~/.codex/hooks/archify-after-pr.mjs` 执行。该 hook 对所有项目生效：当成功的 `gh pr create` 命令结束后，它会扫描当前项目中的 `*.architecture.json`；找到架构文件时，把“检查并同步 Archify 架构”的强制上下文追加给当前 Agent，找不到时静默跳过。该 hook 需要由用户在 Codex `/hooks` 界面完成信任审核后才会执行。
+
+### 0.5 降级行为
+
+如果 `global_memory` 不可用：
+
+- 不得因此中断当前任务；
+- 优先以当前代码和用户最新要求为准；
+- 可在 `docs/AGENTS.md` 或 `docs/CHANGELOG.md` 中记录关键结论；
+- 恢复 MCP 后再补写项目 store。
+
+### 0.6 当前优化方向
+
+完整分析文档由项目 Owner 在仓库外维护；仓库内不记录本机绝对路径。
+
+核心方向：把 `error_fix_cache` 升级为“成功技能库 + 生成前检索 + 物理质量门控”。第一阶段新增 `skill_store.py` 和 `search_simulation_skill` MCP 工具，在 Dify 参数提取后、代码生成前检索技能。
+
+### 0.7 临时脚本处理偏好
+
+- 临时脚本默认用完后删除，不留在项目根目录或 `docs/` 里。
+- 只有当脚本明确会重复使用时，才保留并放进 `scripts/` 对应子目录。
+- 单次生成、一次性迁移、调试排查类脚本不属于重复使用脚本，应直接删除。
+
+---
+
 ## 1. 项目速览
 
 ### 1.1 这是什么
@@ -24,25 +99,24 @@
 
 | 文件 | 行数 | 职责 | 修改频率 |
 |------|------|------|----------|
-| `server_safe.py` | 薄壳 | FastMCP 网关入口：装配配置 + 注册模块 | 低 |
-| `config.py` | ~30 | 环境配置与校验 | 低 |
-| `cache_store.py` | ~200 | 纠错经验缓存 SQLite | 中 |
-| `execution.py` | ~150 | 代码清理/沙箱执行/报告生成 | 中 |
-| `llm.py` | ~100 | DeepSeek 自动纠错 | 低 |
-| `tools.py` | ~330 | MCP 工具集（6 个） | 中（新增工具时） |
-| `portal.py` | ~170 | Web 门户路由 | 中 |
-| `analysis.py` | 占位 | 结果分析（T-007 落点） | 中（T-007 后） |
+| `app/server_safe.py` | 薄壳 | FastMCP 网关入口：装配配置 + 注册模块 | 低 |
+| `app/config.py` | ~30 | 环境配置与校验 | 低 |
+| `app/cache_store.py` | ~200 | 纠错经验缓存 SQLite | 中 |
+| `app/execution.py` | ~150 | 代码清理/沙箱执行/报告生成 | 中 |
+| `app/llm.py` | ~100 | DeepSeek 自动纠错 | 低 |
+| `app/tools.py` | ~330 | MCP 工具集（6 个） | 中（新增工具时） |
+| `app/portal.py` | ~170 | Web 门户路由 | 中 |
+| `app/analysis.py` | 占位 | 结果分析（T-007 落点） | 中（T-007 后） |
 | `executor/executor.py` | 123 | Docker 沙箱，单请求代码执行 | 低（稳定） |
 | `compose.yaml` | ~80 | Docker Compose 双容器编排 | 低 |
-| `dashboard.py` | 347 | SQLite 执行历史 + Web 看板 HTML | 低 |
-| `library_tools.py` | 15 | 白名单工具注册 | 低 |
+| `app/dashboard.py` | 347 | SQLite 执行历史 + Web 看板 HTML | 低 |
 | `Dockerfile` | ~22 | dify-mcp 镜像（COPY 全部模块） | 低 |
 | `executor/Dockerfile` | ~25 | jwave-executor 镜像 | 低 |
 | `.env` | 7 | 环境变量（Token/Key） | 低 |
 
-> ⚠️ **模块化约定（2026-08-18）**：新功能按职责落位——仿真执行类工具进 `tools.py`，
-> 结果分析进 `analysis.py`，Web 页面进 `portal.py`，缓存进 `cache_store.py`；
-> `server_safe.py` 只做装配，**不要在薄壳里堆业务代码**。
+> ⚠️ **模块化约定（2026-08-18）**：新功能按职责落位——仿真执行类工具进 `app/tools.py`，
+> 结果分析进 `app/analysis.py`，Web 页面进 `app/portal.py`，缓存进 `app/cache_store.py`；
+> `app/server_safe.py` 只做装配，**不要在薄壳里堆业务代码**。
 
 ### 1.4 怎么启动
 
@@ -177,7 +251,7 @@ Agent 应**按编号顺序**领取任务。每完成一个任务，在 `docs/CHA
 |------|------|
 | 优先级 | P0 |
 | 依赖 | 无 |
-| 文件 | Dify 工作流 draft → `server_safe.py` 纠错 Prompt |
+| 文件 | Dify 工作流 draft → `app/llm.py` 纠错 Prompt |
 | 验收 | 50 次端到端测试成功率 ≥ 90% |
 
 **执行步骤**：
@@ -186,7 +260,7 @@ Agent 应**按编号顺序**领取任务。每完成一个任务，在 `docs/CHA
    - 嵌入 ✅ 正确 API（TimeAxis/FourierSeries/Sources/Medium）
    - 嵌入 ❌ 禁止 API 黑名单（p0.shape / time_axis.t / from_array 等）
    - 嵌入 2 个最小完整代码示例
-3. 修改纠错 Prompt（`server_safe.py` 的 `_llm_fix_code` 函数）：
+3. 修改纠错 Prompt（`app/llm.py` 的 `_llm_fix_code` 函数）：
    - 注入 jwave 常见错误模式速查表
 4. 更新知识库 markdown：
    - 替换文件 → 更新 upload_files.size → 重置 indexing_status → 删除旧 segments → 触发重索引
@@ -203,7 +277,7 @@ Agent 应**按编号顺序**领取任务。每完成一个任务，在 `docs/CHA
 |------|------|
 | 优先级 | P1 |
 | 依赖 | 无 |
-| 文件 | `server_safe.py` |
+| 文件 | `app/tools.py` |
 | 验收 | 5 种边界条件全部正确拦截/放行 |
 
 **功能规格**：
@@ -235,7 +309,7 @@ Agent 应**按编号顺序**领取任务。每完成一个任务，在 `docs/CHA
 |------|------|
 | 优先级 | P1 |
 | 依赖 | 需确认 executor 中有 matplotlib |
-| 文件 | `server_safe.py`（新增工具）, `executor/Dockerfile`（如需） |
+| 文件 | `app/tools.py` / `app/analysis.py`（新增工具）, `executor/Dockerfile`（如需） |
 | 验收 | 执行标准仿真后，自动返回热力图 PNG + 物理量摘要 |
 
 **功能规格**：

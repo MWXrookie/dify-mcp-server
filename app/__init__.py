@@ -1,0 +1,1 @@
+"""AcouAgent MCP gateway package."""

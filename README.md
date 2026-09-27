@@ -20,15 +20,23 @@ dify-mcp :8001 (FastMCP 网关 + Web 门户)
 
 ```text
 .
-├── server_safe.py          # FastMCP 入口
-├── tools.py                # MCP 仿真执行/纠错/校验工具
-├── analysis.py             # 结果分析与物理语义门
-├── portal.py               # Web 路由
+├── app/                    # 网关运行代码
+│   ├── server_safe.py      # FastMCP 入口
+│   ├── tools.py            # MCP 仿真执行/纠错/校验工具
+│   ├── analysis.py         # 结果分析与物理语义门
+│   ├── static_check.py     # 生成代码 AST 静态检查
+│   ├── portal.py           # Web 路由
+│   └── web/                # 运行页面 HTML
 ├── executor/               # Docker jwave 沙箱
-├── docs/                   # 文档、Web 页面、测试报告
+├── docs/                   # 项目文档、知识库、测试报告
+├── tests/                  # 单元与集成测试
 ├── scripts/workflow/       # 历史 Dify 工作流生成/修补脚本
 ├── scripts/tests/          # 本地回归与稳定性测试
-└── reference/              # 队友项目参考实现
+├── pyproject.toml          # Python 项目与测试工具配置
+├── requirements.lock.txt   # 运行时依赖
+├── Dockerfile
+├── compose.yaml
+└── auxiliary/              # 参考实现、插件测试、一次性试验，不参与部署
 ```
 
 ## 快速命令
@@ -64,12 +72,12 @@ docker restart docker-api-1 docker-worker-1  # MCP schema 刷新
 
 ## MCP 工具
 
-网关共注册 **6 个 MCP 工具**（FastMCP 3.4.6，入口薄壳 `server_safe.py` + 模块 `tools.py`/`portal.py`/`analysis.py`）：
+网关共注册 **6 个 MCP 工具**（FastMCP 3.4.6，入口薄壳 `app/server_safe.py` + 模块 `app/tools.py`/`app/portal.py`/`app/analysis.py`）：
 
 | 工具 | 说明 |
 |------|------|
 | `run_jwave_code` | 执行 Python 代码（1-30s 超时, 20KB 上限） |
-| `run_jwave_code_with_retry` | 执行 + DeepSeek 自动纠错 + 物理语义门（`verdict=normal` 才成功）+ 重试（≤7 次）+ **自动生成 Markdown 报告** |
+| `run_jwave_code_with_retry` | 沙箱执行 + DeepSeek 自动纠错 + 重试（≤7 次）+ **自动生成 Markdown 报告**；物理结果由独立分析工具判定 |
 | `validate_simulation_params` | 硬编码物理规则校验（Nyquist/CFL/网格/PML） |
 | `jwave_environment` | 执行器环境健康检查 |
 | `list_installed_libraries` | 已安装工具列表 |
@@ -105,7 +113,9 @@ curl -X POST http://192.168.30.200:8001/mcp \
 | `scripts/tests/retest_p0.py` | P0 重点场景小批量重测 | 费用低 |
 
 - 测试目标：`http://localhost/v1/workflows/run`，需要 `DIFY_API_KEY` 环境变量
-- 语法预检：`python3 -m py_compile server_safe.py tools.py portal.py analysis.py cache_store.py execution.py llm.py config.py dashboard.py executor/executor.py`
+- 语法预检：`python3 -m py_compile app/server_safe.py app/tools.py app/portal.py app/analysis.py app/static_check.py app/cache_store.py app/execution.py app/llm.py app/config.py app/dashboard.py executor/executor.py`
+- 单元测试：`python3 -m pytest tests/unit`
+- 集成测试：`GW_BASE_URL=http://<gateway> python3 -m pytest tests/integration`
 - 现有报告：`docs/test_report_phase1_new.md`（48/50=96%）、`docs/test_report_10.md`（10/10=100%）
 
 ## Dify 工作流配置

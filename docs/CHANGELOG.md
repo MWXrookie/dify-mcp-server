@@ -4,6 +4,31 @@
 
 ---
 
+## 2026-09-27 · 会话: 修复稳态热力图与传感器曲线输出契约
+
+### 完成
+- [x] 用 128×128、0.25 mm、水中 500 kHz 中心连续点源和 5 mm 点传感器真实复现，确认峰值压力 0.422875 Pa
+- [x] Dify 代码生成提示词明确使用整数网格声源坐标，禁止用 t=0/任意单帧绘制稳态热力图，并标准化场数据和传感器时序标记
+- [x] 网关统一用全时最大绝对压力场生成展示图，覆盖 LLM 自绘的黑图；从传感器时序生成真正的时域声压曲线
+- [x] 报告将退出码为 0 的纯 Python warning 标为“运行警告”，保留真实 traceback/error 为“错误输出”
+- [x] 隐藏报告中的大段传感器 JSON，发布版与草稿版工作流均完成可审计备份和迁移
+- [x] 同步并重新生成 Archify 运行时架构图
+
+### 验证
+- 新增 5 项回归测试通过：传感器新旧标记、时域曲线、warning 分类、真实错误保留、统一热力图覆盖
+- Docker 镜像构建成功，Python 语法检查和 `git diff --check` 通过
+- Archify showcase 9/9 检查通过，四档桌面尺寸无溢出；视觉截图已人工检查
+- 发布版与草稿版工作流均验证结果契约和双图嵌入标记已生效
+
+### 变更文件
+- `app/analysis.py`、`app/execution.py`、`app/tools.py`、`app/portal.py`
+- `scripts/workflow/_apply_heatmap.py`、`scripts/workflow/_apply_result_contract.py`
+- `tests/unit/test_analysis_result.py`、`tests/unit/test_execution_report.py`
+- `docs/dify_workflow_backup/*_result_contract_20260927.json`
+- `docs/diagrams/acouagent-runtime.architecture.json`、`docs/diagrams/acouagent-runtime.architecture.html`
+
+---
+
 ## 2026-09-27 · 会话: 固化技能库原型与安全审计证据
 
 ### 完成

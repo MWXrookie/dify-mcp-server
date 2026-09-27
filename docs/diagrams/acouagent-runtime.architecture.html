@@ -5112,15 +5112,15 @@
         <text data-detail="fine" x="825" y="348" class="t-security" font-size="7" text-anchor="middle">6 个 MCP 工具</text>
         </g>
 
-        <g id="node-simulation_pipeline" data-node-id="simulation_pipeline" data-node-label="仿真执行闭环" tabindex="0" role="button" aria-label="聚焦仿真执行闭环，校验 / 执行 / 纠错 / 分析, dify-mcp 服务" aria-pressed="false" data-node-kind="backend" data-node-sublabel="校验 / 执行 / 纠错 / 分析" data-node-tag="≤ 7 次重试" data-node-context="dify-mcp 服务">
-          <title>仿真执行闭环 · 校验 / 执行 / 纠错 / 分析 · dify-mcp 服务 · ≤ 7 次重试</title>
+        <g id="node-simulation_pipeline" data-node-id="simulation_pipeline" data-node-label="仿真执行闭环" tabindex="0" role="button" aria-label="聚焦仿真执行闭环，校验 / 执行 / 纠错 / 统一制图, dify-mcp 服务" aria-pressed="false" data-node-kind="backend" data-node-sublabel="校验 / 执行 / 纠错 / 统一制图" data-node-tag="≤ 7 次重试" data-node-context="dify-mcp 服务">
+          <title>仿真执行闭环 · 校验 / 执行 / 纠错 / 统一制图 · dify-mcp 服务 · ≤ 7 次重试</title>
           <rect x="950" y="280" width="170" height="76" rx="6" class="c-mask"/>
           <rect x="950" y="280" width="170" height="76" rx="6" class="c-backend" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(956 286) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
           <text data-node-label="" data-detail-anchor="" x="1035" y="316" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">仿真执行闭环</text>
-        <text data-detail="context" x="1035" y="332" class="t-muted" font-size="9" text-anchor="middle">校验 / 执行 / 纠错 / 分析</text>
+        <text data-detail="context" x="1035" y="332" class="t-muted" font-size="9" text-anchor="middle">校验 / 执行 / 纠错 / 统一制图</text>
         <text data-detail="fine" x="1035" y="348" class="t-backend" font-size="7" text-anchor="middle">≤ 7 次重试</text>
         </g>
 
@@ -5420,7 +5420,8 @@
         <ul>
           <li>&bull; 网关注册 6 个 MCP 工具并校验 Bearer Token</li>
           <li>&bull; 执行前做 AST 静态检查和物理参数校验</li>
-          <li>&bull; VAL-1 verdict、热力图和波形图组成物理质量门</li>
+          <li>&bull; 标准化场数据和传感器时序由网关统一生成热力图与波形图</li>
+          <li>&bull; VAL-1 verdict、热力图和传感器波形组成物理质量门</li>
           <li>&bull; 执行记录与纠错经验写入 SQLite 数据卷</li>
         </ul>
       </div>

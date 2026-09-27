@@ -213,6 +213,7 @@ def register(mcp) -> None:
             code = execution._clean_code(row["code"])
             result = execution._execute_code(code, 15)
             result["stdout"] = execution._shrink_field_in_stdout(result.get("stdout", ""))
+            execution._normalize_result_artifacts(result)
             return PlainTextResponse(
                 json.dumps({"ok": True, "result": result}, ensure_ascii=False),
                 media_type="application/json",

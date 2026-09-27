@@ -46,6 +46,10 @@ except Exception:  # noqa: BLE001
 # 场数据输出约定：仿真代码在 stdout 打印以下标记包裹的 JSON
 _FIELD_START = "__ACOU_FIELD_START__"
 _FIELD_END = "__ACOU_FIELD_END__"
+_SENSOR_MARKERS = (
+    ("__ACOU_SENSOR_START__", "__ACOU_SENSOR_END__"),
+    ("__SENSOR_DATA_START__", "__SENSOR_DATA_END__"),  # legacy workflow output
+)
 
 # 可注入仿真代码末尾的"场数据输出"模板（T-008 接入 Dify 工作流时复制即用；
 # 也可由 LLM 依据该模板自行生成）。输出"全时最大绝对压力场"，避免 t=0 全零帧陷阱。
@@ -94,7 +98,52 @@ def _extract_field(stdout: str) -> dict | None:
     shape = payload.get("shape")
     if data is None:
         return None
-    return {"data": data, "shape": shape, "kind": payload.get("kind", "field")}
+    return {
+        "data": data,
+        "shape": shape,
+        "kind": payload.get("kind", "field"),
+        "max_pressure": payload.get("max_pressure"),
+        "downsample": payload.get("downsample", 1),
+    }
+
+
+def _extract_sensor(stdout: str) -> dict | None:
+    """Extract a point-sensor time series from the current or legacy marker block."""
+    if not stdout:
+        return None
+    for start, end in _SENSOR_MARKERS:
+        match = re.search(
+            re.escape(start) + r"\s*(\{.*?\})\s*" + re.escape(end),
+            stdout,
+            re.DOTALL,
+        )
+        if not match:
+            continue
+        try:
+            payload = json.loads(match.group(1))
+            time_values = payload.get("time")
+            pressure = payload.get("pressure")
+            if not isinstance(time_values, list) or not isinstance(pressure, list):
+                continue
+            if not time_values or not pressure:
+                continue
+            if pressure and isinstance(pressure[0], list):
+                # Accept (Nt, Ns) and (Ns, Nt); plot the first requested sensor.
+                if len(pressure) == len(time_values):
+                    pressure = [row[0] for row in pressure if row]
+                elif len(pressure[0]) == len(time_values):
+                    pressure = pressure[0]
+            if len(time_values) != len(pressure):
+                continue
+            return {
+                "time": time_values,
+                "pressure": pressure,
+                "sensor_index": payload.get("sensor_index") or payload.get("sensor_indices"),
+                "sensor_position": payload.get("sensor_position_m") or payload.get("sensor_position"),
+            }
+        except (json.JSONDecodeError, TypeError, ValueError, IndexError):
+            continue
+    return None
 
 
 def _to_float_matrix(data: Any) -> tuple[list | None, list[int] | None]:
@@ -168,7 +217,11 @@ def _verdict(
     return "normal"
 
 
-def _heatmap_base64(rows: list, title: str = "Pressure field") -> str | None:
+def _heatmap_base64(
+    rows: list,
+    title: str = "Pressure field",
+    original_shape: list[int] | None = None,
+) -> str | None:
     """生成热力图 PNG → base64；无 matplotlib 时降级 ASCII 热力图。
 
     支持 2D/3D 场：
@@ -195,7 +248,17 @@ def _heatmap_base64(rows: list, title: str = "Pressure field") -> str | None:
                     arr = arr[arr.shape[0] // 2]
         vmax = float(_np.max(_np.abs(arr))) or 1.0
         fig, ax = _plt.subplots(figsize=(6, 5), dpi=80)
-        im = ax.imshow(arr, cmap="RdBu_r", vmin=-vmax, vmax=vmax, aspect="auto")
+        extent = None
+        if original_shape and len(original_shape) >= 2:
+            extent = (0, original_shape[1], original_shape[0], 0)
+        im = ax.imshow(
+            arr,
+            cmap="RdBu_r",
+            vmin=-vmax,
+            vmax=vmax,
+            aspect="auto",
+            extent=extent,
+        )
         ax.set_title(title)
         ax.set_xlabel("x (grid)")
         ax.set_ylabel("y (grid)")
@@ -226,6 +289,30 @@ def _waveform_base64(rows: list, title: str = "Pressure profile") -> str | None:
         ax.set_title(title)
         ax.set_xlabel("index")
         ax.set_ylabel("Pressure (Pa)")
+        fig.tight_layout()
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", bbox_inches="tight")
+        _plt.close(fig)
+        return base64.b64encode(buf.getvalue()).decode("ascii")
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _sensor_waveform_base64(sensor: dict) -> str | None:
+    """Render the actual point-sensor pressure against simulation time."""
+    if _plt is None or _np is None:
+        return None
+    try:
+        time_values = _np.asarray(sensor["time"], dtype=_np.float64)
+        pressure = _np.asarray(sensor["pressure"], dtype=_np.float64)
+        if time_values.ndim != 1 or pressure.ndim != 1 or time_values.size != pressure.size:
+            return None
+        fig, ax = _plt.subplots(figsize=(7, 3), dpi=80)
+        ax.plot(time_values * 1e6, pressure, lw=0.9)
+        ax.set_title("Point sensor pressure vs time")
+        ax.set_xlabel("Time (us)")
+        ax.set_ylabel("Pressure (Pa)")
+        ax.grid(alpha=0.25)
         fig.tight_layout()
         buf = io.BytesIO()
         fig.savefig(buf, format="png", bbox_inches="tight")
@@ -293,6 +380,7 @@ def _analyze_impl(
     其函数体调用本函数（避免与工具名递归遮蔽）。
     """
     payload = _extract_field(stdout_text or "")
+    sensor = _extract_sensor(stdout_text or "")
     rows, shape = _to_float_matrix(payload["data"]) if payload else (None, None)
 
     if rows is None:
@@ -312,20 +400,30 @@ def _analyze_impl(
             "rms_pressure": 0.0,
             "field_shape": [],
             "heatmap_png_base64": None,
-            "waveform_png_base64": None,
+            "waveform_png_base64": _sensor_waveform_base64(sensor) if sensor else None,
+            "waveform_kind": "sensor_time" if sensor else None,
+            "sensor_samples": len(sensor["time"]) if sensor else 0,
             "verdict": verdict,
             "summary": f"未能从输出解析压力场（exit_code={exit_code}）。{_summary(metrics, verdict)}",
         }
 
     metrics = _compute_metrics(rows, shape)
+    if isinstance(payload.get("shape"), list) and len(payload["shape"]) >= 2:
+        metrics["field_shape"] = payload["shape"]
     # 大网格降采样输出时，用 payload 里的全场 max_pressure 覆盖（不丢失峰值量级）
     payload_max = payload.get("max_pressure")
     if isinstance(payload_max, (int, float)) and payload_max > 0:
         metrics["max_pressure"] = float(payload_max)
         metrics["has_signal"] = metrics["has_signal"] or True
     verdict = _verdict(exit_code, False, metrics)
-    heatmap = _heatmap_base64(rows, title="Pressure field (max-abs over time)" if payload.get("kind") == "field" else "Pressure field")
-    waveform = _waveform_base64(rows)
+    heatmap = _heatmap_base64(
+        rows,
+        title="Pressure field (max-abs over time)" if payload.get("kind") == "field" else "Pressure field",
+        original_shape=payload.get("shape"),
+    )
+    waveform = _sensor_waveform_base64(sensor) if sensor else _waveform_base64(rows)
+    sensor_pressure = sensor.get("pressure", []) if sensor else []
+    sensor_peak = max((abs(float(v)) for v in sensor_pressure), default=None)
 
     return {
         "has_signal": metrics["has_signal"],
@@ -334,6 +432,11 @@ def _analyze_impl(
         "field_shape": metrics["field_shape"],
         "heatmap_png_base64": heatmap,
         "waveform_png_base64": waveform,
+        "waveform_kind": "sensor_time" if sensor else "spatial_profile",
+        "sensor_samples": len(sensor.get("time", [])) if sensor else 0,
+        "sensor_peak_pressure": sensor_peak,
+        "sensor_index": sensor.get("sensor_index") if sensor else None,
+        "sensor_position": sensor.get("sensor_position") if sensor else None,
         "verdict": verdict,
         "summary": _summary(metrics, verdict),
     }

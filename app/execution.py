@@ -11,6 +11,10 @@ from app import config
 # 与 analysis.py 的场数据输出约定一致
 _FIELD_START = "__ACOU_FIELD_START__"
 _FIELD_END = "__ACOU_FIELD_END__"
+_SENSOR_MARKERS = (
+    ("__ACOU_SENSOR_START__", "__ACOU_SENSOR_END__"),
+    ("__SENSOR_DATA_START__", "__SENSOR_DATA_END__"),
+)
 
 
 def _clean_code(code: str) -> str:
@@ -162,6 +166,38 @@ def _shrink_field_in_stdout(stdout: str, max_chars: int = 350000) -> str:
     return stdout.replace(block, new_block)
 
 
+def _normalize_result_artifacts(result: dict[str, Any]) -> dict[str, Any]:
+    """Prefer the gateway-rendered max-abs field over an LLM-authored gallery image."""
+    if result.get("exit_code") != 0 or result.get("timed_out"):
+        return result
+    try:
+        from app import analysis
+
+        analyzed = analysis._analyze_impl(
+            result.get("stdout", "") or "",
+            result.get("stderr", "") or "",
+            int(result.get("exit_code") or 0),
+        )
+        heatmap = analyzed.get("heatmap_png_base64")
+        if heatmap:
+            result["image_base64"] = heatmap
+            result["image_source"] = "canonical_max_abs_field"
+    except Exception:  # noqa: BLE001
+        pass
+    return result
+
+
+def _stderr_is_warning_only(stderr: str, exit_code: int | None, timed_out: bool) -> bool:
+    """Recognize non-fatal Python warning streams without hiding actual failures."""
+    if not stderr.strip() or timed_out or exit_code != 0:
+        return False
+    lowered = stderr.lower()
+    if "warning:" not in lowered:
+        return False
+    fatal_markers = ("traceback (most recent call last)", "error:", "exception:", "fatal:")
+    return not any(marker in lowered for marker in fatal_markers)
+
+
 def _build_report(result: dict[str, Any], original_code: str) -> str:
     """Build a human-readable Markdown report from execution results."""
     exit_code = result.get("exit_code")
@@ -179,6 +215,13 @@ def _build_report(result: dict[str, Any], original_code: str) -> str:
         stdout,
         flags=re.DOTALL,
     )
+    for sensor_start, sensor_end in _SENSOR_MARKERS:
+        stdout = re.sub(
+            re.escape(sensor_start) + r".*?" + re.escape(sensor_end),
+            "[传感器时域数据已用于曲线生成，此处省略]",
+            stdout,
+            flags=re.DOTALL,
+        )
 
     # Status
     if timed_out:
@@ -235,7 +278,8 @@ def _build_report(result: dict[str, Any], original_code: str) -> str:
         lines.append("")
 
     if stderr.strip():
-        lines.append("### ⚠️ 错误输出")
+        warning_only = _stderr_is_warning_only(stderr, exit_code, timed_out)
+        lines.append("### ⚠️ 运行警告（不影响本次执行）" if warning_only else "### ❌ 错误输出")
         lines.append("")
         lines.append("```")
         for line in stderr.strip().splitlines()[:20]:

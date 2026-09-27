@@ -45,12 +45,17 @@ def _find_analyze(analyze_json):
     return an if isinstance(an, dict) else {}
 
 
-def _heatmap_md(analyze_json):
+def _analysis_images_md(analyze_json):
     an = _find_analyze(analyze_json)
-    b64 = an.get("heatmap_png_base64")
-    if b64:
-        return f"\\n\\n![压力场热力图](data:image/png;base64,{b64})"
-    return ""
+    parts = []
+    heatmap = an.get("heatmap_png_base64")
+    waveform = an.get("waveform_png_base64")
+    if heatmap:
+        parts.append(f"\\n\\n![稳态声压场热力图](data:image/png;base64,{heatmap})")
+    if waveform:
+        label = "点传感器时域声压曲线" if an.get("waveform_kind") == "sensor_time" else "声压空间剖面"
+        parts.append(f"\\n\\n![{label}](data:image/png;base64,{waveform})")
+    return "".join(parts)
 
 
 """
@@ -82,7 +87,7 @@ def main(mcp_json, review_text, explanation, analyze_json):
         parts.append(f"\\n\\n---\\n\\n## 🧠 物理解读\\n\\n{expl}")
 
     result = "\\n".join(p for p in parts if p)
-    result += _heatmap_md(analyze_json)
+    result += _analysis_images_md(analyze_json)
     if result:
         return {"result": result}
     return {"result": json.dumps(data, ensure_ascii=False, indent=2)}"""
@@ -112,7 +117,7 @@ def main(mcp_json, analyze_json):
         parts.append(f"\\n\\n## 🧠 重试后解读\\n\\n{an.get('summary', '')}")
 
     result = "\\n".join(p for p in parts if p)
-    result += _heatmap_md(analyze_json)
+    result += _analysis_images_md(analyze_json)
     if result:
         return {"result": result}
     return {"result": json.dumps(data, ensure_ascii=False, indent=2)}"""
@@ -120,23 +125,20 @@ def main(mcp_json, analyze_json):
 
 def main():
     g = json.load(open(sys.argv[1], encoding="utf-8"))
-    marker = "_heatmap_md"
     for n in g.get("nodes", []):
         nid = n.get("id")
         d = n.get("data", {})
         if nid == MERGE1:
-            if marker not in d.get("code", ""):
-                d["code"] = MERGE1_CODE
-                vars_ = d.setdefault("variables", [])
-                if not any(v.get("variable") == "analyze_json" for v in vars_):
-                    vars_.append({
-                        "variable": "analyze_json",
-                        "value_selector": [ANALYZE1, "json"],
-                        "value_type": "string",
-                    })
+            d["code"] = MERGE1_CODE
+            vars_ = d.setdefault("variables", [])
+            if not any(v.get("variable") == "analyze_json" for v in vars_):
+                vars_.append({
+                    "variable": "analyze_json",
+                    "value_selector": [ANALYZE1, "json"],
+                    "value_type": "string",
+                })
         elif nid == MERGE2:
-            if marker not in d.get("code", ""):
-                d["code"] = MERGE2_CODE
+            d["code"] = MERGE2_CODE
     print(json.dumps(g, ensure_ascii=False))
 
 

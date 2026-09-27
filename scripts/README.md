@@ -31,3 +31,6 @@ python scripts/tests/test_multiturn_stability.py
 Most of these tests still call the legacy Dify workflow API. Keep them only if
 that workflow is part of the current environment; otherwise use the direct MCP
 tools for runtime testing.
+
+# 统一场数据与点传感器输出契约
+python scripts/workflow/_apply_result_contract.py workflow_graph.json > patched_graph.json

@@ -5124,8 +5124,8 @@
         <text data-detail="fine" x="1035" y="348" class="t-backend" font-size="7" text-anchor="middle">≤ 7 次重试</text>
         </g>
 
-        <g id="node-state_store" data-node-id="state_store" data-node-label="本地数据卷" tabindex="0" role="button" aria-label="聚焦本地数据卷，run_id 历史 / 纠错缓存 / 审计, dify-mcp 服务" aria-pressed="false" data-node-kind="database" data-node-sublabel="run_id 历史 / 纠错缓存 / 审计" data-node-tag="SQLite" data-node-context="dify-mcp 服务">
-          <title>本地数据卷 · run_id 历史 / 纠错缓存 / 审计 · dify-mcp 服务 · SQLite</title>
+        <g id="node-state_store" data-node-id="state_store" data-node-label="本地数据卷" tabindex="0" role="button" aria-label="聚焦本地数据卷，run_id 历史 / 纠错缓存 / 候选技能, dify-mcp 服务" aria-pressed="false" data-node-kind="database" data-node-sublabel="run_id 历史 / 纠错缓存 / 候选技能" data-node-tag="SQLite" data-node-context="dify-mcp 服务">
+          <title>本地数据卷 · run_id 历史 / 纠错缓存 / 候选技能 · dify-mcp 服务 · SQLite</title>
           <rect x="950" y="520" width="170" height="64" rx="6" class="c-mask"/>
           <rect x="950" y="520" width="170" height="64" rx="6" class="c-database" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(956 526) scale(0.6875)">
@@ -5133,7 +5133,7 @@
             <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
           </g>
           <text data-node-label="" data-detail-anchor="" x="1035" y="550" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">本地数据卷</text>
-          <text data-detail="context" x="1035" y="566" class="t-muted" font-size="9" text-anchor="middle">run_id 历史 / 纠错缓存 / 审计</text>
+          <text data-detail="context" x="1035" y="566" class="t-muted" font-size="9" text-anchor="middle">run_id 历史 / 纠错缓存 / 候选技能</text>
         <text data-detail="fine" x="1035" y="576" class="t-database" font-size="7" text-anchor="middle">SQLite</text>
         </g>
 
@@ -5422,7 +5422,7 @@
           <li>&bull; 执行前做 AST 静态检查和物理参数校验</li>
           <li>&bull; 标准化场数据和传感器时序由网关统一生成热力图与波形图</li>
           <li>&bull; Q0-Q2 将执行、数值和参数证据分级；Q3/Q4 留待场景规则和基准</li>
-          <li>&bull; run_id 关联执行、分析、模型成本与管理审计，均写入 SQLite 数据卷</li>
+          <li>&bull; run_id 关联执行、分析、模型成本与管理审计；候选技能以独立 SQLite schema 审计保存</li>
         </ul>
       </div>
 

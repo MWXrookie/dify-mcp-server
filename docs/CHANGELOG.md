@@ -4,6 +4,24 @@
 
 ---
 
+## 2026-09-27 · 会话: P1-1 技能库 schema 与候选资产边界
+
+### 完成
+- [x] 新增内部 `app/skill_store.py`：SQLite schema migration、`simulation_skills` / `skill_versions` / `skill_events` / `skill_retrievals`
+- [x] 候选写入强制绑定 `source_run_id`、validator version、结构化后置条件和物理证据；Q0/Q1 与自动激活均被拒绝
+- [x] 提供幂等迁移、并发创建与一致性备份 API；尚未注册写入型 MCP 工具或接入 Dify
+- [x] 将 Phase 1 拆为五个额度受控实现包，每包最多 5 小时且可独立暂停
+
+### 验证
+- 全量单元测试 16/16 通过（含 migration、候选状态、并发写入和备份恢复）
+- `python3 -m py_compile app/skill_store.py` 与 `git diff --check` 通过
+
+### 变更文件
+- `app/skill_store.py`、`tests/unit/test_skill_store.py`
+- `docs/DEVELOPMENT_PLAN.md`、`docs/CHANGELOG.md`、`docs/diagrams/acouagent-runtime.architecture.*`
+
+---
+
 ## 2026-09-27 · 会话: Phase 0 可信基线与安全封口
 
 ### 完成

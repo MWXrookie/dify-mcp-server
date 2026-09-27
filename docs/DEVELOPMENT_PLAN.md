@@ -820,6 +820,8 @@ OPT-001/002/005
 - AcouAgent `docs/TESTING.md`。
 - AcouAgent `docs/ARCHITECTURE.md`。
 - AcouAgent `docs/PRD.md`。
+- SQLite 技能库隔离原型与三轮审查：`auxiliary/reference/skill-store-prototype/`。
+- 2026-09-23 安全审计：`auxiliary/reference/security-audit-2026-09-23/`。
 - 《智能体仿真项目优化方向》v1.5。
 
 ---

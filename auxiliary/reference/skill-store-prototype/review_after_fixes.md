@@ -1,0 +1,54 @@
+### Strengths
+
+- Immutable versions and per-version usage counters now prevent evidence overwrites and inherited feedback ([skill_store.py:325](C:/Users/ASUS/Desktop/Project/AI与开发/dify-mcp-server/work/plugin-tests/superpowers/skill_store.py:325), [skill_store.py:421](C:/Users/ASUS/Desktop/Project/AI与开发/dify-mcp-server/work/plugin-tests/superpowers/skill_store.py:421)).
+- `BEGIN IMMEDIATE`, atomic conflict handling, and `busy_timeout` materially improve write safety ([skill_store.py:314](C:/Users/ASUS/Desktop/Project/AI与开发/dify-mcp-server/work/plugin-tests/superpowers/skill_store.py:314)).
+- Exact matches have an explicit priority before score and usage ranking ([skill_store.py:570](C:/Users/ASUS/Desktop/Project/AI与开发/dify-mcp-server/work/plugin-tests/superpowers/skill_store.py:570)).
+- The schema now enforces the principal physical and counter invariants ([skill_store.py:333](C:/Users/ASUS/Desktop/Project/AI与开发/dify-mcp-server/work/plugin-tests/superpowers/skill_store.py:333)).
+- The MCP adapter now requires an injected `SkillStore` rather than accepting a database path ([skill_store.py:665](C:/Users/ASUS/Desktop/Project/AI与开发/dify-mcp-server/work/plugin-tests/superpowers/skill_store.py:665)).
+- The tests now exercise concurrency, version retention, schema rejection, invalid parameters, exact-first ranking, and adapter behavior ([test_skill_store.py:247](C:/Users/ASUS/Desktop/Project/AI与开发/dify-mcp-server/work/plugin-tests/superpowers/test_skill_store.py:247)).
+- The requested pytest command was attempted, but exited 1 with `No module named pytest`; no test-pass claim is supported. Static `ast.parse` validation succeeded.
+
+### Previous Findings
+
+#### Critical
+
+1. **Same-key evidence overwrite and inherited usage: Closed.** `record` inserts immutable version rows and advances a separate head, while usage remains keyed by version ID ([skill_store.py:424](C:/Users/ASUS/Desktop/Project/AI与开发/dify-mcp-server/work/plugin-tests/superpowers/skill_store.py:424), [skill_store.py:631](C:/Users/ASUS/Desktop/Project/AI与开发/dify-mcp-server/work/plugin-tests/superpowers/skill_store.py:631)). Impact is now limited to historical rows not being directly searchable, which matches the documented head model. Regression coverage is present at [test_skill_store.py:256](C:/Users/ASUS/Desktop/Project/AI与开发/dify-mcp-server/work/plugin-tests/superpowers/test_skill_store.py:256).
+
+#### Important
+
+2. **Typed evidence provenance: Partially closed.** `ValidationEvidence` is typed and immutable, and the adapter maps the real analyzer fields correctly ([skill_store.py:25](C:/Users/ASUS/Desktop/Project/AI与开发/dify-mcp-server/work/plugin-tests/superpowers/skill_store.py:25), [skill_store.py:148](C:/Users/ASUS/Desktop/Project/AI与开发/dify-mcp-server/work/plugin-tests/superpowers/skill_store.py:148)). However, callers can still directly construct or `dataclasses.replace` the public evidence object, and `record` trusts the supplied `artifact_sha256` without recomputing it ([skill_store.py:215](C:/Users/ASUS/Desktop/Project/AI与开发/dify-mcp-server/work/plugin-tests/superpowers/skill_store.py:215), [skill_store.py:415](C:/Users/ASUS/Desktop/Project/AI与开发/dify-mcp-server/work/plugin-tests/superpowers/skill_store.py:415)). Impact: fabricated run IDs, verifier versions, metrics, or hashes can still be admitted. Fix: make evidence construction server-private, bind run IDs to a trusted analysis service, allowlist verifier versions, and recompute/compare the content hash inside `record`.
+
+3. **Exact matches first: Closed.** `exact_priority` is the highest-order sort key, with raw score and feedback only considered afterward ([skill_store.py:570](C:/Users/ASUS/Desktop/Project/AI与开发/dify-mcp-server/work/plugin-tests/superpowers/skill_store.py:570)). The numerical-equivalence regression is present at [test_skill_store.py:204](C:/Users/ASUS/Desktop/Project/AI与开发/dify-mcp-server/work/plugin-tests/superpowers/test_skill_store.py:204).
+
+4. **Concurrent writes and WAL setup: Partially closed.** The transaction and conflict race is closed by `BEGIN IMMEDIATE` and `ON CONFLICT` ([skill_store.py:423](C:/Users/ASUS/Desktop/Project/AI与开发/dify-mcp-server/work/plugin-tests/superpowers/skill_store.py:423)). WAL and DDL still run on every `SkillStore` construction ([skill_store.py:308](C:/Users/ASUS/Desktop/Project/AI与开发/dify-mcp-server/work/plugin-tests/superpowers/skill_store.py:308), [skill_store.py:320](C:/Users/ASUS/Desktop/Project/AI与开发/dify-mcp-server/work/plugin-tests/superpowers/skill_store.py:320)). Impact: concurrent instances can still contend or fail during initialization, and that test could not be executed. Fix: perform schema setup under a lock and `PRAGMA user_version`, with explicit busy retry or a one-time out-of-band migration.
+
+5. **Schema admission invariants: Partially closed.** Verdict, finiteness, signal, pressure, RMS, and counter constraints are now enforced ([skill_store.py:333](C:/Users/ASUS/Desktop/Project/AI与开发/dify-mcp-server/work/plugin-tests/superpowers/skill_store.py:333)). Blank task types, summaries, code, malformed JSON, and non-hash-shaped fingerprints still pass direct SQL because they are only `NOT NULL` or length-checked in selected columns ([skill_store.py:327](C:/Users/ASUS/Desktop/Project/AI与开发/dify-mcp-server/work/plugin-tests/superpowers/skill_store.py:327)). Impact: migration or direct database writes can create rows violating the documented gate. Fix: add `trim`/non-empty, JSON-object validity, hash-format, and bounded-length constraints.
+
+6. **Deterministic rejection of extreme inputs: Partially closed.** Parameter depth, key, item, integer, non-finite, and serialized-size checks were added ([skill_store.py:73](C:/Users/ASUS/Desktop/Project/AI与开发/dify-mcp-server/work/plugin-tests/superpowers/skill_store.py:73)). A direct `ValidationEvidence` with `field_shape=None` or non-finite shape values passes `evaluate_quality` and then raises from `_evidence_dict` or `_json_dumps` at [skill_store.py:290](C:/Users/ASUS/Desktop/Project/AI与开发/dify-mcp-server/work/plugin-tests/superpowers/skill_store.py:290) and [skill_store.py:416](C:/Users/ASUS/Desktop/Project/AI与开发/dify-mcp-server/work/plugin-tests/superpowers/skill_store.py:416). Large nested parameter trees can also allocate before the post-serialization byte cap. Fix: validate every evidence field in one private factory, bound shape dimensions/envs, and catch all serialization failures as deterministic `QualityDecision` rejections.
+
+7. **Caller-controlled database path: Closed for this adapter.** `search_simulation_skill` accepts only an injected `SkillStore` and rejects paths ([skill_store.py:665](C:/Users/ASUS/Desktop/Project/AI与开发/dify-mcp-server/work/plugin-tests/superpowers/skill_store.py:665), [test_skill_store.py:362](C:/Users/ASUS/Desktop/Project/AI与开发/dify-mcp-server/work/plugin-tests/superpowers/test_skill_store.py:362)). Production registration must still capture the store in a server-owned closure rather than exposing this prototype signature directly.
+
+8. **Security/integrity tests and executability: Partially closed.** Coverage now includes concurrency, schema rejection, invalid parameters, adapter injection, and threshold behavior ([test_skill_store.py:277](C:/Users/ASUS/Desktop/Project/AI与开发/dify-mcp-server/work/plugin-tests/superpowers/test_skill_store.py:277), [test_skill_store.py:334](C:/Users/ASUS/Desktop/Project/AI与开发/dify-mcp-server/work/plugin-tests/superpowers/test_skill_store.py:334)). The requested command still cannot run because pytest is unavailable, and tests do not cover evidence hash tampering, malformed typed evidence, or schema migration. Fix: provide a reproducible test environment and add those regressions before claiming verified completion.
+
+### New Issues
+
+#### Critical (Must Fix)
+
+None found beyond the unresolved provenance and input-boundary problems above.
+
+#### Important (Should Fix)
+
+1. **The revised schema has no migration or compatibility path.** Initialization uses only `CREATE TABLE IF NOT EXISTS` and never records or checks a schema version ([skill_store.py:320](C:/Users/ASUS/Desktop/Project/AI与开发/dify-mcp-server/work/plugin-tests/superpowers/skill_store.py:320), [skill_store.py:325](C:/Users/ASUS/Desktop/Project/AI与开发/dify-mcp-server/work/plugin-tests/superpowers/skill_store.py:325)). Impact: an existing pre-fix database silently keeps its old shape, after which inserts can fail or constraints remain absent. Fix: use `PRAGMA user_version`, execute transactional migrations, reject unsupported versions, and test an upgrade from the previous schema.
+
+2. **Usage feedback can be forged to manipulate ranking.** `record_usage` accepts any existing skill ID plus a caller-provided boolean and directly changes ranking inputs ([skill_store.py:631](C:/Users/ASUS/Desktop/Project/AI与开发/dify-mcp-server/work/plugin-tests/superpowers/skill_store.py:631), [skill_store.py:585](C:/Users/ASUS/Desktop/Project/AI与开发/dify-mcp-server/work/plugin-tests/superpowers/skill_store.py:585)). Impact: callers can inflate hit and success counts without proving that a skill was retrieved or that a validated run succeeded. Fix: issue a single-use retrieval token from `search`, bind feedback to that token and a validated analysis run, and derive success server-side rather than accepting an arbitrary boolean.
+
+#### Minor (Nice to Have)
+
+- `search` does not validate or cap `limit`, and it loads and scores every head before slicing ([skill_store.py:548](C:/Users/ASUS/Desktop/Project/AI与开发/dify-mcp-server/work/plugin-tests/superpowers/skill_store.py:548), [skill_store.py:557](C:/Users/ASUS/Desktop/Project/AI与开发/dify-mcp-server/work/plugin-tests/superpowers/skill_store.py:557)). Impact: invalid values raise and large libraries consume unnecessary memory/CPU. Fix: require a bounded non-boolean integer and eventually move narrowing into SQL.
+- The plan still documents the obsolete candidate interface and nonexistent `sample_analysis_evidence` function ([IMPLEMENTATION_PLAN.md:39](C:/Users/ASUS/Desktop/Project/AI与开发/dify-mcp-server/work/plugin-tests/superpowers/IMPLEMENTATION_PLAN.md:39), [IMPLEMENTATION_PLAN.md:169](C:/Users/ASUS/Desktop/Project/AI与开发/dify-mcp-server/work/plugin-tests/superpowers/IMPLEMENTATION_PLAN.md:169)). Impact: future implementers may build against the wrong contract. Fix: align the plan with `ValidationEvidence` and `evidence_from_analysis_result`.
+
+### Assessment
+
+**Ready to merge?** With fixes.
+
+**Reasoning:** The Critical data-loss defect is closed and the storage design is much stronger, but evidence provenance can still be forged, schema evolution is incomplete, and the suite could not be executed. The implementation should not move forward until those Important issues are corrected and verified.

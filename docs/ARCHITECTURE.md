@@ -127,7 +127,7 @@
 │  │                    ▼              │             │             │   │
 │  │  ┌────────────────────────────────┼─────────────┼─────────┐   │   │
 │  │  │ Subprocess Executor           │             │         │   │   │
-│  │  │ • /opt/jwave/bin/python -I main.py          │         │   │   │
+│  │  │ • /usr/local/bin/python -I main.py          │         │   │   │
 │  │  │ • start_new_session (进程隔离)  │             │         │   │   │
 │  │  │ • resource.setrlimit (CPU/FSIZE/NOFILE/NPROC)          │   │   │
 │  │  │ • timeout → killpg (整棵进程树) │             │         │   │   │
@@ -232,7 +232,7 @@ T7: [沙箱执行] MCP run_jwave_code_with_retry
   │  流程:
   │    a. _clean_code(code) — 去除可能的 markdown 包裹
   │    b. httpx POST → jwave-executor:8010/execute
-  │    c. executor: subprocess.Popen("/opt/jwave/bin/python -I main.py")
+  │    c. executor: subprocess.Popen("/usr/local/bin/python -I main.py")
   │    d. 成功 → 返回 {exit_code:0, stdout, stderr, duration_ms}
   │    e. 失败 → _llm_fix_code() 调用 DeepSeek 纠错 → retry (≤7次)
   │  输出: {final_code, history: [{attempt, exit_code, ...}], stdout, stderr}
@@ -324,7 +324,7 @@ HTTPServer (BaseHTTPRequestHandler)
 │   ├── 解析 JSON body {code, timeout_seconds}
 │   ├── execute(payload)
 │   │   ├── 写入临时文件 main.py
-│   │   ├── subprocess.Popen("/opt/jwave/bin/python -I main.py")
+│   │   ├── subprocess.Popen("/usr/local/bin/python -I main.py")
 │   │   │   ├── start_new_session=True
 │   │   │   ├── preexec_fn: resource.setrlimit (CPU/FSIZE/NOFILE/NPROC)
 │   │   │   └── env: JAX_PLATFORMS=cpu, PYTHONUNBUFFERED=1
@@ -487,7 +487,7 @@ frontend/app.py (Gradio)
 ```
 GET /health
 Headers: X-Executor-Token: <EXECUTOR_SHARED_TOKEN>
-→ 200 {"status": "ok", "python": "/opt/jwave/bin/python", "libraries": [...]}
+→ 200 {"status": "ok", "python": "/usr/local/bin/python", "libraries": [...]}
 
 POST /execute
 Headers: X-Executor-Token: <EXECUTOR_SHARED_TOKEN>, Content-Type: application/json

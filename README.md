@@ -54,9 +54,7 @@ docker restart docker-api-1 docker-worker-1  # MCP schema 刷新
 |------|------|------|
 | `/` `/portal` | 门户首页 | 导航卡片 + **声学仿真问答**（自然语言输入→Markdown 报告） |
 | `/dashboard` | 执行看板 | 实时执行记录、代码展开、图像预览、清空历史 |
-| `/report` | 测试报告 | T-006 成功率、场景分类、失败分析、时间线 |
 | `/cache` | 纠错缓存 | 经验条目、命中率、置信度分布、高频经验 |
-| `/demo` | Demo 演示 | 6 个预设声学场景一键运行 |
 | `/health` | 健康检查 | 网关存活检测 |
 
 ## API 端点
@@ -66,9 +64,7 @@ docker restart docker-api-1 docker-worker-1  # MCP schema 刷新
 | `/ask` | POST | 门户问答代理 → Dify 工作流（返回 Markdown 报告） |
 | `/dashboard/api/executions` | GET | 执行历史（分页） |
 | `/dashboard/api/executions` | DELETE | 清空执行历史 |
-| `/dashboard/api/test_report` | GET | 最新测试报告 JSON |
 | `/dashboard/api/cache_stats` | GET | 纠错缓存统计 JSON |
-| `/demo/api/run` | POST | Demo 页代理 → Dify 工作流 |
 
 ## MCP 工具
 
@@ -109,13 +105,14 @@ curl -X POST http://192.168.30.200:8001/mcp \
 
 | 脚本 | 用途 | ⚠️ 注意 |
 |------|------|---------|
+| `sh scripts/tests/run_unit_tests.sh` | 独立开发镜像中的单元测试 | 免费，不修改生产镜像 |
 | `scripts/tests/run_50_tests_new.py` | 50 次端到端回归（真实调用 Dify 工作流 + DeepSeek） | **有模型费用**，运行前先确认 |
 | `scripts/tests/retest_p0.py` | P0 重点场景小批量重测 | 费用低 |
 
 - 测试目标：`http://localhost/v1/workflows/run`，需要 `DIFY_API_KEY` 环境变量
 - 语法预检：`python3 -m py_compile app/server_safe.py app/tools.py app/portal.py app/analysis.py app/static_check.py app/cache_store.py app/execution.py app/llm.py app/config.py app/dashboard.py executor/executor.py`
-- 单元测试：`python3 -m pytest tests/unit`
-- 集成测试：`GW_BASE_URL=http://<gateway> python3 -m pytest tests/integration`
+- 单元测试：`sh scripts/tests/run_unit_tests.sh`
+- 集成测试：`GW_BASE_URL=http://<gateway> docker run ... python -m pytest tests/integration`（使用同一开发镜像）
 - 现有报告：`docs/test_report_phase1_new.md`（48/50=96%）、`docs/test_report_10.md`（10/10=100%）
 
 ## Dify 工作流配置
@@ -173,9 +170,17 @@ DEEPSEEK_API_KEY=sk-...            # 自动纠错用（可选，缺省时 retry 
 DEEPSEEK_MODEL=deepseek-chat
 CODE_RETRY_MAX=7                   # 自动纠错重试上限
 DIFY_API_KEY=app-...               # Dify App API Key（门户 /ask 代理用）
+PORTAL_ADMIN_TOKEN=<32+ 字符>       # 可选；启用看板重跑/清空记录的管理令牌
 ```
 
 > 完整变量清单见 `.env.example`。新环境从 `cp .env.example .env` 起步，真实密钥由项目 Owner 私发，**不得提交到 git**。
+
+未配置 `PORTAL_ADMIN_TOKEN` 时，重跑和清空历史 API 会安全地返回 403；配置后调用方必须通过 `X-Admin-Token` 提供同一令牌。BYOK 自定义端点只允许解析到公网地址的 HTTPS/443，且不跟随重定向。
+
+## 可信性与追踪
+
+- 每次工具执行生成或接收 `run_id`，用于关联执行、结果分析和纠错模型成本；Dify 工作流调用分析工具时应原样传递此值。
+- `verdict=normal` 仅代表基础数值健康。结果额外给出 Q0–Q2：Q0 未达到数值有效、Q1 为有限非零场、Q2 为通过基础参数约束；Q3/Q4 必须由后续场景物理规则与参考基准产生。
 
 ## 备份
 

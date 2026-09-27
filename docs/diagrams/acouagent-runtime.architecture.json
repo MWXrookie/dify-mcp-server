@@ -83,7 +83,7 @@
       "id": "simulation_pipeline",
       "type": "backend",
       "label": "仿真执行闭环",
-      "sublabel": "校验 / 执行 / 纠错 / 统一制图",
+      "sublabel": "校验 / 执行 / 纠错 / Q0-Q2 证据",
       "pos": [950, 280],
       "size": [170, 76],
       "tag": "≤ 7 次重试"
@@ -92,7 +92,7 @@
       "id": "state_store",
       "type": "database",
       "label": "本地数据卷",
-      "sublabel": "执行历史 / 纠错缓存",
+      "sublabel": "run_id 历史 / 纠错缓存 / 审计",
       "pos": [950, 520],
       "size": [170, 64],
       "tag": "SQLite"
@@ -209,8 +209,8 @@
         "网关注册 6 个 MCP 工具并校验 Bearer Token",
         "执行前做 AST 静态检查和物理参数校验",
         "标准化场数据和传感器时序由网关统一生成热力图与波形图",
-        "VAL-1 verdict、热力图和传感器波形组成物理质量门",
-        "执行记录与纠错经验写入 SQLite 数据卷"
+        "Q0-Q2 将执行、数值和参数证据分级；Q3/Q4 留待场景规则和基准",
+        "run_id 关联执行、分析、模型成本与管理审计，均写入 SQLite 数据卷"
       ]
     },
     {
@@ -219,6 +219,7 @@
       "items": [
         "沙箱仅连 executor_internal，代码上限 20KB、执行 1-30s",
         "read_only、cap_drop ALL、pids 256、内存 4GB、CPU 2 核",
+        "BYOK 仅允许公网 HTTPS/443 且不跟随重定向；管理写操作需令牌与审计",
         "规划中的 skill_store 尚未上线，不能把成功退出码直接当作技能入库"
       ]
     }

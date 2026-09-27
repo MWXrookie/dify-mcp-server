@@ -11,6 +11,7 @@ DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 DEEPSEEK_MODEL = os.environ.get("DEEPSEEK_MODEL", "deepseek-chat")
 CODE_RETRY_MAX = int(os.environ.get("CODE_RETRY_MAX", "7"))
 DIFY_API_KEY = os.environ.get("DIFY_API_KEY", "")
+PORTAL_ADMIN_TOKEN = os.environ.get("PORTAL_ADMIN_TOKEN", "")
 
 # jwave-executor 沙箱内部地址（executor_internal 网络）
 EXECUTOR_URL = "http://jwave-executor:8010"

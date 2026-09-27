@@ -4,6 +4,30 @@
 
 ---
 
+## 2026-09-27 · 会话: Phase 0 可信基线与安全封口
+
+### 完成
+- [x] 新增 `run_id` additive migration，关联 execution、analysis、LLM usage；既有 Dify 工作流未传参时仅以精确 stdout 回查兼容关联
+- [x] 新增保守的 Q0–Q2 证据骨架：Q1 仅表示有限非零场，Q2 还要求基础 Nyquist/CFL 参数约束；不将 `normal` 宣称为物理正确
+- [x] BYOK 自定义端点限制为公网 HTTPS/443、禁用重定向；私网、环回、保留地址和 URL 凭据均被拒绝
+- [x] 看板清空与重跑 API 改为 fail-closed 的 `PORTAL_ADMIN_TOKEN` 鉴权，并记录允许与拒绝的管理审计事件
+- [x] 增加独立 pytest 开发镜像及可复用测试入口，生产镜像不安装开发依赖
+- [x] 收敛 README、测试指南和运行时架构资产，移除已删除的 `/report`、`/demo` 路由说明
+
+### 验证
+- 独立开发镜像 `local/dify-mcp:tests-phase0`：13 项单元测试全部通过
+- Python 语法检查、`git diff --check` 通过
+- 生产 SQLite 已验证三张关联表均包含 `run_id`；网关重建后 `/health` 返回 `200 ok`
+- VAL-1 在隔离 executor 内重跑：5/5 PASS（平面波、圆柱波、界面、3D 球面波、频域衰减；最大误差 0.798%）
+- 网关容器临时 SQLite 20 次 smoke：执行→分析 `run_id` 精确关联 20/20；未写入生产历史
+
+### 变更文件
+- `app/physics_gate.py`、`app/network_security.py`、`app/dashboard.py`、`app/analysis.py`、`app/tools.py`、`app/llm.py`、`app/portal.py`、`app/config.py`
+- `Dockerfile`、`requirements.dev.lock.txt`、`scripts/tests/run_unit_tests.sh`、`tests/unit/test_phase0_foundation.py`
+- `README.md`、`docs/TESTING.md`、`docs/diagrams/acouagent-runtime.architecture.*`
+
+---
+
 ## 2026-09-27 · 会话: 修复稳态热力图与传感器曲线输出契约
 
 ### 完成

@@ -9,6 +9,7 @@ import os
 import sqlite3
 import statistics
 import threading
+import uuid
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
@@ -73,6 +74,17 @@ def init_db() -> None:
         )
     """)
     db.execute("""
+        CREATE TABLE IF NOT EXISTS admin_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT NOT NULL,
+            action TEXT NOT NULL,
+            target_id TEXT,
+            remote_host TEXT,
+            allowed INTEGER NOT NULL,
+            detail TEXT
+        )
+    """)
+    db.execute("""
         CREATE TABLE IF NOT EXISTS analysis_events (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             timestamp TEXT NOT NULL,
@@ -89,6 +101,14 @@ def init_db() -> None:
             stderr_excerpt TEXT
         )
     """)
+    for table in ("executions", "analysis_events", "llm_usage"):
+        try:
+            db.execute(f"ALTER TABLE {table} ADD COLUMN run_id TEXT")
+        except sqlite3.OperationalError:
+            pass
+    db.execute("CREATE INDEX IF NOT EXISTS idx_executions_run_id ON executions(run_id)")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_analysis_events_run_id ON analysis_events(run_id)")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_llm_usage_run_id ON llm_usage(run_id)")
     db.commit()
     db.close()
 
@@ -103,12 +123,14 @@ def record_execution(
     stderr: str,
     attempt_count: int = 1,
     image_base64: str | None = None,
-) -> None:
+    run_id: str | None = None,
+) -> str:
+    run_id = run_id or str(uuid.uuid4())
     with _write_lock:
         db = _get_db()
         db.execute(
-            "INSERT INTO executions (timestamp, tool_name, code, exit_code, timed_out, duration_ms, stdout, stderr, attempt_count, image_base64) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO executions (timestamp, tool_name, code, exit_code, timed_out, duration_ms, stdout, stderr, attempt_count, image_base64, run_id) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 datetime.now(timezone.utc).isoformat(),
                 tool_name,
@@ -120,10 +142,12 @@ def record_execution(
                 stderr or "",
                 attempt_count,
                 image_base64,
+                run_id,
             ),
         )
         db.commit()
         db.close()
+    return run_id
 
 
 def record_analysis_event(
@@ -138,7 +162,9 @@ def record_analysis_event(
     waveform_base64: str | None,
     stdout_excerpt: str,
     stderr_excerpt: str,
-) -> None:
+    run_id: str | None = None,
+) -> str:
+    run_id = run_id or str(uuid.uuid4())
     """Write result-analysis data to its own event table, not executions."""
     with _write_lock:
         db = _get_db()
@@ -147,8 +173,8 @@ def record_analysis_event(
             INSERT INTO analysis_events (
                 timestamp, exit_code, verdict, max_pressure, rms_pressure,
                 field_shape, has_signal, summary, heatmap_base64,
-                waveform_base64, stdout_excerpt, stderr_excerpt
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                waveform_base64, stdout_excerpt, stderr_excerpt, run_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 datetime.now(timezone.utc).isoformat(),
@@ -163,10 +189,12 @@ def record_analysis_event(
                 waveform_base64,
                 stdout_excerpt,
                 stderr_excerpt,
+                run_id,
             ),
         )
         db.commit()
         db.close()
+    return run_id
 
 
 def get_analysis_events(limit: int = 100, since_id: int = 0) -> list[dict]:
@@ -208,6 +236,25 @@ def get_execution(execution_id: int) -> dict | None:
     return result
 
 
+def find_run_id_for_output(stdout: str, exit_code: int | None) -> str | None:
+    """Resolve an analysis call back to its execution when Dify omits run_id.
+
+    This is a compatibility bridge for the already-published workflow.  New
+    callers should always pass run_id explicitly; stdout matching is only used
+    for the immediately preceding, exact executor payload.
+    """
+    if not stdout:
+        return None
+    db = _get_db()
+    row = db.execute(
+        "SELECT run_id FROM executions WHERE stdout = ? AND exit_code IS ? AND run_id IS NOT NULL "
+        "ORDER BY id DESC LIMIT 1",
+        (stdout, exit_code),
+    ).fetchone()
+    db.close()
+    return row["run_id"] if row else None
+
+
 def clear_executions() -> int:
     """清空所有执行历史，返回删除的行数."""
     db = _get_db()
@@ -228,14 +275,15 @@ def get_stats() -> dict:
     return {"total": total, "success": success, "failed": failed, "timeout": timeout}
 
 
-def record_llm_usage(model: str, usage: dict | None, cost_rmb: float) -> None:
+def record_llm_usage(model: str, usage: dict | None, cost_rmb: float, run_id: str | None = None) -> str:
     """记录一次 LLM 调用的 token 用量与估算成本。usage 为 DeepSeek 返回的 usage 字段。"""
     usage = usage or {}
+    run_id = run_id or str(uuid.uuid4())
     with _write_lock:
         db = _get_db()
         db.execute(
-            "INSERT INTO llm_usage (timestamp, model, prompt_tokens, completion_tokens, prompt_cache_hit_tokens, prompt_cache_miss_tokens, cost_rmb) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO llm_usage (timestamp, model, prompt_tokens, completion_tokens, prompt_cache_hit_tokens, prompt_cache_miss_tokens, cost_rmb, run_id) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 datetime.now(timezone.utc).isoformat(),
                 model,
@@ -244,7 +292,21 @@ def record_llm_usage(model: str, usage: dict | None, cost_rmb: float) -> None:
                 usage.get("prompt_cache_hit_tokens") or 0,
                 usage.get("prompt_cache_miss_tokens") or usage.get("prompt_tokens") or 0,
                 cost_rmb,
+                run_id,
             ),
+        )
+        db.commit()
+        db.close()
+    return run_id
+
+
+def record_admin_event(action: str, *, target_id: str | None, remote_host: str | None, allowed: bool, detail: str = "") -> None:
+    """Keep an audit trail for mutating portal operations, including denials."""
+    with _write_lock:
+        db = _get_db()
+        db.execute(
+            "INSERT INTO admin_events (timestamp, action, target_id, remote_host, allowed, detail) VALUES (?, ?, ?, ?, ?, ?)",
+            (datetime.now(timezone.utc).isoformat(), action, target_id, remote_host, int(allowed), detail[:500]),
         )
         db.commit()
         db.close()

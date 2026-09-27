@@ -179,7 +179,7 @@ docker exec -e JAX_PLATFORMS=cpu -e XLA_PYTHON_CLIENT_PREALLOCATE=false -e HOME=
 - 零模型费用：不调用 DeepSeek/Dify。
 
 ### 环境
-- jwave 0.2.1（executor 容器 `/opt/jwave/lib/python3.12/site-packages/jwave`）
+- jwave 0.2.1（executor 容器 `/usr/local/lib/python3.11/site-packages/jwave`）
 - numpy 2.5.1 / jax CPU / matplotlib 3.11.1（T-007 热力图已就绪）
 - 容器限制：read_only rootfs（脚本经 stdin 写入 /tmp tmpfs）、无 30 s 上限（docker exec 直跑）
 

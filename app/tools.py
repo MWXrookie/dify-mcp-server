@@ -6,6 +6,7 @@
 
 import json
 import os
+import uuid
 from typing import Any
 
 import httpx
@@ -41,7 +42,7 @@ def register(mcp) -> None:
         return response.json()
 
     @mcp.tool
-    def run_jwave_code(code: str, timeout_seconds: int = 15) -> dict[str, Any]:
+    def run_jwave_code(code: str, timeout_seconds: int = 15, run_id: str = "") -> dict[str, Any]:
         """Run Dify-generated Python in the packaged jwave environment."""
         if not isinstance(code, str) or not code.strip():
             raise ValueError("code must be a non-empty Python string")
@@ -50,6 +51,7 @@ def register(mcp) -> None:
             raise ValueError("code is limited to 20000 characters")
         if not 1 <= timeout_seconds <= 30:
             raise ValueError("timeout_seconds must be between 1 and 30")
+        run_id = run_id or str(uuid.uuid4())
         result = execution._execute_code(code, timeout_seconds)
         result["stdout"] = execution._shrink_field_in_stdout(result.get("stdout", ""))
         execution._normalize_result_artifacts(result)
@@ -63,7 +65,9 @@ def register(mcp) -> None:
             stderr=result.get("stderr", ""),
             attempt_count=1,
             image_base64=result.get("image_base64"),
+            run_id=run_id,
         )
+        result["run_id"] = run_id
         return result
 
     @mcp.tool
@@ -71,6 +75,7 @@ def register(mcp) -> None:
         code: str,
         timeout_seconds: int = 15,
         max_retries: int | None = None,
+        run_id: str = "",
     ) -> dict[str, Any]:
         """Run Python code and auto-fix errors using DeepSeek LLM.
 
@@ -100,6 +105,7 @@ def register(mcp) -> None:
                 "to use auto-fix. Use run_jwave_code for plain execution."
             )
 
+        run_id = run_id or str(uuid.uuid4())
         current_code = code
         history: list[dict[str, Any]] = []
         last_error_sig: str | None = None
@@ -124,6 +130,7 @@ def register(mcp) -> None:
                 result["history"] = history
                 result["final_code"] = current_code
                 result["total_attempts"] = attempt + 1
+                result["run_id"] = run_id
                 result["report"] = execution._build_report(result, code)
                 if last_error_sig:
                     try:
@@ -140,6 +147,7 @@ def register(mcp) -> None:
                     stderr=result.get("stderr", ""),
                     attempt_count=attempt + 1,
                     image_base64=result.get("image_base64"),
+                    run_id=run_id,
                 )
                 return result
 
@@ -149,6 +157,7 @@ def register(mcp) -> None:
                 result["final_code"] = current_code
                 result["total_attempts"] = attempt + 1
                 result["error"] = "max_retries exhausted"
+                result["run_id"] = run_id
                 result["report"] = execution._build_report(result, code)
                 if last_error_sig:
                     try:
@@ -165,6 +174,7 @@ def register(mcp) -> None:
                     stderr=result.get("stderr", ""),
                     attempt_count=attempt + 1,
                     image_base64=result.get("image_base64"),
+                    run_id=run_id,
                 )
                 return result
 
@@ -179,6 +189,7 @@ def register(mcp) -> None:
                 config.DEEPSEEK_MODEL,
                 current_code,
                 result,
+                run_id=run_id,
             )
 
         # 不应该走到这里，但保底

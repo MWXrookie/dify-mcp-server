@@ -235,7 +235,7 @@ Agent 应**按编号顺序**领取任务。每完成一个任务，在 `docs/CHA
 | 验收 | 使用标准点源模板代码执行，max_pressure > 0 |
 
 **执行步骤**：
-1. 在 executor 容器中直接执行 jwave 源码检查：`docker exec jwave-executor /opt/jwave/bin/python -c "from jwave.geometry import Sources; help(Sources.__init__)"`
+1. 在 executor 容器中直接执行 jwave 源码检查：`docker exec jwave-executor python -c "from jwave.geometry import Sources; help(Sources.__init__)"`
 2. 读 jwave 源码中 `Sources.on_grid()` 的实现，确认 source term 如何注入 time stepping
 3. 写一个最小复现脚本，对比 Sources 方式 vs p0 方式的差异
 4. 如果 Sources 本身有问题，输出 workaround 方案；如果是用法问题，更新知识库

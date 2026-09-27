@@ -4,6 +4,8 @@
 """
 
 import json
+import secrets
+import uuid
 from pathlib import Path as _Path
 
 import httpx
@@ -17,7 +19,10 @@ from app.dashboard import (
     get_execution,
     get_executions,
     get_stats,
+    record_admin_event,
+    record_execution,
 )
+from app.network_security import UnsafeOutboundUrl, validate_public_https_url
 
 
 def _serve_html(filename: str) -> HTMLResponse:
@@ -46,7 +51,12 @@ async def _merge_requirement(requirement: str, message: str, model_config: dict 
     api_key = (cfg.get("api_key") or config.DEEPSEEK_API_KEY).strip()
     if not api_key:
         return f"{requirement}；{message}"
-    base_url = (cfg.get("base_url") or "https://api.deepseek.com").rstrip("/")
+    raw_base_url = (cfg.get("base_url") or "https://api.deepseek.com").strip()
+    try:
+        base_url = validate_public_https_url(raw_base_url)
+    except UnsafeOutboundUrl:
+        # Never reveal network details to the portal client.
+        return f"{requirement}；{message}"
     endpoint = base_url if base_url.endswith("/chat/completions") else base_url + "/chat/completions"
     model = (cfg.get("model") or config.DEEPSEEK_MODEL).strip()
     prompt = (
@@ -59,7 +69,7 @@ async def _merge_requirement(requirement: str, message: str, model_config: dict 
         "更新后的完整需求："
     )
     try:
-        async with httpx.AsyncClient(timeout=60) as client:
+        async with httpx.AsyncClient(timeout=60, follow_redirects=False) as client:
             resp = await client.post(
                 endpoint,
                 headers={
@@ -86,6 +96,22 @@ def register(mcp) -> None:
     @mcp.custom_route("/health", methods=["GET"])
     async def health(_: Request) -> PlainTextResponse:
         return PlainTextResponse("ok")
+
+    def require_admin(request: Request, action: str, target_id: str | None = None) -> PlainTextResponse | None:
+        """Fail closed for state-changing portal endpoints and audit every attempt."""
+        supplied = request.headers.get("X-Admin-Token", "")
+        expected = config.PORTAL_ADMIN_TOKEN
+        remote_host = request.client.host if request.client else None
+        allowed = bool(expected) and secrets.compare_digest(supplied, expected)
+        record_admin_event(action, target_id=target_id, remote_host=remote_host, allowed=allowed,
+                           detail="authorized" if allowed else "missing or invalid admin token")
+        if not allowed:
+            return PlainTextResponse(
+                json.dumps({"ok": False, "error": "管理员认证失败"}, ensure_ascii=False),
+                status_code=403,
+                media_type="application/json",
+            )
+        return None
 
     @mcp.custom_route("/cache", methods=["GET"])
     async def cache_page(_: Request) -> PlainTextResponse:
@@ -190,7 +216,10 @@ def register(mcp) -> None:
         )
 
     @mcp.custom_route("/dashboard/api/executions", methods=["DELETE"])
-    async def clear_executions_api(_: Request) -> PlainTextResponse:
+    async def clear_executions_api(request: Request) -> PlainTextResponse:
+        denied = require_admin(request, "clear_executions")
+        if denied:
+            return denied
         count = clear_executions()
         return PlainTextResponse(
             json.dumps({"deleted": count, "ok": True}, ensure_ascii=False),
@@ -202,6 +231,9 @@ def register(mcp) -> None:
         """Re-run an existing execution record in the same sandbox."""
         body = await request.json()
         execution_id = int(body.get("id", 0))
+        denied = require_admin(request, "rerun_execution", str(execution_id) if execution_id else None)
+        if denied:
+            return denied
         row = get_execution(execution_id) if execution_id else None
         if not row or not row.get("code"):
             return PlainTextResponse(
@@ -214,6 +246,19 @@ def register(mcp) -> None:
             result = execution._execute_code(code, 15)
             result["stdout"] = execution._shrink_field_in_stdout(result.get("stdout", ""))
             execution._normalize_result_artifacts(result)
+            run_id = str(uuid.uuid4())
+            result["run_id"] = run_id
+            record_execution(
+                tool_name="dashboard_rerun",
+                code=code,
+                exit_code=result.get("exit_code"),
+                timed_out=result.get("timed_out", False),
+                duration_ms=result.get("duration_ms"),
+                stdout=result.get("stdout", ""),
+                stderr=result.get("stderr", ""),
+                image_base64=result.get("image_base64"),
+                run_id=run_id,
+            )
             return PlainTextResponse(
                 json.dumps({"ok": True, "result": result}, ensure_ascii=False),
                 media_type="application/json",

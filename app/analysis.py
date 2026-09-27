@@ -369,6 +369,7 @@ def _analyze_impl(
     stderr_text: str = "",
     exit_code: int = 0,
     params_json: str = "{}",
+    run_id: str = "",
 ) -> dict[str, Any]:
     """分析一次 jwave 仿真的输出：物理量摘要 + 热力图/波形图 + verdict。
 
@@ -379,6 +380,12 @@ def _analyze_impl(
     注：模块级独立实现，便于脱离 MCP 直接测试；register() 内注册同名工具，
     其函数体调用本函数（避免与工具名递归遮蔽）。
     """
+    if not run_id:
+        try:
+            from app.dashboard import find_run_id_for_output
+            run_id = find_run_id_for_output(stdout_text or "", exit_code) or ""
+        except Exception:  # noqa: BLE001
+            pass
     payload = _extract_field(stdout_text or "")
     sensor = _extract_sensor(stdout_text or "")
     rows, shape = _to_float_matrix(payload["data"]) if payload else (None, None)
@@ -394,7 +401,7 @@ def _analyze_impl(
         verdict = _verdict(exit_code, False, metrics)
         if exit_code == 0 and verdict == "zero_field":
             verdict = "abnormal"  # 执行成功但未输出场数据 → 无法分析
-        return {
+        result = {
             "has_signal": False,
             "max_pressure": 0.0,
             "rms_pressure": 0.0,
@@ -406,6 +413,10 @@ def _analyze_impl(
             "verdict": verdict,
             "summary": f"未能从输出解析压力场（exit_code={exit_code}）。{_summary(metrics, verdict)}",
         }
+        from app.physics_gate import assess_quality
+        result.update(assess_quality(exit_code=exit_code, timed_out=False, analysis=result, params_json=params_json))
+        result["run_id"] = run_id or None
+        return result
 
     metrics = _compute_metrics(rows, shape)
     if isinstance(payload.get("shape"), list) and len(payload["shape"]) >= 2:
@@ -425,7 +436,7 @@ def _analyze_impl(
     sensor_pressure = sensor.get("pressure", []) if sensor else []
     sensor_peak = max((abs(float(v)) for v in sensor_pressure), default=None)
 
-    return {
+    result = {
         "has_signal": metrics["has_signal"],
         "max_pressure": metrics["max_pressure"],
         "rms_pressure": metrics["rms_pressure"],
@@ -440,6 +451,10 @@ def _analyze_impl(
         "verdict": verdict,
         "summary": _summary(metrics, verdict),
     }
+    from app.physics_gate import assess_quality
+    result.update(assess_quality(exit_code=exit_code, timed_out=False, analysis=result, params_json=params_json))
+    result["run_id"] = run_id or None
+    return result
 
 
 def register(mcp) -> None:
@@ -451,6 +466,7 @@ def register(mcp) -> None:
         stderr_text: str = "",
         exit_code: int = 0,
         params_json: str = "{}",
+        run_id: str = "",
     ) -> dict[str, Any]:
         """Analyze a jwave simulation output: physics summary + heatmap/waveform + verdict.
 
@@ -464,10 +480,11 @@ def register(mcp) -> None:
             stderr_text,
             exit_code,
             params_json,
+            run_id,
         )
         # 结果分析写入独立 analysis_events，不再污染执行历史。
         try:
-            from dashboard import record_analysis_event
+            from app.dashboard import record_analysis_event
 
             record_analysis_event(
                 exit_code=exit_code,
@@ -481,6 +498,7 @@ def register(mcp) -> None:
                 waveform_base64=r.get("waveform_png_base64"),
                 stdout_excerpt=(stdout_text or "")[:500],
                 stderr_excerpt=(stderr_text or "")[:200],
+                run_id=run_id or None,
             )
         except Exception:  # noqa: BLE001
             pass

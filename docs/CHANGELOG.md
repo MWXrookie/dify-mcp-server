@@ -4,6 +4,25 @@
 
 ---
 
+## 2026-09-28 · 会话: P1-2 参数规范化、指纹与版本去重
+
+### 完成
+- [x] 规范化频率（Hz/MHz）、空间步长（m/mm）、网格形状和声速；拒绝未声明单位的字段，避免从裸数值猜测单位
+- [x] 引入受控 `scenario_type` 枚举与场景+规范参数 SHA-256 指纹
+- [x] 添加 schema v2 additive migration：相同指纹仅保留一个技能身份；相同代码更新成功统计，代码变更才创建新版本
+- [x] 修复并发“读后插入”竞态：进程内临界区与数据库唯一索引双层保护
+- [x] `agent-reach` 在此远程环境未安装；未遇到需要外部资料才能解决的技术不确定项
+
+### 验证
+- 全量单元测试 18/18 通过（等价单位、歧义单位拒绝、并发去重、版本化和备份恢复）
+- `python3 -m py_compile app/skill_store.py` 与 `git diff --check` 通过
+
+### 变更文件
+- `app/skill_store.py`、`tests/unit/test_skill_store.py`
+- `docs/DEVELOPMENT_PLAN.md`、`docs/CHANGELOG.md`、`docs/diagrams/acouagent-runtime.architecture.*`
+
+---
+
 ## 2026-09-27 · 会话: P1-1 技能库 schema 与候选资产边界
 
 ### 完成

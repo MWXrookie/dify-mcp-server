@@ -4,6 +4,366 @@
 
 ---
 
+## 2026-10-07 · 服务核验与GitHub开发分支同步
+
+- 虚拟机现有Dify与网关容器运行，health/dashboard返回200；未重建或部署新镜像。
+- 当前完整隔离单测225通过、14依赖弃用警告、5.30秒；资源与安全限制保持。
+- 产品源码、验证脚本、单测及架构/规划文档推送开发分支；原始实验输出、截图和本机运行产物按提交规范保留在虚拟机。F01/F02及最终验收仍未通过，不宣称生产已应用新代码。
+
+## 2026-10-07 · 手动接续：SSH恢复与未交接证据核验
+
+2026-10-07手动接续核验：SSH恢复，确认原仓库身份与现有改动。恢复核对2026-10-02未交接原始证据，未重跑：original.json SHA256=49d97bf31840453efa826a276f2ba6b9952f4b45da059da87c9bc2d77388b494；without_intra.json SHA256=3f0dcf2b7e3e5dd6f40241d152357758f424bd2b002a4a98f119dc623f99c68b。两组JAX0.4.38均exit0，32x32矩阵操作后/proc线程快照33。原flag首/次同步操作0.091315/0.000392秒，去intra参数0.067804/0.000132秒，进程内总计1.875357/0.783103秒。单次、顺序固定且微型操作，不能认定flag无效或性能收益，更非声学物理证据。
+审查限制：保存命令含无网络/只读/cap_drop/no-new-privileges/1GB/2CPU/128pids，但没有--user，不能声称用户降权；外层10秒subprocess超时曾执行却未保存到回执，复现契约不完整。无需为补写记录重跑旧实验，不把此证据升格为完整门禁。产品源和架构未变，225/225单测与12:29 Archify静态9/9/视觉仅历史沿用；当前JSON/HTML哈希相同。Q3/Q4/active/公开检索/自动学习仍封闭，F01/F02/P1-3/F10整体和终验未通过。
+下一项唯一动作：先完善可重复的小诊断执行契约，显式非root用户、完整截止/清理/身份与哈希回执、固定操作结果断言，再用于线程观测；不增资源、不改在用服务、不自动批准。已知开发累计146分钟加历史未知保留，另加本次接续约3分钟及此前未结算诊断耗时未知，不能重置预算。
+
+## 2026-10-02 · 20:44 JAX契约只读核查
+
+20:44契约核查：隔离安装jax/jaxlib0.4.38，jaxlib Python源无intra_op_parallelism_threads匹配，不能据此认定原生不支持或flag未生效。官方文档要求初始化前设置XLA_FLAGS，首次操作含编译、计时需同步；最新版文档不能独立认证0.4.38线程语义。项目进程总耗时包含冷启动与编译，不称稳态kernel耗时。下一动作10s/1GB/2CPU/128pids小JAX诊断，记录实际线程、编译/同步执行时间，不重复完整声学或放宽限制。约2分钟，已知累计146分钟加历史未知；F01/F02等状态不变，高等级封闭。
+来源：https://docs.jax.dev/en/latest/201/controlling-xla.html 与 https://docs.jax.dev/en/latest/benchmarking.html。
+
+## 2026-10-02 · 19:59只读宿主与线程契约核查
+
+19:59只读宿主核查：当前uptime负载0.04/0.09/0.08，首轮vmstat即时CPU空闲98–99%、steal0、swap0；追加有界采样及CPU/内存/IO压力、脱敏Docker stats保存在observations.json。当前空闲不能证明17:44实验时无竞争，缺同步宿主时间窗证据，不能追认历史失败原因。源码显示子进程显式XLA_FLAGS固定intra_op_parallelism_threads=2，父亲和性单CPU不等同已固定全部底层线程；尚未验证该版本是否采用此flag及线程数。没有新仿真、没有产品改动或资源放宽，Q3/Q4继续封闭，F01/F02/P1-3/F10整体未通过。下一动作：核查固定配方JAX编译/线程设置的实际生效契约，再设计带同步宿主计数的有界对照，未完成前不重复相同仿真。约2分钟，已知累计144分钟加历史未知。
+
+## 2026-10-02 · 17:44周期：反序配对未复现
+
+17:44反序配对未复现收益：单CPU先运行exit-9、timed_out=true、30104.6ms、child-familyCPU30.014932s；默认后运行exit-9、child-familyCPU32.688351s。两组numeric_pass=false，OOM事件前后无增量。精确命令/身份/nonce/代码/回执/资源与原始输出保存auxiliary/reference/controlled-affinity-reverse-2026-10-02/。不以先前成功覆盖当前失败、不声明单CPU为稳定修复；停止同策略重复运行，下一动作核查宿主负载及可重复性证据，保持原资源/安全限制。产品代码与生产服务未改，Q3/Q4及学习关闭，F01/F02/P1-3/F10整体未通过。225/225单测与12:29架构验收为历史。已知累计约142分钟加历史未知，本轮约5分钟。
+
+## 2026-10-02 · 16:59周期：隔离CPU亲和性配对
+
+- 16:59隔离CPU亲和性配对：默认exit-9/23598.2ms/child-familyCPU32.703091s；单CPU exit0/22559.0ms/CPU22.483653s，波形0.505468%/0.505490%，原1%门槛保持。两组OOM事件增量0。仅一次配对，不能声明稳定改善或追认旧-9因果；信号来源未直接认证。完整command、前后身份、nonce、代码/回执、资源与数值保存在本目录。产品文件未改，所有trusted/runtime-approved/run-bound/parameters-bound保持false；自建容器和DB清理。225/225单测及12:29 Archify验收为历史沿用，哈希未变。下一动作：同上限反序配对检验重复性和顺序影响。本轮约6分钟，已知累计137分钟加历史未知。
+- 原任务提示词v2.22恰好一次回写成功，保存全文及名称/频率/状态/目标聊天已核验。
+
+## 2026-10-02 · 16:14周期：原路径资源只读包装实测
+
+- 本轮不改executor或网关产品文件，只在新建隔离HTTP服务外包装原execute，记录RUSAGE_CHILDREN前后差和cgroup cpu.stat/memory.events；单线程单请求下范围为已回收子进程及其已回收后代。完整命令/包装源码、身份、原代码/输出、nonce回执、资源和哈希在auxiliary/reference/controlled-resource-window-2026-10-02/。
+- 原路径实测exit0、timed_out=false、21362.1ms；累计child-family CPU29.779057s、cgroup总CPU增量29.825502s，OOM/oom_kill增量0。原CPU硬限32s，当前CPU余量约2.22s；只能说明本轮接近限额，不能反推13:59旧-9原因或宣称已修复。run_id=001c0c15-b78a-430e-ac99-0065cdfef916，身份/精确namespace/实际代码/独立nonce/服务器回执核对通过。
+- 两探针波形0.505468%/0.505490%通过，峰值/比值最大误差<0.000036%，到达通过，原1%门槛保持；stdout哈希c7ce6a88...与历史v2一致。仅本轮平面波，不代表五类VAL-1/F02通过。CPU/内存/超时及安全上限不变，自建容器与临时DB清理，未修改生产服务、DB或凭据；诊断包装不构成生产认证。
+- 产品源/架构数据流未改，225/225单测引用15:29历史不冒充重跑；JSON/HTML核对12:29哈希未变，沿用9/9与四视口深浅人工视觉。F01/F02/P1-3/F10整体及终验未通过，run_bound/runtime_approved/trusted_run/parameters_bound仍false，高等级/学习封闭。旧对话notLoaded无消息，Luna无恢复证据不重复续发，项目记忆依仓库降级。
+- 下一项唯一动作：在原资源/安全上限内做一个线程/CPU调度单因素对照，固定代码、输入、分析窗口与1%门槛，记录实际CPU/壁钟/内存/数值，寻找更充分CPU余量；不提高限额，不追补无法恢复的历史因果。开始UTC07:14:49，本轮约3分钟，已知累计约131分钟加历史未知，不重置包预算。旧改动保留，git diff --check检查，无提交/推送/部署/重启/付费操作。原automation-2已恰好一次回写v2.21成功并核对保存，ACTIVE/45分钟频率/目标聊天保持。
+
+---
+
+## 2026-10-02 · 15:29周期：资源计数诊断前置
+
+- 新增scripts/validation/cgroup_window.py及tests/unit/test_cgroup_window.py；有界严格解析CPU/内存事件、拒绝重复/负数/缺失/倒退计数，不以delta直接定因或授予可信。真实内核包含core_sched.force_idle_usec，首次诊断拒绝后按现场修复合法点号字段并新增回归，失败证据保留。
+- 完整隔离最终225/225通过，14依赖警告、7.56s（修复前224/224/8.11s为历史）；11条新增正常/异常/内核边界。真实固定1s CPU限额诊断子进程signal9，wait4累计CPU1.000236s、cgroup总CPU增量1001886us、oom/oom_kill增量0，10s外层/128MB/1CPU/32pids无网络/只读/降权。证据auxiliary/reference/resource-counter-diagnostic-2026-10-02/含第一次失败及修复后完整命令/原始计数/源码哈希。
+- 只是隔离故障注入与离线计数工具，尚未接原executor累计CPU/实际声学运行，历史-9原因仍未知。cgroup总CPU不等于精确child CPU，不能用夹具替代原运行，不授予高等级/批准环境。无声学仿真或原限额修改；自建容器自动清理，未动生产服务/数据库。
+- 产品运行时架构数据流未变，JSON/HTML核对12:29哈希相同，沿用该轮静态/四视口深浅视觉，不冒充复测。F01/F02/P1-3/F10整体与终验未完成，Q3/Q4/学习关闭，项目记忆依仓库降级，Luna无恢复证据不重复续发。保留旧改动，无提交/部署/重启/权限凭据/付费变更。
+- 下一项唯一动作：把准确child CPU与cgroup内存诊断接入受控原执行路径（只观测、不改资源限制），保留失败回执再定位-9；架构行为改变前读取并同步Archify验收。开始UTC06:29:47，本轮约4分钟，已知累计约128分钟加历史未知，不重置五小时包。原automation-2恰好一次回写v2.20成功并核对保存，ACTIVE/频率/目标聊天保持。
+
+---
+
+## 2026-10-02 · 14:44周期：失败窗口持久化与有界实测
+
+- 新增可复用scripts/validation/window_journal.py和tests/unit/test_window_journal.py；每阶段原子文件替换，执行前command/before、异常也先after/attempt再清理；仅存异常类型、限制2MB文件，不构成认证。7项故障/负例覆盖执行异常、非零退出、前后观察失败、非法/超大输出与路径名。完整隔离214/214通过，14依赖警告、8.31s；父任务SSH，90s/1GB/2CPU/128pids无网络/只读/降权。
+- 用改进记录路径做一次原资源限额真实gateway→executor HTTP→子进程→临时SQLite→validator；18509.0ms成功，run_id=712595a9-9147-42f8-b18b-257dc76b8474。宿主前后容器76154ef...及镜像b4f8a22e...一致，网关精确namespace_target与之匹配，实际run_id/独立nonce/固定代码和服务器回执相关检查通过。波形0.505468%/0.505490%，原1%门槛保留。完整命令/前后身份/原代码与输出/失败路径/哈希证据auxiliary/reference/controlled-window-journal-2026-10-02/。
+- 仅操作者隔离实测，未接生产持久化绑定或固定批准、gate事件，run_bound/runtime_approved/trusted_run/parameters_bound仍false。新成功不是旧-9原因解释或修复。当前父容器OOMKilled=false不能排除历史child级终止；旧失败原始证据保留，CPU累计/cgroup内存事件缺口待续，不放宽CPU/内存/超时。自建容器/临时DB清理，生产服务未改。
+- 测试记录模块未改产品运行时/数据库/质量门/架构数据流，JSON/HTML核对12:29哈希未变，沿用9/9与四视口深浅人工视觉证据，不冒充复测。F01/F02/P1-3/F10整体及终验未通过，高等级/学习封闭；旧对话notLoaded无消息，Luna无恢复证据不重复续发，项目记忆依仓库降级。旧改动保留，无提交/推送/部署/重启/安装/权限凭据或付费调用。
+- 本轮约4分钟，已知累计约124分钟加历史未知，不重置包预算。下一项唯一动作：补齐子进程CPU累计和隔离cgroup内存事件的失败诊断，定位-9而非凭本轮成功关闭问题；不扩大资源或自动批准环境。原automation-2已恰好一次成功回写v2.19并核对保存；ACTIVE、45分钟频率与目标聊天保持。
+
+---
+
+## 2026-10-02 · 13:59周期：受控运行窗口真实尝试失败
+
+- 通过SSH在原仓库执行有界双容器真实gateway→executor HTTP→子进程→临时SQLite→validator尝试，宿主观察固定测试容器前后，网关网络使用新建容器精确ID；使用历史已测隔离镜像ID，未使用在用服务/凭据。executor30s/4GB/2CPU/256pids，网关45s/1GB/2CPU/128pids；无外网/只读/降权、无发布端口。自建容器及临时DB已清理，docker ps无测试容器。
+- 真实子进程退出-9，timed_out=false，22246.4ms，stderr为空；网关原验证拒绝execution_failed_or_timed_out，测试断言退出1。run_id=51773dd8-29d0-46ca-8cf8-3f019b318b4a。固定批准服务返回missing_or_invalid_registry，所有可信标志false。未取得数值通过，不得沿用0.5055%历史数据冒充当前通过。
+- 证据auxiliary/reference/controlled-host-window-2026-10-02/保存完整gateway-output、stderr、failure-receipt及明确不完整的command-template。失误：失败断言早于窗口文件持久化，前后宿主快照及动态Docker ID未留存，不能声称完成窗口绑定或完整可复现命令。SIGKILL原因未知；源CPU限额timeout+2=32s存在但没有CPU/OOM证据，不能定因。不要重复同配置或放宽限额。
+- 本轮不改产品代码/信任边界/架构资产，JSON/HTML核对12:29哈希未变，沿用当轮静态9/9与四视口深浅人工视觉证据。单测207/207为13:27历史证据，没有重跑。F01/F02/P1-3/F10整体及终验未通过，高等级/自动学习仍关闭。旧对话notLoaded无消息；Luna无恢复证据不重复续发，项目记忆依仓库降级。
+- 下一项唯一动作：完善运行窗口试验的失败路径，先持久化实际容器身份/完整命令、状态/OOM与耗时，再断言并清理；随后在原限制下定位-9终止，不擅自提高CPU/内存/超时或生产批准。开始UTC04:59:44，本轮约5分钟，已知累计约120分钟加历史未知，不重置包预算。旧改动保留，无提交/推送/部署/重启/安装/权限凭据/付费变更。原automation-2恰好一次回写v2.18成功并核对保存；ACTIVE、频率与目标聊天保持。
+
+---
+
+## 2026-10-02 · 13:27手动接续：宿主采集过程有界读取
+
+- 用户粘贴持续开发提示词，保留现场v2.16进度，未回退到粘贴v2.15。修复capture_output先读完整输出再检查大小：宿主内部helper以selectors/os.read最多读2049字节，2048字节允许、2049拒绝；stderr直接丢弃，stdin关闭，读取与退出共用10s单调时钟截止。清理只针对自身start_new_session创建的进程组；未向网关暴露Docker/任意代码入口，未改在用服务。
+- 修改scripts/validation/executor_host_observation.py及tests/unit/test_executor_host_observation.py；新增9项真实子进程正常/边界/洪流/非零/坏UTF8/超时与继承管道测试。完整隔离207/207通过、14依赖弃用警告、8.11s，90s/1GB/2CPU/128pids、无网络/只读/降权；真实Docker五字段观察退出0，身份未变。证据auxiliary/reference/executor-observation-bounded-2026-10-02/含命令、退出、当前源哈希和真实观察。
+- 仅宿主离线采集实现，未接网关/批准服务/DB/物理gate，未仿真，run_bound/runtime_approved/trusted_run仍false。F01/F02/P1-3及终验未完成，高等级与学习封闭。JSON/HTML现场哈希与12:29相同，数据流/运行时架构未变，沿用当轮9/9/四视口深浅人工视觉证据，不冒充新复测。固定Docker CLI及宿主管理员仍属信任边界，逃离进程组的特权进程不在此清理保证内。
+- 旧远程对话notLoaded无并行写入，项目记忆MCP不可用依仓库降级，Luna bwrap无恢复证据不重复创建/续发。现有改动保留，无提交/推送/部署/重启/权限凭据变更或付费调用；git diff --check核验。开始UTC04:27:46，本轮约3分钟，已知累计约115分钟加历史未知，不重置五小时包。
+- 下一项唯一动作：宿主前后观察包住有界隔离受控实际运行，绑定run_id/独立nonce/固定代码/完整回执并核对固定批准与退役；不能把当前仅连续观察当实际执行绑定。原automation-2已恰好一次回写v2.17，工具成功且保存核验；ACTIVE、45分钟频率与目标聊天保持。
+
+---
+
+## 2026-10-02 · 13:14周期：宿主观察输入校验修复
+
+- 先核对SSH原仓库身份、现有改动、规划F01–F12及旧对话notLoaded。发现启动时间仅检查字符串长度、JSON重复键静默覆盖，优先修复未验收输入前置：校验真实UTC RFC3339日期（含Docker纳秒），拒绝重复字段、非法日期/时刻、无时区/非UTC和布尔伪造。
+- 修改scripts/validation/executor_host_observation.py与tests/unit/test_executor_host_observation.py；新增9项边界回归，完整隔离198/198通过、14依赖弃用警告、3.71s，退出0，90s/1GB/2CPU/128pids/无网络/只读/降权。真实宿主只读观察退出0、容器168bb601...及镜像66cc20f...未变。证据auxiliary/reference/executor-observation-input-2026-10-02/含命令、当前源码哈希和实际输出。
+- 仅离线输入校验，未接运行窗口、批准服务/数据库/质量门，没有仿真、部署或重启。run_bound/runtime_approved/trusted_run仍false；F01/F02/P1-3未完成，高等级与学习关闭。架构数据流未改变，JSON/HTML核对12:29哈希未变，沿用其9/9及四视口深浅人工验收，不冒充本轮重跑。项目记忆MCP不可用依仓库降级，Luna故障没有恢复证据，不重复续发。
+- 下一项唯一动作仍为宿主前后观察包住有界隔离受控实际运行，绑定run_id/独立nonce/固定代码与完整回执并复核批准/退役。采集stdout大小限制目前是capture_output后检查，不能声称进程读取阶段有界；固定宿主Docker CLI和10s时限是当前边界，后续绑定实现需处理该限制。
+- 本轮约3分钟，已知累计约112分钟加历史未知；更正上一轮日志4/106分钟为最终提示词7/109分钟，未重置包预算。现有改动保留，无提交/推送/付费/权限凭据修改。原automation-2提示词v2.16恰好一次回写成功并核对保存；ACTIVE、频率与目标聊天保持。
+
+---
+
+## 2026-10-02 · 12:29周期：宿主侧只读容器身份观察
+
+- 新增scripts/validation/executor_host_observation.py及tests/unit/test_executor_host_observation.py，固定Docker CLI只读jwave-executor身份/创建镜像/运行/启动/重启计数，不取Env/Key、不暴露socket到网关或生成代码。每次10s外层25s；两次真实宿主观察相同，容器168bb601...、实际镜像66cc20f...仍不同于历史隔离b4f8a22e...。
+- lifecycle_stable仅说明观察间未换容器，不绑定run_id；run_bound/runtime_approved/trusted_run=false，创建镜像ID不认证当前overlay/挂载/包内容。CLI和Docker管理员属于信任假设，不接受调用方JSON当实际收集。本轮没有实际仿真，下一项唯一动作是宿主观察包住有界隔离受控执行并绑定run_id/nonce/代码/回执，保留批准与退役重核。
+- 完整隔离189/189通过、14依赖警告、3.65s；新增11条正常/漂移/伪造/坏格式/超时测试，90s/1GB/2CPU/128pids、无网络/只读/降权。证据auxiliary/reference/executor-host-observation-2026-10-02/含完整输出、命令、源码哈希与实际观察。父任务SSH验证，Luna无恢复证据；旧对话notLoaded，项目记忆依仓库降级。
+- Archify先读并同步，showcase validate/deliver9/9、0错误/警告，交付回执与实际哈希一致；JSON=28f6839dd3f20ee967647c79396f4ec8ab2e11b0c8553d7adb2f3290376916e1、HTML=56c63784f0de713f6cb0706b05066a39e1ea59b9acf145e5f26751eace0498dd。同哈希Windows Chrome四视口无溢出，四张深浅截图目视通过，visualReview=passed/correctionRounds=0，证据docs/diagrams/reviews/2026-10-02-heartbeat-1229/。F10仅架构子项通过，F01/F02/P1-3及终验未完成，高等级和学习封闭。
+- 本轮约4分钟，已知累计约106分钟加历史未知（开始UTC03:30:23），不重置五小时包。旧改动保留，无提交/部署/重启/权限凭据或付费调用。提示词 v2.15 已通过 automation_update 成功回写原 automation-2；ACTIVE、目标聊天与45分钟频率保持，保存内容已核对。
+
+---
+
+## 2026-10-02 · 11:44周期：固定路径批准服务与角色鉴权
+
+- 新增app/runtime_registry_service.py、tests/unit/test_runtime_registry_service.py；批准包检查器返回已核验合同字段，避免二次读取manifest。内部服务固定DB/包/ID，复用PORTAL_ADMIN_TOKEN进行角色校验，拒绝不创建DB；actor固定portal-admin，不接受调用方身份。无HTTP/MCP路由、没有修改凭据。
+- 批准前重核登记包哈希；每次mode=ro读取状态，无缓存，合同资格要求production作用域、runtime/image/recipe/validator全匹配；退役后下一读拒绝。contract_eligible非可信运行凭据，观察尚未接真实来源，runtime_approved/trusted_run仍false。共享角色不认证个人，底层安装代码/DB特权信任、拒绝审计和在途退役事务尚待续。
+- 完整隔离178/178通过，14依赖警告、3.70s；新增12项正常/异常边界，90s/1GB/2CPU/128pids无网络/只读/降权，SSH父任务验证。证据auxiliary/reference/runtime-registry-service-2026-10-02/；仅临时DB和test token，无生产迁移/真实批准，不重复仿真。
+- Archify已先读并同步JSON，showcase validate/deliver9/9、0错误/警告，实际哈希/交付回执断言一致。JSON=3866022043ee6eab37808a04f5cc867aee06bfa3d57aff9189f166330ad79c34；HTML=75ea42162b98bf3fee1d3baea47a2b37d45b0e7faefd2c42b9b9b8d7b2252b13；同哈希Windows Chrome四视口无溢出，四张深浅截图目视通过，visualReview=passed/correctionRounds=0，证据docs/diagrams/reviews/2026-10-02-heartbeat-1144/。F10仅架构子项通过。
+- F01/F02/P1-3/终验未完成，Q3/Q4/学习封闭。下一项唯一动作：可信服务器运行观察含实际镜像身份与固定服务使用绑定，不能把调用方观察/metadata指纹当运行认证。本轮约6分钟，已知累计约102分钟加历史未知；旧改动保留，无提交/部署/重启/权限凭据或付费调用。Luna无恢复证据，旧对话notLoaded，项目记忆依仓库降级。automation-2提示词已恰好一次回写v2.14，工具返回Updated/ACTIVE，保存已核对；名称、频率和聊天保持。
+
+---
+
+## 2026-10-02 · 10:59周期：独立SQLite批准生命周期原型
+
+- 新增scripts/validation/runtime_registry.py与tests/unit/test_runtime_registry.py：完整candidate包哈希、唯一ID、版本比较、candidate/approved/retired合法转换，状态与审计同事务；失败回滚、审计表禁止更新/删除。actor仍是未鉴权元数据，返回runtime_approved=false；未接网关/生产DB，不把approved原型状态当运行批准。
+- 完整隔离166/166通过，14依赖警告、3.63秒；新增9项生命周期/错误转换/重复/自报批准/审计失败回滚测试。证据auxiliary/reference/runtime-registry-2026-10-02/，原90s/1GB/2CPU/128pids、无网络/只读/降权，SSH父任务验证。没有真实仿真或生产DB迁移。
+- Archify先读JSON后同步离线原型说明；showcase validate/deliver9/9、0错误/警告。JSON=051d069c4f4c0867f06f9af546168af0570a5c9d291788933bd7bb57e2db5f51；HTML=777b0e892e118824d36938f7ebd4e377e7d0c9941c37baa00340e2e074c71776。同哈希Windows Chrome四视口无溢出，四张深浅截图目视通过，visualReview=passed/correctionRounds=0，证据docs/diagrams/reviews/2026-10-02-heartbeat-1059/。仅F10架构子项通过。
+- F01/F02/P1-3及终验未完成，高等级/学习关闭。原型仍缺写入身份鉴权、固定使用路径、使用时重验和实际环境身份绑定；DB特权写入可绕过触发器。下一项唯一动作：服务器鉴权与固定注册表使用路径及退役失效，保持默认拒绝，不接受caller approved。
+- 本轮约6分钟，已知累计约96分钟加历史未知；旧改动保留，无提交/部署/重启/权限凭据变更或付费调用。Luna bwrap无恢复证据，旧对话notLoaded，项目记忆依仓库降级。automation-2提示词恰好一次回写v2.13成功，工具返回Updated/ACTIVE，保存已核对，名称/频率/目标聊天保持。
+
+---
+
+## 2026-10-02 · 10:14周期：批准包读取边界修复
+
+- 现场核验发现上一轮manifest先全读再限制、证据resolve后重开风险；优先修复未验收批准包读取，注册表仍待续。Linux逐层dir_fd/O_NOFOLLOW、O_NONBLOCK、fstat普通文件检查，同描述符有界读取/哈希，拒绝符号链接/FIFO/非规范别名；未消除具有写权限者对同一inode内容的修改，不声称完整竞态防护或授权。
+- 修改scripts/validation/runtime_approval_contract.py和tests/unit/test_runtime_approval_contract.py；完整隔离157/157通过、14依赖警告、3.58秒，7条新增边界测试。证据auxiliary/reference/runtime-approval-io-2026-10-02/；90s/1GB/2CPU/128pids无网络/只读/降权，SSH父任务验证，Luna无恢复证据。
+- 离线实现未接入运行时/注册表/数据库，高等级准入仍关闭。架构JSON/HTML核对08:44哈希未变，沿用其静态9/9与四视口深浅视觉证据，不冒充复测。F01/F02/P1-3未完成，项目记忆MCP不可用依仓库降级，旧对话notLoaded。
+- 本轮约4分钟，已知累计约90分钟加历史未知。旧改动保留；无提交/部署/重启/付费调用。下一项唯一动作仍为服务器批准/退役注册表审计与固定使用路径，不信调用方approved。automation-2提示词已恰好一次回写v2.12，工具返回Updated/ACTIVE，保存内容核对成功；名称、45分钟频率和目标聊天保留。
+
+---
+
+## 2026-10-02 · 09:29周期：批准证据包完整性前置
+
+- 新增scripts/validation/runtime_approval_contract.py只读检查器与tests/unit/test_runtime_approval_contract.py。严格schema/状态/作用域/镜像ID/哈希，限定证据数量和大小，拒绝缺失/篡改/路径穿越/重复路径或键/额外字段。approved自报仍不授予runtime_approved/trusted_run。
+- 完整隔离单测150/150通过，14依赖弃用警告；90s/1GB/2CPU/128pids、无网络/只读/降权。证据auxiliary/reference/runtime-approval-package-2026-10-02/。仅前置契约完整性，不是可信注册表、授权、生产环境或物理验收；文件竞态/特权改写与批准者身份边界仍待解决。
+- 未接通运行时、数据库或架构数据流；Archify源/HTML哈希核对未变，沿用08:44静态9/9和四视口深浅人工验收，不冒充本轮重跑。Q3/Q4/学习关闭，F01/F02/P1-3未完成。Luna bwrap无恢复证据，父任务SSH固定验证；项目记忆依仓库降级，旧对话notLoaded。
+- 下一项唯一动作：服务器注册表批准/退役审计与固定使用路径，拒绝调用方自报approved；不把包完整性直接当环境批准。本轮约4分钟，已知累计约86分钟加历史未知。无提交/部署/重启/付费调用，旧改动保留。automation-2提示词恰好一次回写v2.11成功，工具返回Updated/ACTIVE，保存内容已核对，原频率及聊天保留。
+
+---
+
+## 2026-10-02 · 08:44周期：固定平面波隔离全链路接通
+
+- 新增app/controlled_validation.py内部无参入口：服务器只运行已pin平面波配方，核对源/validator哈希及清理不变，经原30s HTTP路径执行、服务器生成run_id记录SQLite，再复读服务器记录进行独立校验；不接受调用方代码/参数/等级，不注册公开MCP工具。
+- 网关独立持久化gateway_request_nonce/gateway_timeout_seconds；inspector重新核对回执与独立上下文、代码/输出/退出状态，忽略matched/runtime_approved/trusted_run回传标志。旧离线数值诊断保留，不自动获得新来源门通过。
+- 冻结plane-wave-isolated-runtime.v1，仅isolated_validation_only；对应真实Python3.11.15/JAX0.4.38指纹，不把Dockerfile0.4.35改成等价声明或仅据版本批准生产。前置全通过时仍trusted_run=false/runtime_approved=false/parameters_bound=false，无Q3/Q4等级与自动学习。
+- 138/138完整单测通过，14条依赖弃用警告；覆盖独立nonce/服务器nonce/布尔时限、缺失回执、仍数值合理但被篡改输出、自洽环境漂移、错代码、超时/非零退出/PML错误、未审查资产和DB断链。
+- 真实双容器隔离全链路通过：网关HTTP→原executor Handler/-I子进程/限额→临时SQLite→复读校验器，全程12.691s；两探针波形0.505468%/0.505490%，原1%门槛保留。record_origin明确isolated_gateway_executor_http_sqlite，不是生产/Dify。证据 auxiliary/reference/controlled-plane-wave-2026-10-02/包含原始代码/输出、实际命令/镜像ID/回执。
+- executor4GB/2CPU/256pids、gateway1GB/2CPU/128pids，均只读/降权；网络共享executor的none隔离命名空间，server只绑定容器loopback，无host端口，外层45s有界。容器/临时DB已清理；无新安装、付费模型调用、生产DB迁移、部署/重启、提交/推送或权限凭据改动。
+- Dockerfile准备COPY验证资产，未构建镜像，不能称打包部署验证通过。修改Dockerfile、app/execution.py、新app/controlled_validation.py、scripts/validation/plane_wave_run_binding.py、新tests/unit/test_controlled_validation.py及本项目架构/规划/日志/图与证据；旧改动保留，physics_gate/SkillStore本轮未开放新等级。
+- Archify先读JSON再同步内部固定派发说明；validate/deliver9/9、0错误/警告，JSON SHA-256=10ca2d6b45657b15c96f98e39e68f5304ae8b1fa46904a754f68354094bbd34e（7068B），HTML=41cba79a6922de985fca9a7dc7c0f5f2dfe665ac35aee2faad0bd6829771c249（715823B）。哈希相同Windows Chrome快照四视口无溢出，四张深浅截图目视通过；visualReview=passed/correctionRounds=0，证据docs/diagrams/reviews/2026-10-02-heartbeat-0844/。
+- F01/F02/P1-3和最终验收仍未通过，F10仅架构子项通过。下一项唯一动作：实现服务器支持环境批准/使用/撤销与证据绑定，拒绝未知/漂移环境，不把隔离观察指纹直接变成生产批准；满足来源门之后才接通物理等级/事件和候选准入。
+- 本轮约12分钟，已知累计约82分钟加历史未知，不重置五小时包。旧远程对话notLoaded，Luna bwrap无恢复证据，父任务SSH验证；项目记忆MCP不可用，依仓库记录。提示词已恰好一次回写至v2.10，工具明确返回Updated automation，ACTIVE及原45分钟频率保持；最后执行git diff --check。
+
+---
+
+## 2026-10-02 · 07:59周期：执行器服务器回执与环境指纹关联
+
+- 推进F01/P1-3：executor父进程生成executor-receipt.v1，在子进程执行前采集源哈希、Python/库版本和机器类型，绑定nonce、实际代码/解码输出、退出/超时和时限。不是从stdout提取元数据。
+- 网关每次执行生成新nonce，新增app/executor_evidence.py严格核对类型、字段与上下文；缺失/旧回执保留普通执行结果但不声称关联。runtime_approved/trusted_run始终false，不引入签名或镜像认证，不授予物理等级。
+- dashboard增加nullable executor_evidence_json，旧行NULL不回填；plain及retry成功/耗尽只保存最后一次执行回执。仅临时DB迁移，生产数据库/服务未部署或修改。
+- 124/124完整单测通过，14条依赖弃用警告；覆盖nonce重放、代码/输出/状态不符、布尔伪造、缺失/错误环境指纹、stdout假回执、真实子进程与超时、旧行迁移及最终重试关联。一致的环境漂移仅可观察，不能自动批准。
+- 原executor HTTP路径真实隔离验证：无令牌401拒绝；固定平面波经原-I子进程/限额/30s上限运行11627.1ms，独立波形0.505468%/0.505490%通过，原1%门槛不变。父任务复核真实server envelope及源哈希，匹配通过但runtime_approved=false/trusted_run=false。不能冒充生产网关或Dify全链路。
+- 新证据：现成隔离镜像Python3.11.15/JAX0.4.38，与executor/Dockerfile的JAX0.4.35不同。镜像ID单独由操作者记录，不根据代码自报批准；生产在用旧镜像也不宣称等价。证据 auxiliary/reference/executor-receipt-2026-10-02/含命令/输出/哈希/限制与信任说明。
+- 原资源、安全限制不减弱：容器无网络/只读/降权、4GB/2CPU/256pids，外层45s有界，HTTP仅容器loopback，无发布端口；自建server/container清理。无提交/推送/部署/重启/安装/权限凭据变更或付费模型调用。旧改动保留，Luna bwrap无恢复证据，SSH父任务验证；项目记忆MCP不可用，依仓库记录。
+- Archify已先读JSON再同步说明，validate/deliver 9/9、0错误/警告；JSON SHA-256=0dbf91fb002a9b9f95712ef0841b22cc257c3cf9340a6f7587e9a3f99066ea3f，HTML=e6080b0c6bd605e10d38bfb158c8329e1e565042ee74a79fece3a54a411a8d28（715829B）。同哈希Windows Chrome四视口无溢出，四张深浅截图逐张目视通过，visualReview=passed/correctionRounds=0；证据 docs/diagrams/reviews/2026-10-02-heartbeat-0759/。仅F10架构子项通过。
+- 修改executor/executor.py、app/execution.py、app/executor_evidence.py、app/dashboard.py、app/tools.py、tests/unit/test_executor_evidence.py与本项目架构/规划/日志/资产和证据。physics_gate/SkillStore本轮未改；受控派发、支持环境批准、validator/参数运行时接通待续，F01/F02/P1-3和终验未完成，Q3/Q4/自动学习关闭。
+- 下一项唯一动作：受控平面波派发与记录回执/固定validator接通，冻结有证据的支持环境合同并处理0.4.35/0.4.38差异，覆盖环境漂移和断链负例；不能直接从响应匹配升级质量等级。
+- 本轮约17分钟（07:59:08开始），已知累计约70分钟加历史未知，不重置五小时包。automation-2提示词v2.9恰好一次回写成功，工具返回Updated/ACTIVE；频率、名称和绑定聊天保留，保存内容核对通过。git diff --check通过。
+
+---
+
+## 2026-10-02 · 07:14周期：平面波固定代码契约与只读绑定前置
+
+- F01/P1-3继续最早缺口：新增单场景固定配方（3177B，函数AST与VAL-1 v2一致）和只读SQLite契约检查；代码与validator使用经审查字面量哈希，不能采信调用方profile/config/Q4/匹配标记。
+- 核对唯一run_id、网关记录版本、完整代码及哈希、退出/超时、完整严格JSON；独立复算并保存代码/validator/stdout/stderr绑定回执。打印解析波形、改参数/追加语句、重复/缺失/旧记录、伪造配置、坏JSON和改动本地配方/validator均有负例。
+- 93/93完整隔离单测通过，14条依赖弃用警告；首次两处测试夹具违反现有NOT NULL约束，已修正夹具，没有修改约束或弱化产品门禁。真实隔离配方运行12.114s，两探针波形误差0.505468%/0.505490%，原1%门槛保留。
+- 证据 auxiliary/reference/plane-wave-code-contract-2026-10-02/：完整命令/输出/哈希、实际镜像ID、单测与绑定回执。绑定使用真实输出加临时隔离测试DB，明确record_origin非生产网关运行；未迁移/读取生产DB，未验证生产AST/HTTP路径。沙箱30s/4GB/2CPU/256pids、无网络/只读/降权；自建容器已清理。
+- 只完成离线前置：code_contract_matched并不认证实际运行参数，缺服务器取得的executor镜像/运行环境身份。trusted_run=false、parameters_bound=false，未接入analysis/physics_gate/SkillStore；Q3/Q4及自动学习继续关闭。F01/F02/P1-3与终验仍未完成。
+- 新增 scripts/validation/plane_wave_run_binding.py、scripts/validation/recipes/val1_plane_wave_v2.py、tests/unit/test_plane_wave_run_binding.py；规划/基准/日志与证据同步，旧改动保留。无提交/推送/部署/重启/安装/权限或凭据变更。
+- 本轮已读Archify JSON；运行时数据流/质量门/SQLite模型未变，JSON/HTML哈希仍为06:29版本，沿用其9/9及四视口深浅人工视觉证据，不冒充本轮视觉复测。Luna bwrap无恢复证据，父任务SSH验证；项目记忆MCP不可用，依仓库降级，旧远程对话未加载且没有发任务。
+- 下一项唯一动作：服务器侧取得执行器环境身份并接入固定受控场景，覆盖环境漂移与断链负例；在完整实际参数/来源绑定前不得升级Q3/Q4。
+- 本轮约10分钟（07:14启动），已知累计约53分钟加历史未知，不重置五小时包。automation-2提示词v2.8恰好一次回写成功，工具返回Updated/ACTIVE；原频率/目标保留。git diff --check通过。
+
+---
+
+## 2026-10-02 · 06:29周期：执行记录与分析来源绑定
+
+- F01/P1-3前置核验发现重试记录初始代码、自动匹配run_id后分析事件另建ID两处缺口，现已修复。成功及重试耗尽均记录实际最终代码。
+- 新执行行保存code_sha256和gateway-execution.v1；增量nullable列只在隔离临时数据库验收，生产未迁移，历史保持NULL不回填可信来源。
+- 分析在同一SQLite读取快照中核对唯一run_id、完整网关交付stdout/stderr、exit_code和代码哈希；自动解析ID用于analysis_events。重复ID/输出、缺失、旧行、篡改、DB不可用均不绑定；记录超时传给Q0-Q2评估。
+- 71/71完整单测通过，14条依赖弃用警告；覆盖正常/异常/歧义/失败重试/伪造分析，模型与executor调用均用测试替身，不产生真实模型费用，也不作为物理正确证明。证据 auxiliary/reference/execution-source-2026-10-02/。
+- 参数和物理仍未验证：parameters_bound=false/physics_validated=false；数据库和网关写入是信任边界，不能防特权DB操作者或伪造stdout的沙箱程序。Q3/Q4与自动学习仍关闭，F01/F02/P1-3未完成。
+- 修改app/dashboard.py、app/tools.py、app/analysis.py、tests/unit/test_execution_source.py及本项目架构/规划/日志/图资产和证据；保留现有改动，没有提交/推送/部署/重启/凭据或权限变更。
+- Archify validate/deliver 9/9、0错误/警告；新JSON SHA-256=0e0d3ecc13907b40884c8a79a0335e7d17e0d5bd4fb9e5f9c17a726684792fa9，HTML=3a149b42248665b703e9bf1a1e18644ef337b399de1b63d1a3376888bd24c387，回执与实际字节一致。
+- 同哈希本机Chrome四桌面视口无溢出，四张深浅主题截图已目视核对，visualReview=passed、correctionRounds=0；证据 docs/diagrams/reviews/2026-10-02-heartbeat-0629/。只保持F10架构子项通过，不把其余产品验收标为通过。
+- Luna bwrap故障仍无恢复证据，父任务SSH固定验证，无重复创建或续发；项目记忆MCP不可用，依仓库记录。数值方法未改，不重复仿真；上轮平面波0.5055%是历史有效证据。
+- 下一项唯一动作：受控平面波场景的参数与固定validator来源绑定及伪造profile负例；不能接受调用方matched或自报配置作为可信凭据。
+- 本轮约14分钟，已知累计约43分钟加历史未知，不重置包预算。git diff --check通过；提示词更新以automation_update回执为准，临时Archify工具包清理。
+
+---
+
+## 2026-10-02 · 05:44周期：平面波负尾部有界对照与基准修复
+
+- 继续P1-3/F02：Ny=384单因素对照把第二探针波形误差10.4426%降到0.5055%；Ny=256/CFL=0.05对照仍10.3659%。支持横向域/边界是主要污染来源，不声称已唯一识别孔径或PML内部机理。
+- 仅改平面波基准Ny=384、profile v2和完整配置证据；±3sigma窗口、1%门槛、PML/CFL/初始波前不变，没有删尾部失败样本。其他四个基准未改。
+- 离线validator v2增加固定配置核对；旧v1失败继续保留复算。新源真实隔离复跑12.002s，最大波形误差0.505490%、峰值/比值最大误差0.0000358%，到达检查通过。numeric_pass=true，trusted_run=false。
+- 单测58/58通过，14条依赖弃用警告；新增网格/PML/布尔/缺配置负例，旧失败仍返回CLI退出1。测试/两个对照/新源与代码/原始序列/哈希证据在auxiliary/reference/val1-plane-wave-controls-2026-10-02/。
+- 只验证用例1，没有把其他四场景或F02标为完成。没有生产来源认证，运行时app/physics_gate.py、SkillStore准入与架构/沙箱限制不变，Q3/Q4和自动学习保持封闭。
+- 已核对Archify原资产哈希未变，沿用04:14静态9/9和视觉证据；没有布局或运行时架构变化，不重新生成相同图。bwrap仍未发现，Luna无恢复证据，父任务SSH固定验证；项目记忆MCP不可用，依仓库记录。
+- 修改范围：executor/validation_baseline.py、scripts/validation/plane_wave_evidence.py、tests/unit/test_plane_wave_evidence.py、基准/规划/日志与auxiliary/reference证据，保留全部旧改动；没有安装包、改权限、服务重启、付费调用或提交。
+- 下一项唯一动作：受信运行记录与代码/参数/validator来源绑定及伪造/断链负例；不允许用离线PASS或调用方自报字段升级质量等级。
+- 本轮约10分钟，已知累计约29分钟加历史未知，不重置包预算。git diff --check已核验；提示词回写是否成功以本轮automation_update回执为准。一次性诊断直接stdin执行，没有临时脚本遗留；源文本保留为明确哈希证据。
+
+---
+
+## 2026-10-02 · 04:59周期：平面波原始证据与独立复算切片
+
+- 选择P1-3/F02最早缺口：原VAL-1只有摘要，新增用例1原始s/Pa探针序列及独立离线校验器；忽略调用方PASS、理论、误差与Q4自报。
+- 修改范围：executor/validation_baseline.py、scripts/validation/plane_wave_evidence.py、tests/unit/test_plane_wave_evidence.py、基准文档/规划/本日志及auxiliary/reference证据。原有未提交改动保留。
+- 正常解析序列与12类负例、缺失及1%边界测试：完整单测53/53通过，14条依赖弃用警告。Luna bwrap故障无恢复证据，父任务SSH使用现成tests-phase0镜像，未创建/续发重复任务。
+- 真实隔离jwave0.2.1用例1运行14.382s；峰值/比值最大误差0.000161%，但第二探针±3sigma窗口波形偏差10.4426%，numeric_pass=false，CLI退出1已单独核验。最坏点30us为负尾部，不把旧峰值PASS当完整波形通过。
+- 来源运行/源代码/stdin/原始输出/校验器哈希和镜像ID已绑定在auxiliary/reference/val1-plane-wave-2026-10-02/。哈希不是防伪认证，trusted_run=false；安装隔离镜像与运行中服务镜像ID不同，未宣称生产等价。
+- 首次镜像缺pytest、挂载权限失败及旧服务镜像无法新建容器均已诊断；改用现成测试镜像/原始代码stdin，没有改权限、安装包、重启或变更现有服务。无付费调用。
+- 运行时Q0-Q2、SkillStore准入与架构数据流未改，已读Archify JSON并核对现有HTML哈希不变；沿用04:14视觉验收，不重复无关布局修改。Q3/Q4与自动学习仍关闭，F02/P1-3未完成。
+- 下一项唯一动作：诊断第二探针尾部负信号及固定平面波适用窗口/横向孔径；有限孔径/PML是待验证假设，禁止凭假设放宽容差。
+- 本轮约9分钟，已知增量约19分钟加历史未知；不重置开发包。项目记忆MCP不可用，依仓库降级。提示词自迭代回写以automation_update回执为准。
+
+---
+
+## 2026-10-02 · 04:14周期：架构卡片布局验收通过
+
+- 稳定字体后诊断发现右侧8行正文把卡片撑到225px，阅读区已达最小960px；没有证明此前差异仅由字体导致，但稳定测量确认原布局超高。
+- 仅把候选技能状态说明移至左侧并改卡片标题；全部说明保留，节点/关系/字号/安全与物理规则不变。卡片高度降至207px。
+- 原仓库showcase validate/deliver 9/9、0错误/警告，回执与文件SHA-256一致，git diff --check通过。
+- 哈希相同本机快照在1440×900、1600×1000、1920×1080、2048×1320全部无溢出；四张深浅截图目视检查通过。另等字体就绪2秒后复测1440×900仍为900px，visual_review=passed，correction_rounds=1。
+- 证据：docs/diagrams/reviews/2026-10-02-heartbeat-0414/。只完成F10架构子项，不把报告/技能审计页或F10整体标为完成。
+- Luna测试对话bwrap缺失未解除，未重复创建或发同样命令；父任务SSH核对固定静态回执与哈希。本轮未改运行代码，没有重复单测或仿真。
+- 下一项唯一动作：P1-3实现首个VAL-1确定性Q3/Q4场景规则，绑定来源证据并覆盖伪造结果负例；准入未接通前继续禁止自报Q3/Q4。
+- 增量计时始于04:14:25，本轮约5分钟；已知增量合计约10分钟，历史累计未知。项目记忆MCP不可用，依仓库记录；提示词回写以对话工具回执核验。临时工具和诊断脚本清理。
+
+---
+
+## 2026-10-02 · 02:45周期：架构说明复验与固定测试回退
+
+- 仅压缩BYOK卡片措辞，保留公网HTTPS/443、无重定向、令牌和审计；第二次改动未稳定改善，回退该次改动。未改运行代码、物理规则或沙箱设置。
+- 原仓库showcase validate/deliver 9/9、0错误/警告，回执哈希与实际原文件一致，git diff --check通过。
+- 同哈希Windows Chrome快照测得1440×900高度905及914px；最终以914px和failed记录。1600×1000、1920×1080、2048×1320通过，四张深浅截图已目视检查；没有宣称视觉验收通过。
+- 固定远端测试对话已创建，Luna/low，id 01a0f892-bf33-7dc2-9b42-f8ee17ef085a；首次cat AGENTS.md因bwrap缺失以101失败，未读写仓库。父任务回退SSH执行固定静态/哈希/边界说明断言并通过，不能算Luna测试通过。
+- 证据：docs/diagrams/reviews/2026-10-02-heartbeat-0245/；F10仍进行中，P1-3未完成。无物理规则变更，不重复单测。
+- 增量计时始于Asia/Shanghai 02:45:18，交接约5分钟；旧累计未知。本轮项目记忆MCP不可用，依仓库降级记录。
+- 下一项唯一动作：诊断字体就绪、卡片换行与总高度；使用稳定测量再修布局，禁止隐藏溢出或缩小字体。已有两轮聚焦修复，本轮停止扩张。
+- 提示词将一次回写原automation-2并核验；结果以当前对话工具回执为准。临时工具/脚本清理，不修改凭据或安装bwrap。
+
+---
+
+## 2026-10-02 · 最终验收终点与持续推进规则
+
+- 用户授权定义最终验收标准并持续推进至完成；开发规划第15节升级为F01–F12证据表，保留原Phase门禁、物理/检索/A/B目标与发布要求。
+- 明确自动开发完成、最终验收通过、发布完成三种状态；付费评测、真人UAT和发布授权不可用模拟代替，不擅自扩大执行权限。
+- 明确每轮更新证据台账并恰好一次回写原automation-2提示词；全部验收完成后交付并静默，不制造新目标。
+- 仅修改规划与日志，未改运行架构/代码/生产服务；现有未提交改动保留。原文备份保存在项目外本机状态目录。
+- 当前所有终验项仍待核验或未完成，没有凭历史记录标记最终通过。
+
+---
+
+## 2026-10-02: Manual trial of iterative automation v2
+
+- Verified original SSH repository identity and idle old chat. Used a Windows Chrome snapshot with identical SHA-256; all source edits and HTML generation remained remote.
+- Found stale delivery receipt from prior generation; replaced it with the current successful remote deliver result and checked artifact hash consistency.
+- Initial visual check: 1440x900 height 936, 1600x1000 height 1018. Two focused card-copy repairs reduced 1440x900 height to 914; 1600x1000, 1920x1080 and 2048x1320 now fit.
+- Showcase validate and deliver pass 9/9 with zero errors/warnings. Final browser check FAILS: 1440x900 light/dark still overflow by 14px. Four screenshots inspected; no visual acceptance claim. Evidence under docs/diagrams/reviews/2026-10-02-local-browser/.
+- Corrected obsolete wording: candidate SQLite store exists internally; activation/retrieval remain unavailable. Runtime semantics and security unchanged.
+- Unit suite not rerun: only diagram explanatory copy/assets changed; prior 35/35 unit result remains historical.
+- Trial elapsed time not reliably metered; cumulative package time remains unknown, not reset. P1-3 remains incomplete.
+- Next action: resolve remaining small-viewport card height without clipping, shrinking typography or concealing overflow; validate/deliver and rerun hash-bound local browser checks.
+- Task prompt self-update result is recorded by automation_update in the current chat, not asserted in advance here.
+
+---
+
+## 2026-10-02: Local heartbeat SSH and architecture acceptance slice
+
+- BatchMode SSH reached the original repository; origin and cwd verified, old remote chat idle; existing edits preserved.
+- Temporary Archify toolkit ran showcase validate and deliver remotely: 9/9 checks, zero errors/warnings, unchanged JSON specification.
+- Regenerated HTML resolves prior trailing whitespace; git diff --check passes. Trusted HTML was not hand-edited.
+- Current unit suite: 35 passed, 14 dependency deprecation warnings, in a network-disabled read-only container capped at 1GB, 2 CPUs and 128 pids. No paid model calls or physics simulations; unit success does not establish Q3/Q4.
+- visual-check returned nonzero: Chrome/Chromium unavailable, skipped. Receipt binds current HTML; visual acceptance remains incomplete.
+- Runtime code, production data and services unchanged. P1-3 remains incomplete; candidate admission still Q2 only.
+- Project memory MCP unavailable; repository records used as fallback. Temporary toolkit cleaned after use.
+- Next single action: inspect current remote HTML at required desktop viewports and both themes with a capable browser, then proceed to deterministic scenario gates.
+
+---
+
+## 2026-09-28 · 会话: Archify 复验与候选技能高可信等级封闭
+
+### 选择依据与完成
+- [x] 延续 P1-3 前置验收：现有 Q0-Q2 改动已通过单测，但架构图尚未由 Archify 生成和验证；隔离 SQLite 复现过调用方可自报 Q4 入库
+- [x] 通过 Archify showcase 诊断将架构图宽度从 1380 缩至 1240，保留组件和连接语义；同步 `create_candidate` 信任边界并重新生成 HTML
+- [x] `SkillStore.create_candidate` 暂只允许 Q2；自报 Q3/Q4 在写入前抛错。没有自动激活或检索路径，Q3/Q4 待确定性场景门与来源运行证据接入后再开放
+- [x] 在 `docs/ARCHITECTURE.md` 说明当前内部存储、等级准入和 `verdict=normal` 的证据边界
+
+### 验证与限制
+- Archify `validate architecture --quality showcase` 通过，9/9 静态检查、0 错误/警告；`deliver` 通过，回执 `015c36e8-c021-4b42-a9a6-3a1b5b921fa2`
+- `visual-check` 已运行，当前环境无 Chrome/Chromium，状态 `skipped`，视觉验收未完成；回执保留在 `docs/diagrams/acouagent-runtime.architecture.visual-check.json`
+- 隔离测试镜像中 `pytest tests/unit -q` 35/35 通过，含 Q2 正常候选、伪造 Q3/Q4 不入库及既有 Q0-Q2 边界测试
+- 生成的 HTML 含 Archify 模板行尾空格，`git diff --check` 对该生成文件仍报 trailing whitespace；源文件排除该 HTML 后通过
+- 项目记忆 MCP 不可用，依项目降级规则以仓库文档记录；未写入其他项目记忆
+
+### 范围与后续
+- 文件：`app/skill_store.py`、`tests/unit/test_skill_store.py`、`docs/ARCHITECTURE.md`、`docs/CHANGELOG.md`、`docs/diagrams/acouagent-runtime.architecture.{json,html,delivery.json,visual-check.json}`
+- P1-3 尚未完成：下一项唯一优先动作是实现一个 VAL-1 场景的确定性 Q3/Q4 校验并用伪造证据负例验证；在此之前保持 Q3/Q4 候选准入关闭
+
+---
+
+## 2026-09-28 · 会话: P1-3 技能候选可信等级审查
+
+### 发现
+- [x] 隔离临时 SQLite 复现：`create_candidate` 接受 `quality_level=Q4`、空 `physics_evidence` 和任意 `validator_version`，保存为 `candidate` 并把 `success_count` 设为 1
+- [x] 当前 `app/` 未调用 `create_candidate`，也没有 active 转换或 `search_simulation_skill` 暴露路径；现阶段没有观察到自动注入，但候选表中的 Q4 标签不可作为可信物理证据
+
+### 后续门禁
+- [ ] P1-3 必须由确定性场景规则重新计算等级并绑定来源运行证据；P1-4 激活与检索不可相信调用方自报的 Q3/Q4
+- [ ] 任何准入行为变动先完成项目要求的 Archify 同步、生成及验收；当前环境仍缺少该工具
+
+### 验证与文件
+- 仅使用自动清理的临时数据库复现；没有改动生产数据或运行时代码
+- 变更文件：`docs/CHANGELOG.md`
+
+---
+
+## 2026-09-28 · 会话: VAL-1 五场景物理基准受限复测
+
+### 完成
+- [x] 在现有 executor 中用 stdin 与 300 秒外部超时重跑五场景解析对照，不调用模型或写入技能库
+- [x] 将逐场景误差、运行条件和 Q3/Q4 证据边界记入 `docs/VALIDATION_BASELINE.md`
+
+### 验证
+- 5/5 PASS；最大相对误差 0.797600%（2D 圆柱波），所有误差均低于 1% 门槛
+- 固定基准复测不能验证任意生成结果；P1-3 场景物理门和 Archify 架构验收仍待完成
+
+### 变更文件
+- `docs/VALIDATION_BASELINE.md`、`docs/CHANGELOG.md`
+
+---
+
+## 2026-09-28 · 会话: P1-3 前置 Q2 证据门加固（未完成 P1-3）
+
+### 完成
+- [x] Q1 要求有限、非零的峰值与合理 RMS、有效场形状；缺失或非有限指标不再仅凭 `verdict=normal` 晋级
+- [x] Q2 要求有效网格、场形状匹配、PML 几何与有限物理参数；拒绝缺失 PML、越界/非整数坐标、非法网格和非有限间距
+- [x] 补上 3D 探针恰在 PML 起点的回归：72³/pml=8 时索引 63 保留 Q2，索引 64 降为 Q1
+- [x] 同步运行时架构 JSON 与 HTML 中的质量门说明；没有引入 Q3/Q4 自动判定或技能自动激活
+
+### 验证
+- 隔离开发镜像运行 `pytest tests/unit`：33/33 通过，覆盖正常、异常、2D/3D PML 边界及 stdout 场数据解析至 Q0/Q1/Q2 的集成路径
+- 本环境没有 Archify CLI/skill，无法执行 `validate --quality showcase`、`deliver`、`visual-check`；HTML 中受影响的说明与 JSON 已同步，完整视觉验收待工具恢复
+
+### 变更文件
+- `app/physics_gate.py`、`tests/unit/test_phase0_foundation.py`、`tests/unit/test_analysis_result.py`
+- `docs/diagrams/acouagent-runtime.architecture.json`、`docs/diagrams/acouagent-runtime.architecture.html`、`docs/CHANGELOG.md`
+
+---
+
 ## 2026-09-28 · 会话: P1-2 参数规范化、指纹与版本去重
 
 ### 完成

@@ -793,6 +793,27 @@ PORTAL_HTML = r"""<!DOCTYPE html>
   .msg.assistant th { background: #1c2129; }
   .msg.assistant code { background: #1c2129; padding: 1px 5px; border-radius: 4px; font-size: 13px; }
   .msg.assistant pre { background: #0d1117; border: 1px solid var(--border); border-radius: 6px; padding: 12px; overflow-x: auto; font-size: 12px; }
+
+.msg.assistant{width:100%;max-width:100%;min-width:0;line-height:1.65;padding:14px 16px;overflow-wrap:anywhere}
+.msg.assistant h2{font-size:18px;margin:16px 0 8px;color:var(--text)}
+.msg.assistant h3{font-size:15px;margin:12px 0 6px;color:var(--text)}
+.msg.assistant>:first-child{margin-top:0}
+.msg.assistant p,.msg.assistant ul{margin:6px 0 10px}
+.msg.assistant ul{padding-left:22px}
+.msg.assistant code{color:#1e293b;background:#edf1f5;padding:2px 5px;white-space:pre-wrap;overflow-wrap:anywhere}
+.msg.assistant pre{margin:8px 0 0;padding:12px;background:#f4f7fa;color:#1e293b;white-space:pre-wrap;overflow-wrap:anywhere;max-height:320px;overflow:auto}
+.msg.assistant pre code{background:transparent;color:inherit;padding:0}
+.msg.assistant th{background:#edf1f5;color:#1e293b}
+.msg.assistant table{width:100%;margin:0}
+.report-table{overflow-x:auto;margin:8px 0 12px}
+.report-output{margin:8px 0 12px;border:1px solid var(--border);border-radius:6px;padding:8px 10px}
+.report-output summary{cursor:pointer;color:#334155;font-size:13px}
+.msg.assistant figure{margin:12px 0}
+.msg.assistant img{display:block;max-width:100%;height:auto;border:1px solid var(--border);border-radius:6px;background:white}
+.msg.assistant img[hidden]{display:none}
+.msg.assistant figcaption{color:#b91c1c;font-size:13px}
+@media(max-width:600px){.chat-log{padding:12px}.msg.assistant{padding:12px}.header{padding:10px 12px;gap:8px;flex-wrap:wrap}.header h1{font-size:16px}.header h1 span{display:none}.input-bar{padding:12px}.input-wrap input{min-width:0;padding:10px}.input-wrap button{padding:10px 14px}}
+
   .msg.assistant .loading-text { color: var(--muted); }
   .merge-hint { margin-top: 10px; color: var(--muted); font-size: 12px; min-height: 16px; }
   @media (max-width: 768px) {
@@ -861,31 +882,32 @@ function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").re
 
 // Simple markdown-to-HTML renderer
 function renderMarkdown(md) {
-  var html = md;
-  // Images (data URI / URL) —— 必须最先处理，避免 base64 内容被后续语法替换破坏
-  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g,
-    '<img src="$2" alt="$1" style="max-width:100%;border-radius:8px;margin:8px 0;box-shadow:0 2px 8px rgba(0,0,0,.2)" onerror="this.outerHTML=\'<i style=color:#888>[图片加载失败]</i>\'">');
-  // Headers
-  html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-  html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-  // Bold / italic
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  // Inline code
-  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-  // Code blocks
-  html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre>$2</pre>');
-  // Tables (simple: convert |...| lines)
-  html = html.replace(/(\|[^\n]+\|\n)(\|[-:\s|]+\|\n)((?:\|[^\n]+\|\n?)*)/g, function(m, hdr, sep, rows) {
-    var ths = hdr.split('|').filter(function(c) { return c.trim(); }).map(function(c) { return '<th>' + c.trim() + '</th>'; }).join('');
-    var trs = rows.split('\n').filter(function(r) { return r.trim(); }).map(function(r) {
-      var tds = r.split('|').filter(function(c) { return c.trim(); }).map(function(c) { return '<td>' + c.trim() + '</td>'; }).join('');
-      return '<tr>' + tds + '</tr>';
-    }).join('');
-    return '<table><thead><tr>' + ths + '</tr></thead><tbody>' + trs + '</tbody></table>';
+  var blocks=[];
+  var html=String(md||'').replace(/\r\n?/g,'\n');
+  // Protect fenced output before applying inline Markdown.
+  html=html.replace(/^\s*(\x60{3,}|~{3,})[^\n]*\n([\s\S]*?)^\s*\1\s*$/gm,function(_,mark,body){
+    blocks.push('<details class="report-output"><summary>查看原始输出</summary><pre><code>'+esc(body.trimEnd())+'</code></pre></details>');
+    return 'REPORTBLOCK'+(blocks.length-1)+'END';
   });
-  // Line breaks
-  html = html.replace(/\n\n/g, '<br><br>');
-  return html;
+  html=esc(html.replace(/[\p{Extended_Pictographic}\uFE0F\u200D]/gu,''));
+  html=html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g,function(_,alt,url){
+    if(!/^(data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+|https?:\/\/[^\s"'&<>]+|\/(?!\/)[^\s"'&<>]*)$/i.test(url))return '<p>图片地址无效</p>';
+    blocks.push('<figure><img src="'+url+'" alt="'+alt.replace(/"/g,'&quot;')+'" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><figcaption hidden>图片加载失败，请在执行看板查看原始图像。</figcaption></figure>');
+    return 'REPORTBLOCK'+(blocks.length-1)+'END';
+  });
+  html=html.replace(/^###\s+(.+)$/gm,'<h3>$1</h3>').replace(/^##\s+(.+)$/gm,'<h2>$1</h2>');
+  html=html.replace(/\x60([^\x60\n]+)\x60/g,'<code>$1</code>').replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+  html=html.replace(/(\|[^\n]+\|\n)(\|[-:\s|]+\|\n)((?:\|[^\n]+\|\n?)*)/g,function(_,header,sep,rows){
+    function cells(row,tag){return row.trim().replace(/^\||\|$/g,'').split('|').map(c=>'<'+tag+'>'+c.trim()+'</'+tag+'>').join('');}
+    return '<div class="report-table"><table><thead><tr>'+cells(header,'th')+'</tr></thead><tbody>'+rows.trim().split('\n').map(r=>'<tr>'+cells(r,'td')+'</tr>').join('')+'</tbody></table></div>';
+  });
+  html=html.replace(/(?:^[-*]\s+.+(?:\n|$))+/gm,function(list){return '<ul>'+list.trim().split('\n').map(l=>'<li>'+l.replace(/^[-*]\s+/,'')+'</li>').join('')+'</ul>';});
+  html=html.replace(/^---+\s*$/gm,'<hr>');
+  html=html.split(/\n\s*\n/).map(function(part){
+    part=part.trim();if(!part)return '';
+    return /^<(h[1-6]|div|ul|hr)|^REPORTBLOCK/.test(part)?part:'<p>'+part.replace(/\n/g,'<br>')+'</p>';
+  }).join('\n');
+  return html.replace(/REPORTBLOCK(\d+)END/g,function(_,n){return blocks[n];});
 }
 
 var conversation = [];        // {role:'user'|'assistant', content}
@@ -927,20 +949,41 @@ async function ask() {
   conversation.push({role: 'user', content: message});
   renderChat();
   btn.disabled = true;
-  btn.textContent = '⏳ 运行中...';
+  btn.textContent = '运行中...';
 
   var loadingIdx = conversation.length;
-  conversation.push({role: 'assistant', content: '🔬 正在执行仿真（生成代码 → 沙箱计算 → 物理分析），通常需要 30~90 秒，请耐心等待...'});
+  conversation.push({role: 'assistant', content: '正在执行仿真（生成代码 → 沙箱计算 → 物理分析），通常需要 30~90 秒，请耐心等待...'});
   renderChat();
 
   try {
     var resp = await fetch('/chat', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({message: message, requirement: currentRequirement, session_id: getSessionId()})
+      body: JSON.stringify({stream: true, message: message, requirement: currentRequirement, session_id: getSessionId()})
     });
-    var data = await resp.json();
+    if (!resp.ok) throw new Error('服务返回 HTTP ' + resp.status);
+    var data;
+    if ((resp.headers.get('content-type') || '').includes('application/x-ndjson')) {
+      var reader = resp.body.getReader(), decoder = new TextDecoder(), pending = '';
+      while (true) {
+        var chunk = await reader.read();
+        pending += decoder.decode(chunk.value || new Uint8Array(), {stream: !chunk.done});
+        var lines = pending.split('\n'); pending = lines.pop();
+        for (var line of lines) {
+          if (!line.trim()) continue;
+          var event = JSON.parse(line);
+          if (event.event === 'progress') {
+            conversation[loadingIdx] = {role: 'assistant', content: '当前步骤：' + event.stage + '。请稍候...'};
+            renderChat();
+          } else if (event.event === 'result') { data = event; }
+        }
+        if (chunk.done) break;
+      }
+      if (!data) throw new Error('连接中断，未收到完整结果；请勿连续重复发送。');
+    } else { data = await resp.json(); }
+
     var report = data.report || '';
+    if (data.workflow_status === 'error' && data.request_id) report += '\n\n请求编号：' + data.request_id;
     currentRequirement = data.requirement || '';
     conversation[loadingIdx] = {role: 'assistant', content: report || '未获取到结果'};
     if (data.merge_used) {
@@ -1352,6 +1395,27 @@ CHAT_HTML = r"""<!DOCTYPE html>
   .msg.assistant code { background: #1c2129; padding: 1px 5px; border-radius: 4px; font-size: 13px; }
   .msg.assistant pre { background: #0d1117; border: 1px solid var(--border); border-radius: 6px; padding: 12px; overflow-x: auto; font-size: 12px; }
 
+.msg.assistant{width:100%;max-width:100%;min-width:0;line-height:1.65;padding:14px 16px;overflow-wrap:anywhere}
+.msg.assistant h2{font-size:18px;margin:16px 0 8px;color:var(--text)}
+.msg.assistant h3{font-size:15px;margin:12px 0 6px;color:var(--text)}
+.msg.assistant>:first-child{margin-top:0}
+.msg.assistant p,.msg.assistant ul{margin:6px 0 10px}
+.msg.assistant ul{padding-left:22px}
+.msg.assistant code{color:#1e293b;background:#edf1f5;padding:2px 5px;white-space:pre-wrap;overflow-wrap:anywhere}
+.msg.assistant pre{margin:8px 0 0;padding:12px;background:#f4f7fa;color:#1e293b;white-space:pre-wrap;overflow-wrap:anywhere;max-height:320px;overflow:auto}
+.msg.assistant pre code{background:transparent;color:inherit;padding:0}
+.msg.assistant th{background:#edf1f5;color:#1e293b}
+.msg.assistant table{width:100%;margin:0}
+.report-table{overflow-x:auto;margin:8px 0 12px}
+.report-output{margin:8px 0 12px;border:1px solid var(--border);border-radius:6px;padding:8px 10px}
+.report-output summary{cursor:pointer;color:#334155;font-size:13px}
+.msg.assistant figure{margin:12px 0}
+.msg.assistant img{display:block;max-width:100%;height:auto;border:1px solid var(--border);border-radius:6px;background:white}
+.msg.assistant img[hidden]{display:none}
+.msg.assistant figcaption{color:#b91c1c;font-size:13px}
+@media(max-width:600px){.chat-log{padding:12px}.msg.assistant{padding:12px}.header{padding:10px 12px;gap:8px;flex-wrap:wrap}.header h1{font-size:16px}.header h1 span{display:none}.input-bar{padding:12px}.input-wrap input{min-width:0;padding:10px}.input-wrap button{padding:10px 14px}}
+
+
   .input-bar { border-top: 1px solid var(--border); background: var(--surface); padding: 14px 24px; }
   .input-wrap { max-width: 900px; margin: 0 auto; display: flex; gap: 10px; }
   .input-wrap input {
@@ -1440,25 +1504,32 @@ body{background:var(--bg)!important;color:var(--text)!important}
 function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 
 function renderMarkdown(md) {
-  var html = md;
-  // Images (data URI / URL) —— 必须最先处理，避免 base64 内容被后续语法替换破坏
-  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g,
-    '<img src="$2" alt="$1" style="max-width:100%;border-radius:8px;margin:8px 0;box-shadow:0 2px 8px rgba(0,0,0,.2)" onerror="this.outerHTML=\'<i style=color:#888>[图片加载失败]</i>\'">');
-  html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-  html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-  html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre>$2</pre>');
-  html = html.replace(/(\|[^\n]+\|\n)(\|[-:\s|]+\|\n)((?:\|[^\n]+\|\n?)*)/g, function(m, hdr, sep, rows) {
-    var ths = hdr.split('|').filter(function(c) { return c.trim(); }).map(function(c) { return '<th>' + c.trim() + '</th>'; }).join('');
-    var trs = rows.split('\n').filter(function(r) { return r.trim(); }).map(function(r) {
-      var tds = r.split('|').filter(function(c) { return c.trim(); }).map(function(c) { return '<td>' + c.trim() + '</td>'; }).join('');
-      return '<tr>' + tds + '</tr>';
-    }).join('');
-    return '<table><thead><tr>' + ths + '</tr></thead><tbody>' + trs + '</tbody></table>';
+  var blocks=[];
+  var html=String(md||'').replace(/\r\n?/g,'\n');
+  // Protect fenced output before applying inline Markdown.
+  html=html.replace(/^\s*(\x60{3,}|~{3,})[^\n]*\n([\s\S]*?)^\s*\1\s*$/gm,function(_,mark,body){
+    blocks.push('<details class="report-output"><summary>查看原始输出</summary><pre><code>'+esc(body.trimEnd())+'</code></pre></details>');
+    return 'REPORTBLOCK'+(blocks.length-1)+'END';
   });
-  html = html.replace(/\n\n/g, '<br><br>');
-  return html;
+  html=esc(html.replace(/[\p{Extended_Pictographic}\uFE0F\u200D]/gu,''));
+  html=html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g,function(_,alt,url){
+    if(!/^(data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+|https?:\/\/[^\s"'&<>]+|\/(?!\/)[^\s"'&<>]*)$/i.test(url))return '<p>图片地址无效</p>';
+    blocks.push('<figure><img src="'+url+'" alt="'+alt.replace(/"/g,'&quot;')+'" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><figcaption hidden>图片加载失败，请在执行看板查看原始图像。</figcaption></figure>');
+    return 'REPORTBLOCK'+(blocks.length-1)+'END';
+  });
+  html=html.replace(/^###\s+(.+)$/gm,'<h3>$1</h3>').replace(/^##\s+(.+)$/gm,'<h2>$1</h2>');
+  html=html.replace(/\x60([^\x60\n]+)\x60/g,'<code>$1</code>').replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+  html=html.replace(/(\|[^\n]+\|\n)(\|[-:\s|]+\|\n)((?:\|[^\n]+\|\n?)*)/g,function(_,header,sep,rows){
+    function cells(row,tag){return row.trim().replace(/^\||\|$/g,'').split('|').map(c=>'<'+tag+'>'+c.trim()+'</'+tag+'>').join('');}
+    return '<div class="report-table"><table><thead><tr>'+cells(header,'th')+'</tr></thead><tbody>'+rows.trim().split('\n').map(r=>'<tr>'+cells(r,'td')+'</tr>').join('')+'</tbody></table></div>';
+  });
+  html=html.replace(/(?:^[-*]\s+.+(?:\n|$))+/gm,function(list){return '<ul>'+list.trim().split('\n').map(l=>'<li>'+l.replace(/^[-*]\s+/,'')+'</li>').join('')+'</ul>';});
+  html=html.replace(/^---+\s*$/gm,'<hr>');
+  html=html.split(/\n\s*\n/).map(function(part){
+    part=part.trim();if(!part)return '';
+    return /^<(h[1-6]|div|ul|hr)|^REPORTBLOCK/.test(part)?part:'<p>'+part.replace(/\n/g,'<br>')+'</p>';
+  }).join('\n');
+  return html.replace(/REPORTBLOCK(\d+)END/g,function(_,n){return blocks[n];});
 }
 
 var conversation = [];
@@ -1521,7 +1592,7 @@ function getSessionId() {
 function renderChat() {
   var log = document.getElementById('chat-log');
   if (!conversation.length) {
-    log.innerHTML = '<div class="chat-empty">💬 输入你的声学仿真需求开始对话。<br>支持多轮修改：例如先描述完整需求，再输入「改成 5 MHz」。</div>';
+    log.innerHTML = '<div class="chat-empty">输入你的声学仿真需求开始对话。<br>支持多轮修改：例如先描述完整需求，再输入「改成 5 MHz」。</div>';
     return;
   }
   log.innerHTML = conversation.map(function(m) {
@@ -1544,20 +1615,41 @@ async function ask() {
   conversation.push({role: 'user', content: message});
   renderChat();
   btn.disabled = true;
-  btn.textContent = '⏳ 运行中...';
+  btn.textContent = '运行中...';
 
   var loadingIdx = conversation.length;
-  conversation.push({role: 'assistant', content: '🔬 正在执行仿真（生成代码 → 沙箱计算 → 物理分析），通常需要 30~90 秒，请耐心等待...'});
+  conversation.push({role: 'assistant', content: '正在执行仿真（生成代码 → 沙箱计算 → 物理分析），通常需要 30~90 秒，请耐心等待...'});
   renderChat();
 
   try {
     var resp = await fetch('/chat', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({message: message, requirement: currentRequirement, session_id: getSessionId(), model_config: getModelConfig()})
+      body: JSON.stringify({stream: true, message: message, requirement: currentRequirement, session_id: getSessionId(), model_config: getModelConfig()})
     });
-    var data = await resp.json();
+    if (!resp.ok) throw new Error('服务返回 HTTP ' + resp.status);
+    var data;
+    if ((resp.headers.get('content-type') || '').includes('application/x-ndjson')) {
+      var reader = resp.body.getReader(), decoder = new TextDecoder(), pending = '';
+      while (true) {
+        var chunk = await reader.read();
+        pending += decoder.decode(chunk.value || new Uint8Array(), {stream: !chunk.done});
+        var lines = pending.split('\n'); pending = lines.pop();
+        for (var line of lines) {
+          if (!line.trim()) continue;
+          var event = JSON.parse(line);
+          if (event.event === 'progress') {
+            conversation[loadingIdx] = {role: 'assistant', content: '当前步骤：' + event.stage + '。请稍候...'};
+            renderChat();
+          } else if (event.event === 'result') { data = event; }
+        }
+        if (chunk.done) break;
+      }
+      if (!data) throw new Error('连接中断，未收到完整结果；请勿连续重复发送。');
+    } else { data = await resp.json(); }
+
     var report = data.report || '';
+    if (data.workflow_status === 'error' && data.request_id) report += '\n\n请求编号：' + data.request_id;
     currentRequirement = data.requirement || '';
     conversation[loadingIdx] = {role: 'assistant', content: report || '未获取到结果'};
     if (data.merge_used) {

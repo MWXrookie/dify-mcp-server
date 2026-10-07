@@ -76,7 +76,7 @@
       "id": "web_portal",
       "type": "frontend",
       "label": "Web 门户",
-      "sublabel": "问答 / 看板 / Demo",
+      "sublabel": "阶段进度 / 报告 / 看板",
       "pos": [
         170,
         280
@@ -91,7 +91,7 @@
       "id": "dify_workflow",
       "type": "cloud",
       "label": "Dify 工作流",
-      "sublabel": "需求分析 / 参数提取 / 代码生成",
+      "sublabel": "知识检索 / 参数提取 / 代码生成",
       "pos": [
         390,
         280
@@ -232,7 +232,7 @@
       "id": "portal-to-dify",
       "from": "web_portal",
       "to": "dify_workflow",
-      "label": "Dify Chat API"
+      "label": "SSE 工作流 API"
     },
     {
       "id": "kb-to-dify",
@@ -283,10 +283,10 @@
       "dot": "cyan",
       "title": "入口与技能状态",
       "items": [
-        "Web 门户提供问答、执行看板、报告、缓存和 Demo",
-        "Dify 负责需求分析、参数提取、知识检索和代码生成",
-        "工作流通过 MCP 工具调用执行仿真",
-        "候选库仅内部使用；激活与检索未上线，退出成功不代表物理正确"
+        "门户显示阶段进度，完成回执后展示报告",
+        "Flash 无思考生成；保留检索与结果审查",
+        "180s 截止并请求停止；不自动重放任务",
+        "候选仅内部；激活与检索未上线，执行成功不代表物理正确"
       ]
     },
     {

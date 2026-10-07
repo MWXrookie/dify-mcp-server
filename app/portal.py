@@ -10,9 +10,10 @@ from pathlib import Path as _Path
 
 import httpx
 from starlette.requests import Request
-from starlette.responses import HTMLResponse, PlainTextResponse
+from starlette.responses import HTMLResponse, PlainTextResponse, StreamingResponse
 
 from app import cache_store, config, execution
+from app.workflow_client import workflow_events
 from app.dashboard import (
     CHAT_HTML,
     clear_executions,
@@ -145,47 +146,24 @@ def register(mcp) -> None:
         # 按会话隔离 Dify user（有 session 时用 portal-<session>，否则回退 portal）
         dify_user = f"portal-{session_id}" if session_id else "portal"
 
-        dify_url = "http://nginx/v1/workflows/run"
-        try:
-            async with httpx.AsyncClient(timeout=180) as client:
-                resp = await client.post(
-                    dify_url,
-                    headers={
-                        "Authorization": f"Bearer {config.DIFY_API_KEY}",
-                        "Content-Type": "application/json",
-                    },
-                    json={
-                        "inputs": {"query": full_requirement},
-                        "response_mode": "blocking",
-                        "user": dify_user,
-                    },
-                )
-            data = resp.json()
-        except Exception as exc:
-            return PlainTextResponse(
-                json.dumps({
-                    "report": f"_(调用 Dify 工作流失败：{exc})_",
-                    "requirement": full_requirement,
-                    "merge_used": merge_used,
-                    "workflow_status": "error",
-                }, ensure_ascii=False),
-                media_type="application/json",
-            )
+        async def events():
+            async for item in workflow_events(full_requirement, dify_user, config.DIFY_API_KEY):
+                if item["event"] == "result":
+                    if "outputs" in item:
+                        item["report"] = _extract_report(item.pop("outputs").get("text"))
+                    item.update(requirement=full_requirement, merge_used=merge_used)
+                yield item
 
-        wf = data.get("data", {})
-        report = _extract_report(wf.get("outputs", {}).get("text"))
-        if not report or not report.strip():
-            report = f"_(工作流返回空结果, status={wf.get('status')}, error={wf.get('error')})_"
-
-        return PlainTextResponse(
-            json.dumps({
-                "report": report,
-                "requirement": full_requirement,
-                "merge_used": merge_used,
-                "workflow_status": wf.get("status"),
-            }, ensure_ascii=False),
-            media_type="application/json",
-        )
+        if body.get("stream") is True:
+            async def ndjson():
+                async for item in events():
+                    yield json.dumps(item, ensure_ascii=False) + "\n"
+            return StreamingResponse(ndjson(), media_type="application/x-ndjson",
+                                     headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
+        async for item in events():
+            if item["event"] == "result":
+                return PlainTextResponse(json.dumps(item, ensure_ascii=False),
+                                         media_type="application/json")
 
     @mcp.custom_route("/", methods=["GET"])
     async def portal(_: Request) -> PlainTextResponse:

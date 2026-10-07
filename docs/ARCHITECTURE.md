@@ -728,3 +728,9 @@ runtime_registry_service内部写入复用PORTAL_ADMIN_TOKEN，actor固定角色
 ### 2026-10-02 宿主侧只读观察（未绑定运行）
 
 executor_host_observation.py只在SSH宿主读取固定执行器的Docker生命周期/创建镜像ID；不向网关或沙箱提供Docker访问。实际生产与隔离镜像不同，lifecycle_stable不等于某个run使用该容器；run_bound/trusted_run/runtime_approved均false。尚需实际受控执行窗口和运行回执绑定，镜像ID也不认证可写层或挂载内容。
+
+### 2026-10-07 门户流式工作流与延迟优化（已部署门户热补丁）
+
+门户通过app/workflow_client.py接收Dify SSE，向浏览器发送NDJSON阶段进度；仅succeeded完成回执且报告非空时展示结果。总截止180s，空闲读取45s，错误脱敏并带请求编号；有task_id时异常请求停止，但不保证上游已终止，无自动重复提交。Dify移除输出未消费的分析调用，使用Flash代码生成，保留检索、参数提取和审查。分析绑定请求参数，解读不得将请求参数/理论值视作实测认证。executor限制与可信准入未变化。部署仅门户三个文件，其他未验收质量原型未部署。详见本日CHANGELOG和工作流前后备份。
+
+代码生成与重试生成显式thinking=false/max_tokens=4096，依据已安装DeepSeek插件0.0.24 schema及转换实现；参数提取、结果审查和解释的配置保持。多轮33.28s成功与180.15s停止两种路径均有真实浏览器证据，不能承诺无上游故障。

@@ -5038,7 +5038,7 @@
 
         <!-- Connection paths (before components for correct z-order) -->
         <path data-edge-from="users" data-edge-to="web_portal" data-edge-label="HTTP" data-edge-key="0" data-edge-id="users-to-portal" data-composition-points="140,312;170,312" d="M 140 312 L 170 312" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
-        <path data-edge-from="web_portal" data-edge-to="dify_workflow" data-edge-label="Dify Chat API" data-edge-key="1" data-edge-id="portal-to-dify" data-composition-points="310,312;390,312" d="M 310 312 L 390 312" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="web_portal" data-edge-to="dify_workflow" data-edge-label="SSE 工作流 API" data-edge-key="1" data-edge-id="portal-to-dify" data-composition-points="310,312;390,312" d="M 310 312 L 390 312" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="dify_kb" data-edge-to="dify_workflow" data-edge-label="top-k 上下文" data-edge-key="2" data-edge-id="kb-to-dify" data-composition-points="480,144;480,280" d="M 480 144 L 480 280" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="dify_workflow" data-edge-to="mcp_gateway" data-edge-label="MCP tool call" data-edge-key="3" data-edge-id="dify-to-mcp" data-composition-points="570,318;640,318" d="M 570 318 L 640 318" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <path data-edge-from="mcp_gateway" data-edge-to="simulation_pipeline" data-edge-label="执行" data-edge-key="4" data-edge-id="mcp-to-pipeline" data-composition-points="810,318;840,318" d="M 810 318 L 840 318" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
@@ -5059,8 +5059,8 @@
         <text data-detail="context" x="80" y="326" class="t-muted" font-size="9" text-anchor="middle">自然语言声学需求</text>
         </g>
 
-        <g id="node-web_portal" data-node-id="web_portal" data-node-label="Web 门户" tabindex="0" role="button" aria-label="聚焦Web 门户，问答 / 看板 / Demo, 架构组件" aria-pressed="false" data-node-kind="frontend" data-node-sublabel="问答 / 看板 / Demo" data-node-tag="FastMCP Web" data-node-context="架构组件">
-          <title>Web 门户 · 问答 / 看板 / Demo · 架构组件 · FastMCP Web</title>
+        <g id="node-web_portal" data-node-id="web_portal" data-node-label="Web 门户" tabindex="0" role="button" aria-label="聚焦Web 门户，阶段进度 / 报告 / 看板, 架构组件" aria-pressed="false" data-node-kind="frontend" data-node-sublabel="阶段进度 / 报告 / 看板" data-node-tag="FastMCP Web" data-node-context="架构组件">
+          <title>Web 门户 · 阶段进度 / 报告 / 看板 · 架构组件 · FastMCP Web</title>
           <rect x="170" y="280" width="140" height="64" rx="6" class="c-mask"/>
           <rect x="170" y="280" width="140" height="64" rx="6" class="c-frontend" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="frontend" class="semantic-sigil s-frontend" transform="translate(176 286) scale(0.6875)">
@@ -5070,19 +5070,19 @@
             <circle cx="6.3" cy="4.8" r=".7" class="sigil-fill"/>
           </g>
           <text data-node-label="" data-detail-anchor="" x="240" y="310" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Web 门户</text>
-        <text data-detail="context" x="240" y="326" class="t-muted" font-size="9" text-anchor="middle">问答 / 看板 / Demo</text>
+        <text data-detail="context" x="240" y="326" class="t-muted" font-size="9" text-anchor="middle">阶段进度 / 报告 / 看板</text>
         <text data-detail="fine" x="240" y="336" class="t-frontend" font-size="7" text-anchor="middle">FastMCP Web</text>
         </g>
 
-        <g id="node-dify_workflow" data-node-id="dify_workflow" data-node-label="Dify 工作流" tabindex="0" role="button" aria-label="聚焦Dify 工作流，需求分析 / 参数提取 / 代码生成, Dify 编排层" aria-pressed="false" data-node-kind="cloud" data-node-sublabel="需求分析 / 参数提取 / 代码生成" data-node-tag="编排层" data-node-context="Dify 编排层">
-          <title>Dify 工作流 · 需求分析 / 参数提取 / 代码生成 · Dify 编排层 · 编排层</title>
+        <g id="node-dify_workflow" data-node-id="dify_workflow" data-node-label="Dify 工作流" tabindex="0" role="button" aria-label="聚焦Dify 工作流，知识检索 / 参数提取 / 代码生成, Dify 编排层" aria-pressed="false" data-node-kind="cloud" data-node-sublabel="知识检索 / 参数提取 / 代码生成" data-node-tag="编排层" data-node-context="Dify 编排层">
+          <title>Dify 工作流 · 知识检索 / 参数提取 / 代码生成 · Dify 编排层 · 编排层</title>
           <rect x="390" y="280" width="180" height="76" rx="6" class="c-mask"/>
           <rect x="390" y="280" width="180" height="76" rx="6" class="c-cloud" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="cloud" class="semantic-sigil s-cloud" transform="translate(396 286) scale(0.6875)">
             <path d="M4.3 12.5h7.3a2.4 2.4 0 0 0 .2-4.8 4 4 0 0 0-7.5-1.3A3.1 3.1 0 0 0 4.3 12.5Z"/>
           </g>
           <text data-node-label="" data-detail-anchor="" x="480" y="316" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Dify 工作流</text>
-        <text data-detail="context" x="480" y="332" class="t-muted" font-size="9" text-anchor="middle">需求分析 / 参数提取 / 代码生成</text>
+        <text data-detail="context" x="480" y="332" class="t-muted" font-size="9" text-anchor="middle">知识检索 / 参数提取 / 代码生成</text>
         <text data-detail="fine" x="480" y="348" class="t-cloud" font-size="7" text-anchor="middle">编排层</text>
         </g>
 
@@ -5167,9 +5167,9 @@
           <rect x="140" y="360" width="30" height="14" rx="3" class="c-mask"/>
           <text x="155" y="370" class="t-backend" font-size="8" text-anchor="middle">HTTP</text>
         </g>
-        <g data-detail="context" data-edge-from="web_portal" data-edge-to="dify_workflow" data-edge-label="Dify Chat API" data-edge-key="1" data-edge-id="portal-to-dify">
-          <rect x="313.8" y="292" width="72.4" height="14" rx="3" class="c-mask"/>
-          <text x="350" y="302" class="t-muted" font-size="8" text-anchor="middle">Dify Chat API</text>
+        <g data-detail="context" data-edge-from="web_portal" data-edge-to="dify_workflow" data-edge-label="SSE 工作流 API" data-edge-key="1" data-edge-id="portal-to-dify">
+          <rect x="311.4" y="292" width="77.2" height="14" rx="3" class="c-mask"/>
+          <text x="350" y="302" class="t-muted" font-size="8" text-anchor="middle">SSE 工作流 API</text>
         </g>
         <g data-detail="context" data-edge-from="dify_kb" data-edge-to="dify_workflow" data-edge-label="top-k 上下文" data-edge-key="2" data-edge-id="kb-to-dify">
           <rect x="446.2" y="148" width="67.6" height="14" rx="3" class="c-mask"/>
@@ -5406,10 +5406,10 @@
           <h3>入口与技能状态</h3>
         </div>
         <ul>
-          <li>&bull; Web 门户提供问答、执行看板、报告、缓存和 Demo</li>
-          <li>&bull; Dify 负责需求分析、参数提取、知识检索和代码生成</li>
-          <li>&bull; 工作流通过 MCP 工具调用执行仿真</li>
-          <li>&bull; 候选库仅内部使用；激活与检索未上线，退出成功不代表物理正确</li>
+          <li>&bull; 门户显示阶段进度，完成回执后展示报告</li>
+          <li>&bull; Flash 无思考生成；保留检索与结果审查</li>
+          <li>&bull; 180s 截止并请求停止；不自动重放任务</li>
+          <li>&bull; 候选仅内部；激活与检索未上线，执行成功不代表物理正确</li>
         </ul>
       </div>
 

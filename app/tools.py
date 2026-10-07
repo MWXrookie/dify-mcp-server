@@ -66,6 +66,7 @@ def register(mcp) -> None:
             attempt_count=1,
             image_base64=result.get("image_base64"),
             run_id=run_id,
+            execution_evidence=result.get("execution_evidence"),
         )
         result["run_id"] = run_id
         return result
@@ -139,7 +140,7 @@ def register(mcp) -> None:
                         pass
                 record_execution(
                     tool_name="run_jwave_code_with_retry",
-                    code=code,
+                    code=current_code,
                     exit_code=result["exit_code"],
                     timed_out=False,
                     duration_ms=result.get("duration_ms"),
@@ -148,6 +149,7 @@ def register(mcp) -> None:
                     attempt_count=attempt + 1,
                     image_base64=result.get("image_base64"),
                     run_id=run_id,
+                    execution_evidence=result.get("execution_evidence"),
                 )
                 return result
 
@@ -166,7 +168,7 @@ def register(mcp) -> None:
                         pass
                 record_execution(
                     tool_name="run_jwave_code_with_retry",
-                    code=code,
+                    code=current_code,
                     exit_code=result["exit_code"],
                     timed_out=result.get("timed_out", False),
                     duration_ms=result.get("duration_ms"),
@@ -175,6 +177,7 @@ def register(mcp) -> None:
                     attempt_count=attempt + 1,
                     image_base64=result.get("image_base64"),
                     run_id=run_id,
+                    execution_evidence=result.get("execution_evidence"),
                 )
                 return result
 

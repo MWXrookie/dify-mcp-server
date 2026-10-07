@@ -14,6 +14,8 @@ RUN pip install --no-cache-dir --timeout 120 --retries 10 \
     -r /app/requirements.lock.txt
 
 COPY app/ /app/app/
+# Server-owned fixed VAL-1 recipe/validator; no caller-selected code assets.
+COPY scripts/validation/ /app/scripts/validation/
 COPY docs/ /app/docs/
 ARG APP_MODULE=app.server_safe
 ENV APP_MODULE=${APP_MODULE}

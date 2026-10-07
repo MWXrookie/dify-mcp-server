@@ -8,6 +8,7 @@ scenario-specific Q3/Q4 checks are added alongside validated benchmarks.
 from __future__ import annotations
 
 import json
+import math
 from typing import Any
 
 
@@ -33,11 +34,22 @@ def assess_quality(
         return {"quality_level": "Q0", "physics_checks": checks}
 
     finite = analysis.get("verdict") == "normal"
-    nonzero = bool(analysis.get("has_signal")) and float(analysis.get("max_pressure") or 0) > 0
+    try:
+        peak = float(analysis.get("max_pressure"))
+        rms = float(analysis.get("rms_pressure"))
+        shape = analysis.get("field_shape")
+        metrics_ok = (math.isfinite(peak) and math.isfinite(rms)
+                      and peak > 0 and 0 <= rms <= peak
+                      and isinstance(shape, list) and len(shape) in (2, 3)
+                      and all(type(size) is int and size > 0 for size in shape))
+    except (TypeError, ValueError):
+        metrics_ok = False
+    nonzero = bool(analysis.get("has_signal")) and metrics_ok
     succeeded = exit_code == 0 and not timed_out
     checks.extend([
         _check("execution_succeeded", succeeded, "exit_code is 0 and execution did not time out"),
-        _check("finite_nonzero_field", finite and nonzero, "analysis found a finite, non-zero field"),
+        _check("finite_nonzero_field", finite and nonzero,
+               "analysis has finite positive peak, bounded RMS, and a valid field shape"),
     ])
     if not (succeeded and finite and nonzero):
         return {"quality_level": "Q0", "physics_checks": checks}
@@ -61,25 +73,35 @@ def assess_quality(
                 dx_values = params["domain_dx"] if isinstance(params["domain_dx"], list) else [params["domain_dx"]]
                 grid_sizes = params["domain_N"] if isinstance(params["domain_N"], list) else [params["domain_N"]]
                 cfl = float(params.get("cfl", 0.3))
-                pml_size = int(params.get("pml_size", 0))
+                pml_size = params.get("pml_size")
+                grid_ok = (len(grid_sizes) in (2, 3) and len(dx_values) in (1, len(grid_sizes))
+                           and all(type(size) is int and size >= 32 for size in grid_sizes)
+                           and type(pml_size) is int and pml_size >= 0
+                           and all(2 * pml_size < size for size in grid_sizes)
+                           and grid_sizes == shape)
+                spacing_ok = all(math.isfinite(float(dx)) and float(dx) > 0
+                                 for dx in dx_values)
                 physically_acceptable = (
-                    speed > 0 and frequency > 0 and 0 < cfl <= 0.3
+                    grid_ok and spacing_ok
+                    and all(math.isfinite(value) for value in (speed, frequency, cfl))
+                    and speed > 0 and frequency > 0 and 0 < cfl <= 0.3
                     and all(0 < float(dx) <= speed / frequency / 4 for dx in dx_values)
                 )
                 positions = [params.get("source_index"), params.get("sensor_index")]
                 supplied_positions = [position for position in positions if position is not None]
                 pml_ok = True
                 for position in supplied_positions:
-                    if not isinstance(position, list) or len(position) != len(grid_sizes):
+                    if (not isinstance(position, list) or len(position) != len(grid_sizes)
+                            or not grid_ok):
                         pml_ok = False
                         break
-                    pml_ok = pml_ok and all(pml_size <= int(index) < int(size) - pml_size
+                    pml_ok = pml_ok and all(type(index) is int and pml_size <= index < size - pml_size
                                             for index, size in zip(position, grid_sizes))
             except (TypeError, ValueError):
                 physically_acceptable = False
                 pml_ok = False
             checks.append(_check("parameter_constraints", physically_acceptable,
-                                 "Nyquist and CFL constraints pass the deterministic baseline"))
+                                 "grid, field shape, PML, spacing, Nyquist and CFL constraints pass"))
             checks.append(_check("pml_geometry", pml_ok,
                                  "supplied source/sensor indices are outside PML; absent geometry is deferred"))
             if physically_acceptable and pml_ok:

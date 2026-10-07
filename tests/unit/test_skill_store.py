@@ -39,6 +39,25 @@ def test_candidate_is_evidence_bound_and_never_auto_activates(tmp_path) -> None:
         store.create_candidate(scenario_type="x", state_text="x", normalized_params={}, code_template="x", postconditions={}, physics_evidence={}, source_run_id="run", validator_version="v", quality_level="Q1")
 
 
+@pytest.mark.parametrize("claimed_level", ["Q3", "Q4"])
+def test_candidate_rejects_unverified_high_trust_level(tmp_path, claimed_level) -> None:
+    store = SkillStore(tmp_path / "skills.db")
+    with pytest.raises(ValueError, match="Q3/Q4 need verified physics evidence"):
+        store.create_candidate(
+            scenario_type="point_source_2d",
+            state_text="2D homogeneous point source",
+            normalized_params={"frequency_hz": 500000, "dx_m": 0.00025},
+            code_template="print('claimed success')",
+            postconditions={"has_signal": True},
+            physics_evidence={},
+            source_run_id="unverified-run",
+            validator_version="claimed-validator",
+            quality_level=claimed_level,
+        )
+    with sqlite3.connect(store.path) as db:
+        assert db.execute("SELECT COUNT(*) FROM simulation_skills").fetchone()[0] == 0
+
+
 def test_concurrent_creation_and_backup_recovery(tmp_path) -> None:
     store = SkillStore(tmp_path / "skills.db")
     with ThreadPoolExecutor(max_workers=4) as pool:

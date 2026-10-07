@@ -4,6 +4,7 @@ Provides SQLite-backed execution recording and a self-contained HTML
 dashboard with auto-refreshing history table and test analytics.
 """
 
+import hashlib
 import json
 import os
 import sqlite3
@@ -106,6 +107,11 @@ def init_db() -> None:
             db.execute(f"ALTER TABLE {table} ADD COLUMN run_id TEXT")
         except sqlite3.OperationalError:
             pass
+    # Never backfill historical records: retry rows used to store initial code.
+    columns = {row[1] for row in db.execute("PRAGMA table_info(executions)")}
+    for name in ("code_sha256", "record_version", "executor_evidence_json"):
+        if name not in columns:
+            db.execute(f"ALTER TABLE executions ADD COLUMN {name} TEXT")
     db.execute("CREATE INDEX IF NOT EXISTS idx_executions_run_id ON executions(run_id)")
     db.execute("CREATE INDEX IF NOT EXISTS idx_analysis_events_run_id ON analysis_events(run_id)")
     db.execute("CREATE INDEX IF NOT EXISTS idx_llm_usage_run_id ON llm_usage(run_id)")
@@ -124,13 +130,22 @@ def record_execution(
     attempt_count: int = 1,
     image_base64: str | None = None,
     run_id: str | None = None,
+    execution_evidence: dict | None = None,
 ) -> str:
     run_id = run_id or str(uuid.uuid4())
+    evidence_json = None
+    if execution_evidence is not None:
+        try:
+            evidence_json = json.dumps(execution_evidence, sort_keys=True, allow_nan=False)
+            if len(evidence_json.encode()) > 16000:
+                evidence_json = None
+        except (TypeError, ValueError):
+            pass
     with _write_lock:
         db = _get_db()
         db.execute(
-            "INSERT INTO executions (timestamp, tool_name, code, exit_code, timed_out, duration_ms, stdout, stderr, attempt_count, image_base64, run_id) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO executions (timestamp, tool_name, code, exit_code, timed_out, duration_ms, stdout, stderr, attempt_count, image_base64, run_id, code_sha256, record_version, executor_evidence_json) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 datetime.now(timezone.utc).isoformat(),
                 tool_name,
@@ -143,6 +158,9 @@ def record_execution(
                 attempt_count,
                 image_base64,
                 run_id,
+                hashlib.sha256(code.encode("utf-8")).hexdigest(),
+                "gateway-execution.v1",
+                evidence_json,
             ),
         )
         db.commit()
@@ -248,11 +266,60 @@ def find_run_id_for_output(stdout: str, exit_code: int | None) -> str | None:
     db = _get_db()
     row = db.execute(
         "SELECT run_id FROM executions WHERE stdout = ? AND exit_code IS ? AND run_id IS NOT NULL "
-        "ORDER BY id DESC LIMIT 1",
+        "ORDER BY id DESC LIMIT 2",
         (stdout, exit_code),
-    ).fetchone()
+    ).fetchall()
     db.close()
-    return row["run_id"] if row else None
+    return row[0]["run_id"] if len(row) == 1 else None
+
+
+def resolve_execution_source(stdout: str, stderr: str, exit_code: int | None,
+                             run_id: str = "") -> dict:
+    """Bind delivered output to a unique server-owned gateway record.
+
+    This proves recording, not genuine acoustic output. Sandbox code can print
+    invented data; caller parameters and physics remain unverified. The database
+    and gateway writes are trusted, not protected against a privileged DB writer.
+    """
+    source = {"matched": False, "scope": "gateway_record",
+              "parameters_bound": False, "physics_validated": False}
+    db = None
+    try:
+        db = _get_db()
+        db.execute("BEGIN")  # Keep output and run-id checks in one read snapshot.
+        if run_id:
+            rows = db.execute("SELECT * FROM executions WHERE run_id=? LIMIT 2", (run_id,)).fetchall()
+        elif stdout:
+            rows = db.execute("SELECT * FROM executions WHERE stdout=? AND stderr=? AND exit_code IS ? LIMIT 2",
+                              (stdout, stderr, exit_code)).fetchall()
+        else:
+            return dict(source, reason="missing_run_reference")
+        if len(rows) != 1:
+            return dict(source, reason="missing_or_ambiguous_execution")
+        row = rows[0]
+        if not row["run_id"] or len(db.execute(
+                "SELECT id FROM executions WHERE run_id=? LIMIT 2",
+                (row["run_id"],)).fetchall()) != 1:
+            return dict(source, reason="missing_or_ambiguous_execution")
+        if row["record_version"] != "gateway-execution.v1" or not row["code_sha256"]:
+            return dict(source, reason="legacy_unverified_execution")
+        if (row["stdout"] != stdout or row["stderr"] != stderr
+                or row["exit_code"] != exit_code):
+            return dict(source, reason="execution_output_mismatch")
+        code_hash = hashlib.sha256(row["code"].encode("utf-8")).hexdigest()
+        if row["code_sha256"] != code_hash:
+            return dict(source, reason="recorded_code_mismatch")
+        return dict(source, matched=True, reason="gateway_record_matched",
+                    run_id=row["run_id"], execution_id=row["id"],
+                    code_sha256=code_hash, record_version=row["record_version"],
+                    stdout_sha256=hashlib.sha256(stdout.encode("utf-8")).hexdigest(),
+                    stderr_sha256=hashlib.sha256(stderr.encode("utf-8")).hexdigest(),
+                    timed_out=bool(row["timed_out"]))
+    except (sqlite3.Error, KeyError, IndexError, TypeError, AttributeError):
+        return dict(source, reason="execution_store_unavailable")
+    finally:
+        if db is not None:
+            db.close()
 
 
 def clear_executions() -> int:

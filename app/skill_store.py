@@ -19,7 +19,6 @@ from typing import Any, Iterator, Mapping
 
 SCHEMA_VERSION = 1
 _LOCK = threading.Lock()
-_QUALITY_LEVELS = {"Q0", "Q1", "Q2", "Q3", "Q4"}
 _STATUSES = {"candidate", "active", "questioned", "retired"}
 SCENARIO_TYPES = {
     "point_source_2d", "point_source_3d", "plane_wave_2d", "initial_pressure_2d",
@@ -190,8 +189,10 @@ class SkillStore:
         self.migrate()
         if not state_text.strip() or not code_template.strip():
             raise ValueError("scenario_type, state_text, and code_template are required")
-        if quality_level not in _QUALITY_LEVELS or quality_level in {"Q0", "Q1"}:
-            raise ValueError("candidate requires quality level Q2 or higher")
+        # Until a deterministic Q3/Q4 verifier binds evidence to a source run,
+        # this internal API must not persist a caller-supplied high-trust label.
+        if quality_level != "Q2":
+            raise ValueError("candidate currently requires Q2; Q3/Q4 need verified physics evidence")
         if not source_run_id.strip() or not validator_version.strip():
             raise ValueError("source_run_id and validator_version are required")
         normalized = normalize_parameters(normalized_params)

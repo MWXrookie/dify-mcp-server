@@ -2,11 +2,12 @@
 
 import json
 import re
+import uuid
 from typing import Any
 
 import httpx
 
-from app import config
+from app import config, executor_evidence
 
 # 与 analysis.py 的场数据输出约定一致
 _FIELD_START = "__ACOU_FIELD_START__"
@@ -84,14 +85,23 @@ def _clean_code(code: str) -> str:
 
 def _execute_code(code: str, timeout_seconds: int) -> dict[str, Any]:
     """提交代码到 jwave-executor 并返回执行结果."""
+    nonce = uuid.uuid4().hex
     response = httpx.post(
         f"{config.EXECUTOR_URL}/execute",
         headers={"X-Executor-Token": config.EXECUTOR_SHARED_TOKEN},
-        json={"code": code, "timeout_seconds": timeout_seconds},
+        json={"code": code, "timeout_seconds": timeout_seconds, "request_nonce": nonce},
         timeout=timeout_seconds + 10,
     )
     response.raise_for_status()
-    return response.json()
+    result = response.json()
+    # Do not consume metadata from stdout or caller analysis arguments.
+    receipt = result.pop("executor_receipt", None)
+    result["execution_evidence"] = executor_evidence.verify_executor_receipt(
+        receipt, result, code, timeout_seconds, nonce)
+    # Persist gateway-created context independently of executor response fields.
+    result["execution_evidence"]["gateway_request_nonce"] = nonce
+    result["execution_evidence"]["gateway_timeout_seconds"] = timeout_seconds
+    return result
 
 
 def _shrink_field_in_stdout(stdout: str, max_chars: int = 350000) -> str:

@@ -380,12 +380,9 @@ def _analyze_impl(
     注：模块级独立实现，便于脱离 MCP 直接测试；register() 内注册同名工具，
     其函数体调用本函数（避免与工具名递归遮蔽）。
     """
-    if not run_id:
-        try:
-            from app.dashboard import find_run_id_for_output
-            run_id = find_run_id_for_output(stdout_text or "", exit_code) or ""
-        except Exception:  # noqa: BLE001
-            pass
+    from app.dashboard import resolve_execution_source
+    source = resolve_execution_source(stdout_text or "", stderr_text or "", exit_code, run_id)
+    run_id = source.get("run_id", "")
     payload = _extract_field(stdout_text or "")
     sensor = _extract_sensor(stdout_text or "")
     rows, shape = _to_float_matrix(payload["data"]) if payload else (None, None)
@@ -414,8 +411,9 @@ def _analyze_impl(
             "summary": f"未能从输出解析压力场（exit_code={exit_code}）。{_summary(metrics, verdict)}",
         }
         from app.physics_gate import assess_quality
-        result.update(assess_quality(exit_code=exit_code, timed_out=False, analysis=result, params_json=params_json))
+        result.update(assess_quality(exit_code=exit_code, timed_out=source.get("timed_out", False), analysis=result, params_json=params_json))
         result["run_id"] = run_id or None
+        result["execution_source"] = source
         return result
 
     metrics = _compute_metrics(rows, shape)
@@ -452,8 +450,9 @@ def _analyze_impl(
         "summary": _summary(metrics, verdict),
     }
     from app.physics_gate import assess_quality
-    result.update(assess_quality(exit_code=exit_code, timed_out=False, analysis=result, params_json=params_json))
+    result.update(assess_quality(exit_code=exit_code, timed_out=source.get("timed_out", False), analysis=result, params_json=params_json))
     result["run_id"] = run_id or None
+    result["execution_source"] = source
     return result
 
 
@@ -498,7 +497,7 @@ def register(mcp) -> None:
                 waveform_base64=r.get("waveform_png_base64"),
                 stdout_excerpt=(stdout_text or "")[:500],
                 stderr_excerpt=(stderr_text or "")[:200],
-                run_id=run_id or None,
+                run_id=r.get("run_id"),
             )
         except Exception:  # noqa: BLE001
             pass

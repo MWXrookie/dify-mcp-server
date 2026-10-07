@@ -1,4 +1,5 @@
 import sqlite3
+import json
 
 import pytest
 
@@ -24,13 +25,74 @@ def test_run_id_links_execution_analysis_and_llm_usage(tmp_path, monkeypatch) ->
 
 
 def test_quality_levels_do_not_overclaim_physical_correctness() -> None:
-    normal = {"verdict": "normal", "has_signal": True, "max_pressure": 1.0}
+    normal = {"verdict": "normal", "has_signal": True, "max_pressure": 1.0,
+              "rms_pressure": 0.5, "field_shape": [128, 128]}
     assert assess_quality(exit_code=0, timed_out=False, analysis=normal)["quality_level"] == "Q1"
     params = '{"sound_speed":1500,"source_frequency":500000,"domain_N":[128,128],"domain_dx":[0.00025,0.00025],"pml_size":10,"source_index":[64,64],"sensor_index":[80,64]}'
     assert assess_quality(exit_code=0, timed_out=False, analysis=normal, params_json=params)["quality_level"] == "Q2"
     in_pml = params.replace("[64,64]", "[5,64]", 1)
     assert assess_quality(exit_code=0, timed_out=False, analysis=normal, params_json=in_pml)["quality_level"] == "Q1"
     assert assess_quality(exit_code=1, timed_out=False, analysis=normal)["quality_level"] == "Q0"
+
+
+@pytest.mark.parametrize("change", [
+    {"pml_size": None},
+    {"pml_size": -1},
+    {"pml_size": 64},
+    {"domain_N": [128, 0]},
+    {"domain_N": [128, 128.5]},
+    {"domain_dx": [0.00025, float("nan")]},
+    {"source_index": [5.5, 64]},
+    {"sensor_index": [True, 64]},
+])
+def test_quality_rejects_invalid_parameter_evidence(change) -> None:
+    analysis = {"verdict": "normal", "has_signal": True, "max_pressure": 1.0,
+                "rms_pressure": 0.5, "field_shape": [128, 128]}
+    params = {"sound_speed": 1500, "source_frequency": 500000,
+              "domain_N": [128, 128], "domain_dx": [0.00025, 0.00025],
+              "pml_size": 10, "source_index": [64, 64], "sensor_index": [80, 64]}
+    params.update(change)
+    result = assess_quality(exit_code=0, timed_out=False, analysis=analysis,
+                            params_json=json.dumps(params))
+    assert result["quality_level"] == "Q1"
+
+
+@pytest.mark.parametrize("change", [
+    {"max_pressure": float("nan")},
+    {"rms_pressure": float("inf")},
+    {"rms_pressure": 2.0},
+    {"field_shape": [128, 0]},
+    {"field_shape": [64, 64]},
+])
+def test_quality_rejects_invalid_field_evidence(change) -> None:
+    analysis = {"verdict": "normal", "has_signal": True, "max_pressure": 1.0,
+                "rms_pressure": 0.5, "field_shape": [128, 128]}
+    analysis.update(change)
+    params = {"sound_speed": 1500, "source_frequency": 500000,
+              "domain_N": [128, 128], "domain_dx": 0.00025, "pml_size": 10}
+    result = assess_quality(exit_code=0, timed_out=False, analysis=analysis,
+                            params_json=json.dumps(params))
+    assert result["quality_level"] == ("Q1" if change == {"field_shape": [64, 64]} else "Q0")
+
+
+def test_3d_probe_at_pml_boundary_does_not_reach_q2() -> None:
+    analysis = {"verdict": "normal", "has_signal": True, "max_pressure": 0.01,
+                "rms_pressure": 0.002, "field_shape": [72, 72, 72]}
+    params = {"sound_speed": 1500, "source_frequency": 300000,
+              "domain_N": [72, 72, 72], "domain_dx": 0.0005,
+              "cfl": 0.1, "pml_size": 8,
+              "source_index": [36, 36, 36], "sensor_index": [63, 36, 36]}
+    inside = assess_quality(exit_code=0, timed_out=False, analysis=analysis,
+                            params_json=json.dumps(params))
+    assert inside["quality_level"] == "Q2"
+
+    # The physical region is [8, 64) in every dimension. Index 64 is PML.
+    params["sensor_index"] = [64, 36, 36]
+    at_pml = assess_quality(exit_code=0, timed_out=False, analysis=analysis,
+                            params_json=json.dumps(params))
+    assert at_pml["quality_level"] == "Q1"
+    assert not next(check for check in at_pml["physics_checks"]
+                    if check["check_id"] == "pml_geometry")["passed"]
 
 
 def test_byok_rejects_private_or_non_https_endpoints(monkeypatch) -> None:

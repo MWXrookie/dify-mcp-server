@@ -12,7 +12,7 @@
         "id": "main-request",
         "label": "主请求链路",
         "focus": ["users", "web_portal", "dify_workflow", "mcp_gateway", "simulation_pipeline"],
-        "note": "自然语言请求从 Web 门户进入 Dify，再由 MCP 工具触发仿真执行闭环。"
+        "note": "自然语言请求从 Web 门户进入 Dify，再由 MCP 工具触发仿真执行闭环。 仓库结果契约v2区分窗口峰值与稳态、检查传感器到达时间；当前Dify图未核验，脚本未发布。"
       },
       {
         "id": "quality-loop",

@@ -671,6 +671,27 @@ PORTAL_HTML = r"""<!DOCTYPE html>
     .hero h1 { font-size: 24px; }
     .ask-row { flex-direction: column; }
   }
+
+/* Compact report layout: semantic blocks own spacing; no blank-line breaks. */
+.msg.assistant{width:100%;max-width:100%;min-width:0;padding:16px 18px;border-radius:8px;line-height:1.55;overflow-wrap:anywhere}
+.msg.assistant h2{font-size:18px;line-height:1.35;margin:0 0 12px;padding-bottom:8px;color:var(--text)}
+.msg.assistant h3{font-size:14px;line-height:1.4;margin:16px 0 6px;font-weight:650;color:var(--text)}
+.msg.assistant>:first-child{margin-top:0}
+.msg.assistant p,.msg.assistant ul{margin:6px 0}
+.msg.assistant ul{padding-left:22px}
+.msg.assistant table{width:100%;margin:0;font-size:13px}
+.msg.assistant td,.msg.assistant th{padding:7px 10px;line-height:1.4}
+.report-table{overflow-x:auto;margin:8px 0 12px}
+.msg.assistant code{font-family:Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
+.msg.assistant pre{margin:8px 0 0;padding:10px 12px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;max-height:300px;overflow:auto}
+.msg.assistant pre code{background:transparent;color:inherit;padding:0;font-size:12px}
+.report-output{margin:10px 0 4px;border:1px solid var(--border);border-radius:6px;padding:8px 10px}
+.report-output summary{cursor:pointer;font-size:13px;color:var(--text)}
+.msg.assistant figure{margin:12px 0}
+.msg.assistant img{display:block;max-width:100%;height:auto}
+.msg.assistant img[hidden]{display:none}
+.msg.assistant figcaption{font-size:13px;color:#b91c1c}
+@media(max-width:600px){.chat-log{padding:12px}.msg.assistant{padding:12px}.msg.assistant td,.msg.assistant th{padding:6px 8px}}
 </style>
 </head>
 <body>
@@ -732,31 +753,32 @@ function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").re
 
 // Simple markdown-to-HTML renderer
 function renderMarkdown(md) {
-  var html = md;
-  // Images (data URI / URL) —— 必须最先处理，避免 base64 内容被后续语法替换破坏
-  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g,
-    '<img src="$2" alt="$1" style="max-width:100%;border-radius:8px;margin:8px 0;box-shadow:0 2px 8px rgba(0,0,0,.2)" onerror="this.outerHTML=\'<i style=color:#888>[图片加载失败]</i>\'">');
-  // Headers
-  html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-  html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-  // Bold / italic
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  // Inline code
-  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-  // Code blocks
-  html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre>$2</pre>');
-  // Tables (simple: convert |...| lines)
-  html = html.replace(/(\|[^\n]+\|\n)(\|[-:\s|]+\|\n)((?:\|[^\n]+\|\n?)*)/g, function(m, hdr, sep, rows) {
-    var ths = hdr.split('|').filter(function(c) { return c.trim(); }).map(function(c) { return '<th>' + c.trim() + '</th>'; }).join('');
-    var trs = rows.split('\n').filter(function(r) { return r.trim(); }).map(function(r) {
-      var tds = r.split('|').filter(function(c) { return c.trim(); }).map(function(c) { return '<td>' + c.trim() + '</td>'; }).join('');
-      return '<tr>' + tds + '</tr>';
-    }).join('');
-    return '<table><thead><tr>' + ths + '</tr></thead><tbody>' + trs + '</tbody></table>';
+  var blocks=[];
+  var html=String(md||'').replace(/\r\n?/g,'\n');
+  // Protect fenced output before applying inline Markdown.
+  html=html.replace(/^\s*(\x60{3,}|~{3,})[^\n]*\n([\s\S]*?)^\s*\1\s*$/gm,function(_,mark,body){
+    blocks.push('<details class="report-output"><summary>查看原始输出</summary><pre><code>'+esc(body.trimEnd())+'</code></pre></details>');
+    return 'REPORTBLOCK'+(blocks.length-1)+'END';
   });
-  // Line breaks
-  html = html.replace(/\n\n/g, '<br><br>');
-  return html;
+  html=esc(html.replace(/[\p{Extended_Pictographic}\uFE0F\u200D]/gu,''));
+  html=html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g,function(_,alt,url){
+    if(!/^(data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+|https?:\/\/[^\s"'&<>]+|\/(?!\/)[^\s"'&<>]*)$/i.test(url))return '<p>图片地址无效</p>';
+    blocks.push('<figure><img src="'+url+'" alt="'+alt.replace(/"/g,'&quot;')+'" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><figcaption hidden>图片加载失败，请在执行看板查看原始图像。</figcaption></figure>');
+    return 'REPORTBLOCK'+(blocks.length-1)+'END';
+  });
+  html=html.replace(/^###\s+(.+)$/gm,'<h3>$1</h3>').replace(/^##\s+(.+)$/gm,'<h2>$1</h2>');
+  html=html.replace(/\x60([^\x60\n]+)\x60/g,'<code>$1</code>').replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+  html=html.replace(/(\|[^\n]+\|\n)(\|[-:\s|]+\|\n)((?:\|[^\n]+\|\n?)*)/g,function(_,header,sep,rows){
+    function cells(row,tag){return row.trim().replace(/^\||\|$/g,'').split('|').map(c=>'<'+tag+'>'+c.trim()+'</'+tag+'>').join('');}
+    return '<div class="report-table"><table><thead><tr>'+cells(header,'th')+'</tr></thead><tbody>'+rows.trim().split('\n').map(r=>'<tr>'+cells(r,'td')+'</tr>').join('')+'</tbody></table></div>';
+  });
+  html=html.replace(/(?:^[-*]\s+.+(?:\n|$))+/gm,function(list){return '<ul>'+list.trim().split('\n').map(l=>'<li>'+l.replace(/^[-*]\s+/,'')+'</li>').join('')+'</ul>';});
+  html=html.replace(/^---+\s*$/gm,'<hr>');
+  html=html.split(/\n\s*\n/).map(function(part){
+    part=part.trim();if(!part)return '';
+    return /^<(h[1-6]|div|ul|hr)|^REPORTBLOCK/.test(part)?part:'<p>'+part.replace(/\n/g,'<br>')+'</p>';
+  }).join('\n');
+  return html.replace(/REPORTBLOCK(\d+)END/g,function(_,n){return blocks[n];});
 }
 
 var conversation = [];        // {role:'user'|'assistant', content}
@@ -1244,6 +1266,27 @@ CHAT_HTML = r"""<!DOCTYPE html>
     .app-sidebar .brand { padding: 0 10px 0 0; white-space: nowrap; }
     .app-sidebar .side-link { white-space: nowrap; }
   }
+
+/* Compact report layout: semantic blocks own spacing; no blank-line breaks. */
+.msg.assistant{width:100%;max-width:100%;min-width:0;padding:16px 18px;border-radius:8px;line-height:1.55;overflow-wrap:anywhere}
+.msg.assistant h2{font-size:18px;line-height:1.35;margin:0 0 12px;padding-bottom:8px;color:var(--text)}
+.msg.assistant h3{font-size:14px;line-height:1.4;margin:16px 0 6px;font-weight:650;color:var(--text)}
+.msg.assistant>:first-child{margin-top:0}
+.msg.assistant p,.msg.assistant ul{margin:6px 0}
+.msg.assistant ul{padding-left:22px}
+.msg.assistant table{width:100%;margin:0;font-size:13px}
+.msg.assistant td,.msg.assistant th{padding:7px 10px;line-height:1.4}
+.report-table{overflow-x:auto;margin:8px 0 12px}
+.msg.assistant code{font-family:Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
+.msg.assistant pre{margin:8px 0 0;padding:10px 12px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;max-height:300px;overflow:auto}
+.msg.assistant pre code{background:transparent;color:inherit;padding:0;font-size:12px}
+.report-output{margin:10px 0 4px;border:1px solid var(--border);border-radius:6px;padding:8px 10px}
+.report-output summary{cursor:pointer;font-size:13px;color:var(--text)}
+.msg.assistant figure{margin:12px 0}
+.msg.assistant img{display:block;max-width:100%;height:auto}
+.msg.assistant img[hidden]{display:none}
+.msg.assistant figcaption{font-size:13px;color:#b91c1c}
+@media(max-width:600px){.chat-log{padding:12px}.msg.assistant{padding:12px}.msg.assistant td,.msg.assistant th{padding:6px 8px}}
 </style>
 </head>
 <body>
@@ -1311,25 +1354,32 @@ body{background:var(--bg)!important;color:var(--text)!important}
 function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 
 function renderMarkdown(md) {
-  var html = md;
-  // Images (data URI / URL) —— 必须最先处理，避免 base64 内容被后续语法替换破坏
-  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g,
-    '<img src="$2" alt="$1" style="max-width:100%;border-radius:8px;margin:8px 0;box-shadow:0 2px 8px rgba(0,0,0,.2)" onerror="this.outerHTML=\'<i style=color:#888>[图片加载失败]</i>\'">');
-  html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-  html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-  html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre>$2</pre>');
-  html = html.replace(/(\|[^\n]+\|\n)(\|[-:\s|]+\|\n)((?:\|[^\n]+\|\n?)*)/g, function(m, hdr, sep, rows) {
-    var ths = hdr.split('|').filter(function(c) { return c.trim(); }).map(function(c) { return '<th>' + c.trim() + '</th>'; }).join('');
-    var trs = rows.split('\n').filter(function(r) { return r.trim(); }).map(function(r) {
-      var tds = r.split('|').filter(function(c) { return c.trim(); }).map(function(c) { return '<td>' + c.trim() + '</td>'; }).join('');
-      return '<tr>' + tds + '</tr>';
-    }).join('');
-    return '<table><thead><tr>' + ths + '</tr></thead><tbody>' + trs + '</tbody></table>';
+  var blocks=[];
+  var html=String(md||'').replace(/\r\n?/g,'\n');
+  // Protect fenced output before applying inline Markdown.
+  html=html.replace(/^\s*(\x60{3,}|~{3,})[^\n]*\n([\s\S]*?)^\s*\1\s*$/gm,function(_,mark,body){
+    blocks.push('<details class="report-output"><summary>查看原始输出</summary><pre><code>'+esc(body.trimEnd())+'</code></pre></details>');
+    return 'REPORTBLOCK'+(blocks.length-1)+'END';
   });
-  html = html.replace(/\n\n/g, '<br><br>');
-  return html;
+  html=esc(html.replace(/[\p{Extended_Pictographic}\uFE0F\u200D]/gu,''));
+  html=html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g,function(_,alt,url){
+    if(!/^(data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+|https?:\/\/[^\s"'&<>]+|\/(?!\/)[^\s"'&<>]*)$/i.test(url))return '<p>图片地址无效</p>';
+    blocks.push('<figure><img src="'+url+'" alt="'+alt.replace(/"/g,'&quot;')+'" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><figcaption hidden>图片加载失败，请在执行看板查看原始图像。</figcaption></figure>');
+    return 'REPORTBLOCK'+(blocks.length-1)+'END';
+  });
+  html=html.replace(/^###\s+(.+)$/gm,'<h3>$1</h3>').replace(/^##\s+(.+)$/gm,'<h2>$1</h2>');
+  html=html.replace(/\x60([^\x60\n]+)\x60/g,'<code>$1</code>').replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+  html=html.replace(/(\|[^\n]+\|\n)(\|[-:\s|]+\|\n)((?:\|[^\n]+\|\n?)*)/g,function(_,header,sep,rows){
+    function cells(row,tag){return row.trim().replace(/^\||\|$/g,'').split('|').map(c=>'<'+tag+'>'+c.trim()+'</'+tag+'>').join('');}
+    return '<div class="report-table"><table><thead><tr>'+cells(header,'th')+'</tr></thead><tbody>'+rows.trim().split('\n').map(r=>'<tr>'+cells(r,'td')+'</tr>').join('')+'</tbody></table></div>';
+  });
+  html=html.replace(/(?:^[-*]\s+.+(?:\n|$))+/gm,function(list){return '<ul>'+list.trim().split('\n').map(l=>'<li>'+l.replace(/^[-*]\s+/,'')+'</li>').join('')+'</ul>';});
+  html=html.replace(/^---+\s*$/gm,'<hr>');
+  html=html.split(/\n\s*\n/).map(function(part){
+    part=part.trim();if(!part)return '';
+    return /^<(h[1-6]|div|ul|hr)|^REPORTBLOCK/.test(part)?part:'<p>'+part.replace(/\n/g,'<br>')+'</p>';
+  }).join('\n');
+  return html.replace(/REPORTBLOCK(\d+)END/g,function(_,n){return blocks[n];});
 }
 
 var conversation = [];

@@ -656,14 +656,14 @@ PORTAL_HTML = r"""<!DOCTYPE html>
     align-self: flex-end; background: rgba(31,111,235,.22);
     border: 1px solid rgba(88,166,255,.3); white-space: pre-wrap; word-break: break-word;
   }
-  .msg.assistant { align-self: flex-start; background: #0d1117; border: 1px solid var(--border); }
+  .msg.assistant { align-self: flex-start; background: var(--surface); color: var(--text); border: 1px solid var(--border); }
   .msg.assistant h2 { border-bottom: 1px solid var(--border); padding-bottom: 6px; margin: 12px 0 8px; font-size: 17px; }
   .msg.assistant h3 { margin: 12px 0 6px; font-size: 14px; color: var(--blue); }
   .msg.assistant table { border-collapse: collapse; margin: 8px 0; font-size: 13px; }
   .msg.assistant td, .msg.assistant th { padding: 4px 12px; border: 1px solid var(--border); text-align: left; }
-  .msg.assistant th { background: #1c2129; }
-  .msg.assistant code { background: #1c2129; padding: 1px 5px; border-radius: 4px; font-size: 13px; }
-  .msg.assistant pre { background: #0d1117; border: 1px solid var(--border); border-radius: 6px; padding: 12px; overflow-x: auto; font-size: 12px; }
+  .msg.assistant th { background: var(--surface-2); color: var(--text); }
+  .msg.assistant code { background: var(--surface-2); color: var(--text); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+  .msg.assistant pre { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 12px; overflow-x: auto; font-size: 12px; }
   .msg.assistant .loading-text { color: var(--muted); }
   .merge-hint { margin-top: 10px; color: var(--muted); font-size: 12px; min-height: 16px; }
   @media (max-width: 768px) {
@@ -887,7 +887,7 @@ DEMO_HTML = r"""<!DOCTYPE html>
   .btn-run:disabled { opacity: 0.5; cursor: not-allowed; }
   .card .result {
     margin-top: 10px; padding: 8px; border-radius: 6px; font-size: 12px;
-    background: #1c2129; min-height: 32px; display: none;
+    background: var(--surface-2); color: var(--text); min-height: 32px; display: none;
   }
   .card .result.visible { display: block; }
   .card .result .status-line { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
@@ -1214,14 +1214,14 @@ CHAT_HTML = r"""<!DOCTYPE html>
     align-self: flex-end; background: rgba(31,111,235,.22);
     border: 1px solid rgba(88,166,255,.3); white-space: pre-wrap; word-break: break-word;
   }
-  .msg.assistant { align-self: flex-start; background: #0d1117; border: 1px solid var(--border); }
+  .msg.assistant { align-self: flex-start; background: var(--surface); color: var(--text); border: 1px solid var(--border); }
   .msg.assistant h2 { border-bottom: 1px solid var(--border); padding-bottom: 6px; margin: 12px 0 8px; font-size: 17px; }
   .msg.assistant h3 { margin: 12px 0 6px; font-size: 14px; color: var(--blue); }
   .msg.assistant table { border-collapse: collapse; margin: 8px 0; font-size: 13px; }
   .msg.assistant td, .msg.assistant th { padding: 4px 12px; border: 1px solid var(--border); text-align: left; }
-  .msg.assistant th { background: #1c2129; }
-  .msg.assistant code { background: #1c2129; padding: 1px 5px; border-radius: 4px; font-size: 13px; }
-  .msg.assistant pre { background: #0d1117; border: 1px solid var(--border); border-radius: 6px; padding: 12px; overflow-x: auto; font-size: 12px; }
+  .msg.assistant th { background: var(--surface-2); color: var(--text); }
+  .msg.assistant code { background: var(--surface-2); color: var(--text); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+  .msg.assistant pre { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 12px; overflow-x: auto; font-size: 12px; }
 
   .input-bar { border-top: 1px solid var(--border); background: var(--surface); padding: 14px 24px; }
   .input-wrap { max-width: 900px; margin: 0 auto; display: flex; gap: 10px; }
